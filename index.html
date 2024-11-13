@@ -1185,7 +1185,7 @@
         <td>R$ ${entry.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
         <td>${entry.descricao}</td>
         <td data-mes-ano="${entry.mesAno}">${formatDate(entry.mesAno)}</td>
-        <td>${entry.arquivos.map(file => `<a href="${file.url}" target="_blank">${file.name}</a>`).join(', ')}</td>
+        <td>${entry.arquivos ? entry.arquivos.map(file => `<a href="${file.url}" target="_blank">${file.name}</a>`).join(', ') : ''}</td>
         <td>
           <button class="btn" onclick="editRevenue('${entry.id}')">Editar</button>
           <button class="btn btn-delete" onclick="deleteRevenue('${entry.id}')">Excluir</button>
@@ -1203,7 +1203,7 @@
         <td>R$ ${entry.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
         <td>${entry.descricao}</td>
         <td data-mes-ano="${entry.mesAno}">${formatDate(entry.mesAno)}</td>
-        <td>${entry.arquivos.map(file => `<a href="${file.url}" target="_blank">${file.name}</a>`).join(', ')}</td>
+        <td>${entry.arquivos ? entry.arquivos.map(file => `<a href="${file.url}" target="_blank">${file.name}</a>`).join(', ') : ''}</td>
         <td>
           <button class="btn" onclick="editCost('${entry.id}')">Editar</button>
           <button class="btn btn-delete" onclick="deleteCost('${entry.id}')">Excluir</button>
@@ -1221,7 +1221,7 @@
         <td>R$ ${entry.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
         <td>${entry.descricao}</td>
         <td data-mes-ano="${entry.mesAno}">${formatDate(entry.mesAno)}</td>
-        <td>${entry.arquivos.map(file => `<a href="${file.url}" target="_blank">${file.name}</a>`).join(', ')}</td>
+        <td>${entry.arquivos ? entry.arquivos.map(file => `<a href="${file.url}" target="_blank">${file.name}</a>`).join(', ') : ''}</td>
         <td>
           <button class="btn" onclick="editExpense('${entry.id}')">Editar</button>
           <button class="btn btn-delete" onclick="deleteExpense('${entry.id}')">Excluir</button>
