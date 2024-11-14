@@ -14,7 +14,6 @@
   <!-- SheetJS for Excel Export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
   <style>
-    /* Seu CSS permanece inalterado */
     :root {
       --primary: #2c3e50;
       --secondary: #34495e;
@@ -387,7 +386,6 @@
         
         <!-- Gráfico de Pizza -->
         <div class="chart-container chart-small">
-          <!-- Gráfico de Pizza sem título -->
           <canvas id="pieChart"></canvas>
         </div>
       </div>
@@ -419,7 +417,6 @@
         </div>
       </div>
     </div>
-    
     <!-- Painel Receitas -->
     <div id="revenue" class="panel">
       <h2>Cadastro de Receitas</h2>
@@ -645,872 +642,232 @@
   <div class="footer">
     Aplicativo de Samuel Bloch
   </div>
-  
-  <!-- Scripts -->
-  <script type="module">
-    // Import Firebase modules
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js';
-    import { getAnalytics } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-analytics.js';
-    import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js';
-    import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js';
+<script type="module">
+  // Import Firebase modules
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js';
+  import { getAnalytics } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-analytics.js';
+  import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js';
+  import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js';
 
-    // Your web app's Firebase configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyAbJeDK8Q2KZMWfHtqWpUYqvwa1dIbJXQA",
-      authDomain: "santome-5518c.firebaseapp.com",
-      projectId: "santome-5518c",
-      storageBucket: "santome-5518c.appspot.com",
-      messagingSenderId: "586838170514",
-      appId: "1:586838170514:web:68845f852d7d83ccebbf4b",
-      measurementId: "G-HGBWW5BZMM"
-    };
+  // Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyAbJeDK8Q2KZMWfHtqWpUYqvwa1dIbJXQA",
+    authDomain: "santome-5518c.firebaseapp.com",
+    projectId: "santome-5518c",
+    storageBucket: "santome-5518c.appspot.com",
+    messagingSenderId: "586838170514",
+    appId: "1:586838170514:web:68845f852d7d83ccebbf4b",
+    measurementId: "G-HGBWW5BZMM"
+  };
 
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
-    const db = getFirestore(app);
-    const storage = getStorage(app);
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const db = getFirestore(app);
+  const storage = getStorage(app);
 
-    // Variáveis para edição
-    let editRevenueId = null;
-    let editCostId = null;
-    let editExpenseId = null;
-    // Variável para armazenar o mês selecionado
-    let selectedMonth = null;
+  // Variables for editing
+  let editRevenueId = null;
+  let editCostId = null;
+  let editExpenseId = null;
+  let selectedMonth = null;
 
-    // Inicialização dos Gráficos
-    let lineChart, barChart, pieChart;
-    function initializeCharts() {
-      // Gráfico de Linhas
-      const ctxLine = document.getElementById('lineChart').getContext('2d');
-      lineChart = new Chart(ctxLine, {
-        type: 'line',
-        data: {
-          labels: [],
-          datasets: [
-            {
-              label: 'Receita Bruta',
-              data: [],
-              borderColor: '#3498db',
-              backgroundColor: 'rgba(52, 152, 219, 0.2)',
-              fill: true,
-              tension: 0.1
-            },
-            {
-              label: 'Lucro Líquido',
-              data: [],
-              borderColor: '#e74c3c',
-              backgroundColor: 'rgba(231, 76, 60, 0.2)',
-              fill: true,
-              tension: 0.1
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'top' },
-            title: { display: true, text: 'Evolução Financeira' }
-          }
-        }
-      });
-      
-      // Gráfico de Barras
-      const ctxBar = document.getElementById('barChart').getContext('2d');
-      barChart = new Chart(ctxBar, {
-        type: 'bar',
-        data: {
-          labels: [],
-          datasets: [
-            {
-              label: 'Despesas',
-              data: [],
-              backgroundColor: '#e74c3c'
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'top' },
-            title: { display: true, text: 'Despesas por Mês' }
-          }
-        }
-      });
-      
-      // Gráfico de Pizza
-      const ctxPie = document.getElementById('pieChart').getContext('2d');
-      pieChart = new Chart(ctxPie, {
-        type: 'pie',
-        data: {
-          labels: ['Administrativas', 'Comerciais', 'Financeiras', 'Caminhões', 'Combustível'],
-          datasets: [{
-            data: [],
-            backgroundColor: ['#e74c3c', '#f1c40f', '#8e44ad', '#2ecc71', '#3498db']
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            datalabels: {
-              formatter: (value) => 'R$ ' + value.toLocaleString('pt-BR', {minimumFractionDigits: 2}),
-              color: '#fff',
-              font: {
-                weight: 'bold',
-                size: 12
-              },
-              anchor: 'center',
-              align: 'center',
-              offset: 0,
-              rotation: 0
-            }
-          }
-        },
-        plugins: [ChartDataLabels]
-      });
-    }
+  // Initialize charts
+  let lineChart, barChart, pieChart;
+  function initializeCharts() {
+    const ctxLine = document.getElementById('lineChart').getContext('2d');
+    lineChart = new Chart(ctxLine, {
+      type: 'line',
+      data: { labels: [], datasets: [
+        { label: 'Receita Bruta', data: [], borderColor: '#3498db', backgroundColor: 'rgba(52, 152, 219, 0.2)', fill: true, tension: 0.1 },
+        { label: 'Lucro Líquido', data: [], borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.2)', fill: true, tension: 0.1 }
+      ]},
+      options: { responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Evolução Financeira' } } }
+    });
 
-    // Função para exibir o painel selecionado
-    function showPanel(panelId, clickedElement) {
-      document.querySelectorAll('.sidebar li').forEach(item => {
-        item.classList.remove('active');
-      });
-      document.querySelectorAll('.panel').forEach(panel => {
-        panel.classList.remove('active-panel');
-      });
-      clickedElement.classList.add('active');
-      const panel = document.getElementById(panelId);
-      if (panel) {
-        panel.classList.add('active-panel');
-      } else {
-        console.error(`Painel com ID '${panelId}' não encontrado.`);
-      }
-    }
+    const ctxBar = document.getElementById('barChart').getContext('2d');
+    barChart = new Chart(ctxBar, {
+      type: 'bar',
+      data: { labels: [], datasets: [{ label: 'Despesas', data: [], backgroundColor: '#e74c3c' }]},
+      options: { responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Despesas por Mês' } } }
+    });
 
-    // Função para formatar a data no formato MM/YYYY
-    function formatDate(dateString) {
-      const [year, month] = dateString.split('-');
-      return `${month}/${year}`;
-    }
+    const ctxPie = document.getElementById('pieChart').getContext('2d');
+    pieChart = new Chart(ctxPie, {
+      type: 'pie',
+      data: { labels: ['Administrativas', 'Comerciais', 'Financeiras', 'Caminhões', 'Combustível'], datasets: [{ data: [], backgroundColor: ['#e74c3c', '#f1c40f', '#8e44ad', '#2ecc71', '#3498db'] }]},
+      options: { responsive: true, plugins: { legend: { display: false }, datalabels: {
+          formatter: (value) => 'R$ ' + value.toLocaleString('pt-BR', {minimumFractionDigits: 2}), color: '#fff',
+          font: { weight: 'bold', size: 12 }, anchor: 'center', align: 'center', offset: 0
+      } } },
+      plugins: [ChartDataLabels]
+    });
+  }
 
-    // Função para atualizar os gráficos
-    async function updateCharts() {
-      try {
-        const [revenuesSnapshot, costsSnapshot, expensesSnapshot] = await Promise.all([
-          getDocs(collection(db, 'revenues')),
-          getDocs(collection(db, 'costs')),
-          getDocs(collection(db, 'expenses'))
-        ]);
+  // Display the selected panel
+  function showPanel(panelId, clickedElement) {
+    document.querySelectorAll('.sidebar li').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active-panel'));
+    clickedElement.classList.add('active');
+    const panel = document.getElementById(panelId);
+    panel.classList.add('active-panel');
+  }
 
-        // Extrair todos os meses únicos
-        const monthsSet = new Set();
-        revenuesSnapshot.forEach(doc => monthsSet.add(doc.data().mesAno));
-        costsSnapshot.forEach(doc => monthsSet.add(doc.data().mesAno));
-        expensesSnapshot.forEach(doc => monthsSet.add(doc.data().mesAno));
+  // Format date to MM/YYYY
+  function formatDate(dateString) {
+    const [year, month] = dateString.split('-');
+    return `${month}/${year}`;
+  }
 
-        const months = Array.from(monthsSet).sort();
-
-        const revenueData = [];
-        const netProfitData = [];
-        const expenseData = [];
-        const costData = [];
-
-        for (let month of months) {
-          const revenues = revenuesSnapshot.docs.filter(doc => doc.data().mesAno === month);
-          const costs = costsSnapshot.docs.filter(doc => doc.data().mesAno === month);
-          const expenses = expensesSnapshot.docs.filter(doc => doc.data().mesAno === month);
-
-          const totalRevenue = revenues.reduce((sum, doc) => sum + doc.data().valor, 0);
-          const totalCost = costs.reduce((sum, doc) => sum + doc.data().valor, 0);
-          const totalExpenses = expenses.reduce((sum, doc) => sum + doc.data().valor, 0);
-
-          const lucroBruto = totalRevenue - totalCost;
-          const lucroOperacional = lucroBruto - totalExpenses;
-
-          revenueData.push(totalRevenue);
-          netProfitData.push(lucroOperacional);
-          expenseData.push(totalExpenses);
-          costData.push(totalCost);
-        }
-
-        // Atualizar Gráfico de Linhas
-        lineChart.data.labels = months.map(formatDate);
-        lineChart.data.datasets[0].data = revenueData;
-        lineChart.data.datasets[1].data = netProfitData;
-        lineChart.update();
-
-        // Atualizar Gráfico de Barras
-        barChart.data.labels = months.map(formatDate);
-        barChart.data.datasets[0].data = expenseData;
-        barChart.update();
-
-        // Atualizar tabela de histórico
-        updateHistoryTable(months, revenueData, costData, expenseData);
-
-        // Atualizar cartões com dados do mês selecionado ou geral
-        updateCardsAndPieChart();
-      } catch (error) {
-        console.error('Erro ao atualizar gráficos:', error);
-      }
-    }
-
-    // Funções para atualizar a tabela de histórico
-    function updateHistoryTable(months, revenueData, costData, expenseData) {
-      const historyBody = document.getElementById('history-table-body');
-      historyBody.innerHTML = '';
-      for (let i = 0; i < months.length; i++) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${formatDate(months[i])}</td>
-          <td>R$ ${revenueData[i].toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-          <td>R$ ${costData[i].toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-          <td>R$ ${expenseData[i].toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-          <td><button class="btn btn-select" onclick="selectMonth('${months[i]}')">Selecionar</button></td>
-        `;
-        historyBody.appendChild(tr);
-      }
-    }
-
-    // Função para selecionar o mês
-    function selectMonth(month) {
-      selectedMonth = month;
-      updateCardsAndPieChart();
-    }
-
-    // Função para atualizar os cartões e o gráfico de pizza com base no mês selecionado
-    async function updateCardsAndPieChart() {
-      try {
-        let revenuesQuery = collection(db, 'revenues');
-        let costsQuery = collection(db, 'costs');
-        let expensesQuery = collection(db, 'expenses');
-
-        if (selectedMonth) {
-          revenuesQuery = query(revenuesQuery, where('mesAno', '==', selectedMonth));
-          costsQuery = query(costsQuery, where('mesAno', '==', selectedMonth));
-          expensesQuery = query(expensesQuery, where('mesAno', '==', selectedMonth));
-        }
-
-        const [revenuesSnapshot, costsSnapshot, expensesSnapshot] = await Promise.all([
-          getDocs(revenuesQuery),
-          getDocs(costsQuery),
-          getDocs(expensesQuery)
-        ]);
-
-        const totalRevenue = revenuesSnapshot.docs.reduce((sum, doc) => sum + doc.data().valor, 0);
-        const totalCost = costsSnapshot.docs.reduce((sum, doc) => sum + doc.data().valor, 0);
-        const totalExpenses = expensesSnapshot.docs.reduce((sum, doc) => sum + doc.data().valor, 0);
-
-        const lucroBruto = totalRevenue - totalCost;
-        const lucroOperacional = lucroBruto - totalExpenses;
-        const lucroLiquido = lucroOperacional;
-
-        if (selectedMonth) {
-          document.getElementById('selected-month-display').innerText = `Mês Selecionado: ${formatDate(selectedMonth)}`;
-        } else {
-          document.getElementById('selected-month-display').innerText = 'Mês Selecionado: Todos os Meses';
-        }
-
-        document.getElementById('gross-revenue').innerText = 'R$ ' +
-          totalRevenue.toLocaleString('pt-BR', {minimumFractionDigits: 2});
-        document.getElementById('operating-profit').innerText = 'R$ ' +
-          lucroOperacional.toLocaleString('pt-BR', {minimumFractionDigits: 2});
-        document.getElementById('net-profit').innerText = 'R$ ' +
-          lucroLiquido.toLocaleString('pt-BR', {minimumFractionDigits: 2});
-
-        // Atualizar gráfico de pizza
-        const expenseSums = {
-          'Administrativas': 0,
-          'Comerciais': 0,
-          'Financeiras': 0,
-          'Caminhões': 0,
-          'Combustível': 0
-        };
-
-        expensesSnapshot.docs.forEach(doc => {
-          const data = doc.data();
-          if (expenseSums.hasOwnProperty(data.tipo)) {
-            expenseSums[data.tipo] += data.valor;
-          }
-        });
-
-        const pieData = Object.values(expenseSums);
-        pieChart.data.datasets[0].data = pieData;
-        pieChart.update();
-
-      } catch (error) {
-        console.error('Erro ao atualizar cartões e gráfico de pizza:', error);
-      }
-    }
-
-    // Função para carregar dados do servidor e atualizar tabelas
-    async function loadDataFromServer() {
-      await Promise.all([
-        updateRevenueTable(),
-        updateCostTable(),
-        updateExpenseTable()
+  // Update charts
+  async function updateCharts() {
+    try {
+      const [revenuesSnapshot, costsSnapshot, expensesSnapshot] = await Promise.all([
+        getDocs(collection(db, 'revenues')), getDocs(collection(db, 'costs')), getDocs(collection(db, 'expenses'))
       ]);
-      updateCharts();
-    }
 
-    // Função para adicionar arquivos selecionados à lista
-    function handleFileSelection(event, listId) {
-      const fileList = event.target.files;
-      const listElement = document.getElementById(listId);
-      listElement.innerHTML = '';
-      for (let i = 0; i < fileList.length; i++) {
-        const p = document.createElement('p');
-        p.innerText = fileList[i].name;
-        listElement.appendChild(p);
-      }
-    }
+      const monthsSet = new Set();
+      revenuesSnapshot.forEach(doc => monthsSet.add(doc.data().mesAno));
+      costsSnapshot.forEach(doc => monthsSet.add(doc.data().mesAno));
+      expensesSnapshot.forEach(doc => monthsSet.add(doc.data().mesAno));
 
-    document.getElementById('revenue-file').addEventListener('change', (e) => {
-      handleFileSelection(e, 'revenue-file-list');
-    });
-    document.getElementById('costs-file').addEventListener('change', (e) => {
-      handleFileSelection(e, 'costs-file-list');
-    });
-    document.getElementById('expenses-file').addEventListener('change', (e) => {
-      handleFileSelection(e, 'expenses-file-list');
-    });
+      const months = Array.from(monthsSet).sort();
+      const revenueData = [], netProfitData = [], expenseData = [], costData = [];
 
-    // Inicializar tudo quando o documento estiver pronto
-    document.addEventListener('DOMContentLoaded', function() {
-      initializeCharts();
-      loadDataFromServer();
+      for (let month of months) {
+        const revenues = revenuesSnapshot.docs.filter(doc => doc.data().mesAno === month);
+        const costs = costsSnapshot.docs.filter(doc => doc.data().mesAno === month);
+        const expenses = expensesSnapshot.docs.filter(doc => doc.data().mesAno === month);
 
-      // Formulário de Receitas
-      const revenueForm = document.getElementById('revenue-form');
-      revenueForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-
-        // Upload de arquivos
-        let arquivos = [];
-        const files = document.getElementById('revenue-file').files;
-        if (files.length > 0) {
-          arquivos = await uploadFilesToStorage(files);
-        }
-
-        const data = {
-          tipo: formData.get('tipo'),
-          valor: parseFloat(formData.get('valor')),
-          descricao: formData.get('descricao'),
-          mesAno: formData.get('mesAno'),
-          arquivos
-        };
-
-        try {
-          if (editRevenueId !== null) {
-            await updateDoc(doc(db, 'revenues', editRevenueId), data);
-            alert('Receita atualizada com sucesso!');
-          } else {
-            await addDoc(collection(db, 'revenues'), data);
-            alert('Receita cadastrada com sucesso!');
-          }
-          this.reset();
-          document.getElementById('revenue-file-list').innerHTML = '';
-          editRevenueId = null;
-          await updateRevenueTable();
-          updateCharts();
-        } catch (error) {
-          console.error('Erro ao cadastrar receita:', error);
-          alert('Erro ao cadastrar receita.');
-        }
-      });
-
-      // Formulário de Custos
-      const costsForm = document.getElementById('costs-form');
-      costsForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-
-        // Upload de arquivos
-        let arquivos = [];
-        const files = document.getElementById('costs-file').files;
-        if (files.length > 0) {
-          arquivos = await uploadFilesToStorage(files);
-        }
-
-        const data = {
-          tipo: formData.get('tipo'),
-          valor: parseFloat(formData.get('valor')),
-          descricao: formData.get('descricao'),
-          mesAno: formData.get('mesAno'),
-          arquivos
-        };
-
-        try {
-          if (editCostId !== null) {
-            await updateDoc(doc(db, 'costs', editCostId), data);
-            alert('Custo atualizado com sucesso!');
-          } else {
-            await addDoc(collection(db, 'costs'), data);
-            alert('Custo cadastrado com sucesso!');
-          }
-          this.reset();
-          document.getElementById('costs-file-list').innerHTML = '';
-          editCostId = null;
-          await updateCostTable();
-          updateCharts();
-        } catch (error) {
-          console.error('Erro ao cadastrar custo:', error);
-          alert('Erro ao cadastrar custo.');
-        }
-      });
-
-      // Formulário de Despesas
-      const expensesForm = document.getElementById('expenses-form');
-      expensesForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-
-        // Upload de arquivos
-        let arquivos = [];
-        const files = document.getElementById('expenses-file').files;
-        if (files.length > 0) {
-          arquivos = await uploadFilesToStorage(files);
-        }
-
-        const data = {
-          tipo: formData.get('tipo'),
-          valor: parseFloat(formData.get('valor')),
-          descricao: formData.get('descricao'),
-          mesAno: formData.get('mesAno'),
-          arquivos
-        };
-
-        try {
-          if (editExpenseId !== null) {
-            await updateDoc(doc(db, 'expenses', editExpenseId), data);
-            alert('Despesa atualizada com sucesso!');
-          } else {
-            await addDoc(collection(db, 'expenses'), data);
-            alert('Despesa cadastrada com sucesso!');
-          }
-          this.reset();
-          document.getElementById('expenses-file-list').innerHTML = '';
-          editExpenseId = null;
-          await updateExpenseTable();
-          updateCharts();
-        } catch (error) {
-          console.error('Erro ao cadastrar despesa:', error);
-          alert('Erro ao cadastrar despesa.');
-        }
-      });
-
-      // Evento para gerar relatório
-      document.getElementById('report-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-        generateReport();
-      });
-    });
-
-    // Função para fazer upload de arquivos
-    async function uploadFilesToStorage(files) {
-      const arquivos = [];
-      for (let file of files) {
-        const storageRef = ref(storage, 'uploads/' + Date.now() + '_' + file.name);
-        try {
-          const snapshot = await uploadBytes(storageRef, file);
-          const downloadURL = await getDownloadURL(snapshot.ref);
-          arquivos.push({
-            name: file.name,
-            url: downloadURL
-          });
-        } catch (error) {
-          console.error('Erro ao fazer upload de arquivo:', error);
-        }
-      }
-      return arquivos;
-    }
-
-    // Funções para atualizar as tabelas
-    async function updateRevenueTable() {
-      try {
-        const revenuesSnapshot = await getDocs(collection(db, 'revenues'));
-        const history = document.getElementById('revenue-history');
-        if (!history) return;
-        history.innerHTML = '';
-        revenuesSnapshot.forEach((doc) => {
-          const entry = { id: doc.id, ...doc.data() };
-          addRevenueToTable(entry);
-        });
-      } catch (error) {
-        console.error('Erro ao atualizar tabela de receitas:', error);
-      }
-    }
-
-    async function updateCostTable() {
-      try {
-        const costsSnapshot = await getDocs(collection(db, 'costs'));
-        const history = document.getElementById('costs-history');
-        if (!history) return;
-        history.innerHTML = '';
-        costsSnapshot.forEach((doc) => {
-          const entry = { id: doc.id, ...doc.data() };
-          addCostToTable(entry);
-        });
-      } catch (error) {
-        console.error('Erro ao atualizar tabela de custos:', error);
-      }
-    }
-
-    async function updateExpenseTable() {
-      try {
-        const expensesSnapshot = await getDocs(collection(db, 'expenses'));
-        const history = document.getElementById('expenses-history');
-        if (!history) return;
-        history.innerHTML = '';
-        expensesSnapshot.forEach((doc) => {
-          const entry = { id: doc.id, ...doc.data() };
-          addExpenseToTable(entry);
-        });
-      } catch (error) {
-        console.error('Erro ao atualizar tabela de despesas:', error);
-      }
-    }
-
-    // Funções para adicionar dados às tabelas
-    function addRevenueToTable(entry) {
-      const history = document.getElementById('revenue-history');
-      if (!history) return;
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${entry.tipo}</td>
-        <td>R$ ${entry.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-        <td>${entry.descricao}</td>
-        <td data-mes-ano="${entry.mesAno}">${formatDate(entry.mesAno)}</td>
-        <td>${entry.arquivos ? entry.arquivos.map(file => `<a href="${file.url}" target="_blank">${file.name}</a>`).join(', ') : ''}</td>
-        <td>
-          <button class="btn" onclick="editRevenue('${entry.id}')">Editar</button>
-          <button class="btn btn-delete" onclick="deleteRevenue('${entry.id}')">Excluir</button>
-        </td>
-      `;
-      history.appendChild(tr);
-    }
-
-    function addCostToTable(entry) {
-      const history = document.getElementById('costs-history');
-      if (!history) return;
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${entry.tipo}</td>
-        <td>R$ ${entry.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-        <td>${entry.descricao}</td>
-        <td data-mes-ano="${entry.mesAno}">${formatDate(entry.mesAno)}</td>
-        <td>${entry.arquivos ? entry.arquivos.map(file => `<a href="${file.url}" target="_blank">${file.name}</a>`).join(', ') : ''}</td>
-        <td>
-          <button class="btn" onclick="editCost('${entry.id}')">Editar</button>
-          <button class="btn btn-delete" onclick="deleteCost('${entry.id}')">Excluir</button>
-        </td>
-      `;
-      history.appendChild(tr);
-    }
-
-    function addExpenseToTable(entry) {
-      const history = document.getElementById('expenses-history');
-      if (!history) return;
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${entry.tipo}</td>
-        <td>R$ ${entry.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-        <td>${entry.descricao}</td>
-        <td data-mes-ano="${entry.mesAno}">${formatDate(entry.mesAno)}</td>
-        <td>${entry.arquivos ? entry.arquivos.map(file => `<a href="${file.url}" target="_blank">${file.name}</a>`).join(', ') : ''}</td>
-        <td>
-          <button class="btn" onclick="editExpense('${entry.id}')">Editar</button>
-          <button class="btn btn-delete" onclick="deleteExpense('${entry.id}')">Excluir</button>
-        </td>
-      `;
-      history.appendChild(tr);
-    }
-
-    // Funções para editar registros
-    async function editRevenue(id) {
-      try {
-        const docRef = doc(db, 'revenues', id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const entry = docSnap.data();
-          const revenueForm = document.getElementById('revenue-form');
-          revenueForm.querySelector('select').value = entry.tipo;
-          revenueForm.querySelector('input[name="valor"]').value = entry.valor;
-          revenueForm.querySelector('textarea').value = entry.descricao;
-          revenueForm.querySelector('input[type="month"]').value = entry.mesAno;
-          editRevenueId = id;
-        } else {
-          console.log('Documento não encontrado!');
-        }
-      } catch (error) {
-        console.error('Erro ao editar receita:', error);
-      }
-    }
-
-    async function editCost(id) {
-      try {
-        const docRef = doc(db, 'costs', id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const entry = docSnap.data();
-          const costsForm = document.getElementById('costs-form');
-          costsForm.querySelector('select').value = entry.tipo;
-          costsForm.querySelector('input[name="valor"]').value = entry.valor;
-          costsForm.querySelector('textarea').value = entry.descricao;
-          costsForm.querySelector('input[type="month"]').value = entry.mesAno;
-          editCostId = id;
-        } else {
-          console.log('Documento não encontrado!');
-        }
-      } catch (error) {
-        console.error('Erro ao editar custo:', error);
-      }
-    }
-
-    async function editExpense(id) {
-      try {
-        const docRef = doc(db, 'expenses', id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const entry = docSnap.data();
-          const expensesForm = document.getElementById('expenses-form');
-          expensesForm.querySelector('select').value = entry.tipo;
-          expensesForm.querySelector('input[name="valor"]').value = entry.valor;
-          expensesForm.querySelector('textarea').value = entry.descricao;
-          expensesForm.querySelector('input[type="month"]').value = entry.mesAno;
-          editExpenseId = id;
-        } else {
-          console.log('Documento não encontrado!');
-        }
-      } catch (error) {
-        console.error('Erro ao editar despesa:', error);
-      }
-    }
-
-    // Funções para deletar registros
-    async function deleteRevenue(id) {
-      if (confirm('Tem certeza que deseja excluir este registro?')) {
-        try {
-          await deleteDoc(doc(db, 'revenues', id));
-          await updateRevenueTable();
-          updateCharts();
-        } catch (error) {
-          console.error('Erro ao excluir receita:', error);
-          alert('Erro ao excluir receita.');
-        }
-      }
-    }
-
-    async function deleteCost(id) {
-      if (confirm('Tem certeza que deseja excluir este registro?')) {
-        try {
-          await deleteDoc(doc(db, 'costs', id));
-          await updateCostTable();
-          updateCharts();
-        } catch (error) {
-          console.error('Erro ao excluir custo:', error);
-          alert('Erro ao excluir custo.');
-        }
-      }
-    }
-
-    async function deleteExpense(id) {
-      if (confirm('Tem certeza que deseja excluir este registro?')) {
-        try {
-          await deleteDoc(doc(db, 'expenses', id));
-          await updateExpenseTable();
-          updateCharts();
-        } catch (error) {
-          console.error('Erro ao excluir despesa:', error);
-          alert('Erro ao excluir despesa.');
-        }
-      }
-    }
-
-    // Funções de Busca
-    function searchRevenue() {
-      const searchTerm = document.getElementById('revenue-search').value.toLowerCase();
-      const searchMonth = document.getElementById('revenue-search-month').value;
-      const rows = document.querySelectorAll('#revenue-history tr');
-      rows.forEach(row => {
-        const tipo = row.cells[0].innerText.toLowerCase();
-        const descricao = row.cells[2].innerText.toLowerCase();
-        const mesAno = row.cells[3].dataset.mesAno;
-        const arquivos = row.cells[4].innerText.toLowerCase();
-        let matchSearchTerm = tipo.includes(searchTerm) || arquivos.includes(searchTerm) || descricao.includes(searchTerm);
-        let matchMonth = !searchMonth || mesAno === searchMonth;
-        if (matchSearchTerm && matchMonth) {
-          row.style.display = '';
-        } else {
-          row.style.display = 'none';
-        }
-      });
-    }
-
-    function searchCosts() {
-      const searchTerm = document.getElementById('costs-search').value.toLowerCase();
-      const searchMonth = document.getElementById('costs-search-month').value;
-      const rows = document.querySelectorAll('#costs-history tr');
-      rows.forEach(row => {
-        const tipo = row.cells[0].innerText.toLowerCase();
-        const descricao = row.cells[2].innerText.toLowerCase();
-        const mesAno = row.cells[3].dataset.mesAno;
-        const arquivos = row.cells[4].innerText.toLowerCase();
-        let matchSearchTerm = tipo.includes(searchTerm) || arquivos.includes(searchTerm) || descricao.includes(searchTerm);
-        let matchMonth = !searchMonth || mesAno === searchMonth;
-        if (matchSearchTerm && matchMonth) {
-          row.style.display = '';
-        } else {
-          row.style.display = 'none';
-        }
-      });
-    }
-
-    function searchExpenses() {
-      const searchTerm = document.getElementById('expenses-search').value.toLowerCase();
-      const searchMonth = document.getElementById('expenses-search-month').value;
-      const rows = document.querySelectorAll('#expenses-history tr');
-      rows.forEach(row => {
-        const tipo = row.cells[0].innerText.toLowerCase();
-        const descricao = row.cells[2].innerText.toLowerCase();
-        const mesAno = row.cells[3].dataset.mesAno;
-        const arquivos = row.cells[4].innerText.toLowerCase();
-        let matchSearchTerm = tipo.includes(searchTerm) || arquivos.includes(searchTerm) || descricao.includes(searchTerm);
-        let matchMonth = !searchMonth || mesAno === searchMonth;
-        if (matchSearchTerm && matchMonth) {
-          row.style.display = '';
-        } else {
-          row.style.display = 'none';
-        }
-      });
-    }
-
-    // Função para gerar o relatório DRE
-    async function generateReport() {
-      const reportType = document.getElementById('report-type').value;
-      const reportStart = document.getElementById('report-start').value;
-      const reportEnd = document.getElementById('report-end').value;
-      if (reportType === 'dre') {
-        generateDREReport(reportStart, reportEnd);
-      } else {
-        alert('Tipo de relatório não suportado no momento.');
-      }
-    }
-
-    async function generateDREReport(startDate, endDate) {
-      try {
-        const revenuesQuery = query(collection(db, 'revenues'), where('mesAno', '>=', startDate), where('mesAno', '<=', endDate));
-        const costsQuery = query(collection(db, 'costs'), where('mesAno', '>=', startDate), where('mesAno', '<=', endDate));
-        const expensesQuery = query(collection(db, 'expenses'), where('mesAno', '>=', startDate), where('mesAno', '<=', endDate));
-
-        const [revenuesSnapshot, costsSnapshot, expensesSnapshot] = await Promise.all([
-          getDocs(revenuesQuery),
-          getDocs(costsQuery),
-          getDocs(expensesQuery)
-        ]);
-
-        const totalRevenue = revenuesSnapshot.docs.reduce((sum, doc) => sum + doc.data().valor, 0);
-        const totalCost = costsSnapshot.docs.reduce((sum, doc) => sum + doc.data().valor, 0);
-        const totalExpenses = expensesSnapshot.docs.reduce((sum, doc) => sum + doc.data().valor, 0);
+        const totalRevenue = revenues.reduce((sum, doc) => sum + doc.data().valor, 0);
+        const totalCost = costs.reduce((sum, doc) => sum + doc.data().valor, 0);
+        const totalExpenses = expenses.reduce((sum, doc) => sum + doc.data().valor, 0);
 
         const lucroBruto = totalRevenue - totalCost;
         const lucroOperacional = lucroBruto - totalExpenses;
-        const lucroAntesTributos = lucroOperacional;
-        const irpj = lucroAntesTributos * 0.15; // Supondo 15% para IRPJ
-        const csll = lucroAntesTributos * 0.09; // Supondo 9% para CSLL
-        const lucroLiquido = lucroAntesTributos - irpj - csll;
 
-        const reportData = {
-          totalRevenue,
-          totalCost,
-          totalExpenses,
-          lucroBruto,
-          lucroOperacional,
-          lucroAntesTributos,
-          irpj,
-          csll,
-          lucroLiquido
-        };
-
-        const reportContent = `
-          <h3>Demonstração do Resultado do Exercício (DRE)</h3>
-          <p>Período: ${formatDate(startDate)} a ${formatDate(endDate)}</p>
-          <table class="table">
-            <tr>
-              <th>Descrição</th>
-              <th>Valor (R$)</th>
-            </tr>
-            <tr>
-              <td>Receita Bruta de Vendas</td>
-              <td>${reportData.totalRevenue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-            </tr>
-            <tr>
-              <td>(-) Custos das Mercadorias Vendidas</td>
-              <td>${reportData.totalCost.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-            </tr>
-            <tr>
-              <td>= Lucro Bruto</td>
-              <td>${reportData.lucroBruto.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-            </tr>
-            <tr>
-              <td>(-) Despesas Operacionais</td>
-              <td>${reportData.totalExpenses.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-            </tr>
-            <tr>
-              <td>= Lucro Operacional</td>
-              <td>${reportData.lucroOperacional.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-            </tr>
-            <tr>
-              <td>= Lucro Antes dos Tributos</td>
-              <td>${reportData.lucroAntesTributos.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-            </tr>
-            <tr>
-              <td>(-) IRPJ</td>
-              <td>${reportData.irpj.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-            </tr>
-            <tr>
-              <td>(-) CSLL</td>
-              <td>${reportData.csll.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-            </tr>
-            <tr>
-              <td>= Lucro Líquido do Exercício</td>
-              <td>${reportData.lucroLiquido.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-            </tr>
-          </table>
-        `;
-        const reportOutput = document.getElementById('report-output');
-        reportOutput.style.display = 'block';
-        document.getElementById('report-content').innerHTML = reportContent;
-      } catch (error) {
-        console.error('Erro ao gerar relatório:', error);
+        revenueData.push(totalRevenue);
+        netProfitData.push(lucroOperacional);
+        expenseData.push(totalExpenses);
+        costData.push(totalCost);
       }
-    }
 
-    // Função para exportar o relatório para PDF
-    function exportToPDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      doc.html(document.getElementById('report-content'), {
-        callback: function (doc) {
-          doc.save("dre_report.pdf");
-        },
-        x: 10,
-        y: 10,
-        width: 180,
-        windowWidth: 650
+      lineChart.data.labels = months.map(formatDate);
+      lineChart.data.datasets[0].data = revenueData;
+      lineChart.data.datasets[1].data = netProfitData;
+      lineChart.update();
+
+      barChart.data.labels = months.map(formatDate);
+      barChart.data.datasets[0].data = expenseData;
+      barChart.update();
+
+      updateHistoryTable(months, revenueData, costData, expenseData);
+      updateCardsAndPieChart();
+    } catch (error) {
+      console.error('Erro ao atualizar gráficos:', error);
+    }
+  }
+
+  // Update history table
+  function updateHistoryTable(months, revenueData, costData, expenseData) {
+    const historyBody = document.getElementById('history-table-body');
+    historyBody.innerHTML = '';
+    for (let i = 0; i < months.length; i++) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${formatDate(months[i])}</td>
+        <td>R$ ${revenueData[i].toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+        <td>R$ ${costData[i].toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+        <td>R$ ${expenseData[i].toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+        <td><button class="btn btn-select" onclick="selectMonth('${months[i]}')">Selecionar</button></td>
+      `;
+      historyBody.appendChild(tr);
+    }
+  }
+
+  // Select month
+  function selectMonth(month) {
+    selectedMonth = month;
+    updateCardsAndPieChart();
+  }
+
+  // Update cards and pie chart based on selected month
+  async function updateCardsAndPieChart() {
+    try {
+      let revenuesQuery = collection(db, 'revenues');
+      let costsQuery = collection(db, 'costs');
+      let expensesQuery = collection(db, 'expenses');
+
+      if (selectedMonth) {
+        revenuesQuery = query(revenuesQuery, where('mesAno', '==', selectedMonth));
+        costsQuery = query(costsQuery, where('mesAno', '==', selectedMonth));
+        expensesQuery = query(expensesQuery, where('mesAno', '==', selectedMonth));
+      }
+
+      const [revenuesSnapshot, costsSnapshot, expensesSnapshot] = await Promise.all([
+        getDocs(revenuesQuery), getDocs(costsQuery), getDocs(expensesQuery)
+      ]);
+
+      const totalRevenue = revenuesSnapshot.docs.reduce((sum, doc) => sum + doc.data().valor, 0);
+      const totalCost = costsSnapshot.docs.reduce((sum, doc) => sum + doc.data().valor, 0);
+      const totalExpenses = expensesSnapshot.docs.reduce((sum, doc) => sum + doc.data().valor, 0);
+
+      const lucroBruto = totalRevenue - totalCost;
+      const lucroOperacional = lucroBruto - totalExpenses;
+      const lucroLiquido = lucroOperacional;
+
+      if (selectedMonth) {
+        document.getElementById('selected-month-display').innerText = `Mês Selecionado: ${formatDate(selectedMonth)}`;
+      } else {
+        document.getElementById('selected-month-display').innerText = 'Mês Selecionado: Todos os Meses';
+      }
+
+      document.getElementById('gross-revenue').innerText = 'R$ ' + totalRevenue.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+      document.getElementById('operating-profit').innerText = 'R$ ' + lucroOperacional.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+      document.getElementById('net-profit').innerText = 'R$ ' + lucroLiquido.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+
+      const expenseSums = { 'Administrativas': 0, 'Comerciais': 0, 'Financeiras': 0, 'Caminhões': 0, 'Combustível': 0 };
+      expensesSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (expenseSums.hasOwnProperty(data.tipo)) {
+          expenseSums[data.tipo] += data.valor;
+        }
       });
-    }
 
-    // Função para exportar o relatório para Excel
-    function exportToExcel() {
-      const table = document.querySelector('#report-content table');
-      const wb = XLSX.utils.table_to_book(table, { sheet: "DRE" });
-      XLSX.writeFile(wb, "dre_report.xlsx");
+      const pieData = Object.values(expenseSums);
+      pieChart.data.datasets[0].data = pieData;
+      pieChart.update();
+    } catch (error) {
+      console.error('Erro ao atualizar cartões e gráfico de pizza:', error);
     }
-  </script>
+  }
+
+  // Load data from server and update tables
+  async function loadDataFromServer() {
+    await Promise.all([updateRevenueTable(), updateCostTable(), updateExpenseTable()]);
+    updateCharts();
+  }
+
+  // Add files selected to the list
+  function handleFileSelection(event, listId) {
+    const fileList = event.target.files;
+    const listElement = document.getElementById(listId);
+    listElement.innerHTML = '';
+    for (let i = 0; i < fileList.length; i++) {
+      const p = document.createElement('p');
+      p.innerText = fileList[i].name;
+      listElement.appendChild(p);
+    }
+  }
+
+  document.getElementById('revenue-file').addEventListener('change', (e) => handleFileSelection(e, 'revenue-file-list'));
+  document.getElementById('costs-file').addEventListener('change', (e) => handleFileSelection(e, 'costs-file-list'));
+  document.getElementById('expenses-file').addEventListener('change', (e) => handleFileSelection(e, 'expenses-file-list'));
+
+  document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+    loadDataFromServer();
+  });
+</script>
 </body>
 </html>
