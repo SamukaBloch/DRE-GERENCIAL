@@ -701,9 +701,29 @@ let lineChart, barChart, pieChart;
 
 // Função para upload de arquivos
 async function uploadArquivo(arquivo, pasta) {
-  const storageRef = ref(storage, `${pasta}/${Date.now()}_${arquivo.name}`);
-  await uploadBytes(storageRef, arquivo);
-  return await getDownloadURL(storageRef);
+  try {
+    const metadata = {
+      contentType: arquivo.type,
+      customMetadata: {
+        'Access-Control-Allow-Origin': '*'
+      }
+    };
+    
+    const headers = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    };
+    
+    const storageRef = ref(storage, `${pasta}/${Date.now()}_${arquivo.name}`);
+    const uploadResult = await uploadBytes(storageRef, arquivo, { metadata, headers });
+    const downloadURL = await getDownloadURL(uploadResult.ref);
+    
+    return downloadURL;
+  } catch (erro) {
+    console.error('Erro no upload:', erro);
+    throw erro;
+  }
 }
 
 // Função para manipular o envio do formulário
