@@ -6,8 +6,10 @@
   <!-- Estilos e Bibliotecas -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
+  <!-- Adicionado plugin de datalabels que faltava -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <!-- Corrigido import do jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
   <style>
     :root {
@@ -334,16 +336,17 @@
         margin-left: 150px;
       }
     }
-.arquivo-link {
-  color: #3498db;
-  text-decoration: none;
-  display: inline-block;
-  margin: 2px 0;
-}
-
-.arquivo-link:hover {
-  text-decoration: underline;
-}
+    
+    .arquivo-link {
+      color: #3498db;
+      text-decoration: none;
+      display: inline-block;
+      margin: 2px 0;
+    }
+    
+    .arquivo-link:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -476,13 +479,8 @@
           <input type="month" name="mesAno" class="form-control" required>
         </div>
         <div class="form-group">
-          <label>Arquivo Comprobatório</label>
-          <div class="file-upload" onclick="document.getElementById('revenue-file').click()">
-            <input type="file" id="revenue-file" name="files" accept=".xlsx,.xls,.pdf,.doc,.docx" style="display:none;"
-multiple>
-            <p>Arraste um arquivo ou clique para selecionar</p>
-          </div>
-          <div id="revenue-file-list"></div>
+          <label>Arquivo Comprobatório (URL)</label>
+          <input type="url" name="arquivoUrl" class="form-control" placeholder="Insira o link do arquivo comprovante" required>
         </div>
         <button type="submit" class="btn">Salvar</button>
       </form>
@@ -537,12 +535,8 @@ multiple>
           <input type="month" name="mesAno" class="form-control" required>
         </div>
         <div class="form-group">
-          <label>Arquivo Comprobatório</label>
-          <div class="file-upload" onclick="document.getElementById('costs-file').click()">
-            <input type="file" id="costs-file" name="files" accept=".xlsx,.xls,.pdf,.doc,.docx" style="display:none;" multiple>
-            <p>Arraste um arquivo ou clique para selecionar</p>
-          </div>
-          <div id="costs-file-list"></div>
+          <label>Arquivo Comprobatório (URL)</label>
+          <input type="url" name="arquivoUrl" class="form-control" placeholder="Insira o link do arquivo comprovante" required>
         </div>
         <button type="submit" class="btn">Salvar</button>
       </form>
@@ -599,13 +593,10 @@ multiple>
           <input type="month" name="mesAno" class="form-control" required>
         </div>
         <div class="form-group">
-          <label>Arquivo Comprobatório</label>
-          <div class="file-upload" onclick="document.getElementById('expenses-file').click()">
-            <input type="file" id="expenses-file" name="files" accept=".xlsx,.xls,.pdf,.doc,.docx" style="display:none;" multiple>
-            <p>Arraste um arquivo ou clique para selecionar</p>
-          </div>
-          <div id="expenses-file-list"></div>
+          <label>Arquivo Comprobatório (URL)</label>
+          <input type="url" name="arquivoUrl" class="form-control" placeholder="Insira o link do arquivo comprovante" required>
         </div>
+        <div id="expenses-file-list"></div>
         <button type="submit" class="btn">Salvar</button>
       </form>
 
@@ -669,695 +660,406 @@ multiple>
   </div>
 
   <script type="module">
+      // Função auxiliar para validação de URL
+    function validarURL(url) {
+      if (!url) return true;
+      try {
+        new URL(url);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    // Função para formatar moeda
+    function formatarMoeda(valor) {
+      return valor.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      });
+    }
+
+    // Função para formatar data
+    function formatarData(dataString) {
+      const [ano, mes] = dataString.split('-');
+      return `${mes}/${ano}`;
+    }
+
     // Importações do Firebase
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js';
-import { getAnalytics } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-analytics.js';
-import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js';
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js';
+    import { getAnalytics } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-analytics.js';
+    import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js';
 
-// Configuração do Firebase
-const firebaseConfig = {
-  apiKey: "AIzaSyAbJeDK8Q2KZMWfHtqWpUYqvwa1dIbJXQA",
-  authDomain: "santome-5518c.firebaseapp.com",
-  projectId: "santome-5518c",
-  storageBucket: "santome-5518c.appspot.com",
-  messagingSenderId: "586838170514",
-  appId: "1:586838170514:web:68845f852d7d83ccebbf4b",
-  measurementId: "G-HGBWW5BZMM"
-};
+    // Configuração do Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyAbJeDK8Q2KZMWfHtqWpUYqvwa1dIbJXQA",
+      authDomain: "santome-5518c.firebaseapp.com",
+      projectId: "santome-5518c",
+      storageBucket: "santome-5518c.appspot.com",
+      messagingSenderId: "586838170514",
+      appId: "1:586838170514:web:68845f852d7d83ccebbf4b",
+      measurementId: "G-HGBWW5BZMM"
+    };
 
-// Inicialização do Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+    // Inicialização do Firebase
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const db = getFirestore(app);
 
-// Variáveis globais
-let editRevenueId = null;
-let editCostId = null;
-let editExpenseId = null;
-let selectedMonth = null;
-let lineChart, barChart, pieChart;
+    // Variáveis globais
+    let editRevenueId = null;
+    let editCostId = null;
+    let editExpenseId = null;
+    let selectedMonth = null;
+    let lineChart, barChart, pieChart;
 
-// Função para upload de arquivos
-async function uploadArquivo(arquivo, pasta) {
-  try {
-    const metadata = {
-      contentType: arquivo.type,
-      customMetadata: {
-        'Access-Control-Allow-Origin': '*'
+    // Função para mostrar painéis
+    window.showPanel = function(panelId, clickedElement) {
+      document.querySelectorAll('.sidebar li').forEach(item => item.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active-panel'));
+      clickedElement.classList.add('active');
+      document.getElementById(panelId).classList.add('active-panel');
+    };
+
+    // Função para criar linha da tabela com link do documento
+    function criarLinhaTabelaComArquivos(doc, dados, colecao) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${dados.tipo}</td>
+        <td>${formatarMoeda(dados.valor)}</td>
+        <td>${dados.descricao}</td>
+        <td>${formatarData(dados.mesAno)}</td>
+        <td>
+          ${dados.linkDocumento ? 
+            `<a href="${dados.linkDocumento}" target="_blank" class="arquivo-link">
+              <i class="fas fa-external-link-alt"></i> Ver documento
+            </a>` : 
+            '-'}
+        </td>
+        <td>
+          <button class="btn" onclick="editar${colecao}('${doc.id}')">Editar</button>
+          <button class="btn btn-delete" onclick="excluir${colecao}('${doc.id}')">Excluir</button>
+        </td>
+      `;
+      return tr;
+    }
+
+    // Função genérica para manipular o envio do formulário
+    async function handleFormSubmit(e, colecao, editId) {
+      e.preventDefault();
+      try {
+        // Mostrar loading
+        e.target.querySelector('button[type="submit"]').disabled = true;
+        e.target.querySelector('button[type="submit"]').innerText = 'Salvando...';
+
+        const formData = new FormData(e.target);
+        const linkDocumento = formData.get('linkDocumento');
+        
+        if (linkDocumento && !validarURL(linkDocumento)) {
+          throw new Error('URL inválida');
+        }
+
+        // Dados do documento
+        const dados = {
+          tipo: formData.get('tipo'),
+          valor: parseFloat(formData.get('valor')),
+          descricao: formData.get('descricao'),
+          mesAno: formData.get('mesAno'),
+          linkDocumento: linkDocumento || '',
+          dataRegistro: new Date().toISOString(),
+          ultimaAtualizacao: new Date().toISOString()
+        };
+
+        // Salvar no Firestore
+        if (editId) {
+          await updateDoc(doc(db, colecao, editId), dados);
+        } else {
+          await addDoc(collection(db, colecao), dados);
+        }
+        
+        // Limpar formulário e atualizar
+        e.target.reset();
+        await carregarDados(colecao);
+        await atualizarGraficos();
+        // Feedback para o usuário
+        alert('Registro salvo com sucesso!');
+      } catch (erro) {
+        console.error('Erro ao salvar:', erro);
+        alert('Erro ao salvar o registro. Por favor, tente novamente.');
+      } finally {
+        // Restaurar botão
+        e.target.querySelector('button[type="submit"]').disabled = false;
+        e.target.querySelector('button[type="submit"]').innerText = 'Salvar';
+      }
+    }
+
+    // Função única para editar registros
+    window.editarReceita = async function(id) {
+      try {
+        const docRef = doc(db, 'revenues', id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const dados = docSnap.data();
+          const form = document.getElementById('revenue-form');
+          form.tipo.value = dados.tipo;
+          form.valor.value = dados.valor;
+          form.descricao.value = dados.descricao;
+          form.mesAno.value = dados.mesAno;
+          form.linkDocumento.value = dados.linkDocumento || '';
+          editRevenueId = id;
+        }
+      } catch (erro) {
+        console.error('Erro ao editar receita:', erro);
       }
     };
-    
-    const headers = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
-    };
-    
-    const storageRef = ref(storage, `${pasta}/${Date.now()}_${arquivo.name}`);
-    const uploadResult = await uploadBytes(storageRef, arquivo, { metadata, headers });
-    const downloadURL = await getDownloadURL(uploadResult.ref);
-    
-    return downloadURL;
-  } catch (erro) {
-    console.error('Erro no upload:', erro);
-    throw erro;
-  }
-}
 
-// Função para manipular o envio do formulário
-async function handleFormSubmit(e, colecao, editId) {
-  e.preventDefault();
-  const formData = new FormData(e.target);
-  const arquivos = e.target.querySelector('input[type="file"]').files;
-  const urlsArquivos = [];
-
-  try {
-    for (let arquivo of arquivos) {
-      const url = await uploadArquivo(arquivo, colecao);
-      urlsArquivos.push({ nome: arquivo.name, url });
-    }
-
-    const dados = {
-      tipo: formData.get('tipo'),
-      valor: parseFloat(formData.get('valor')),
-      descricao: formData.get('descricao'),
-      mesAno: formData.get('mesAno'),
-      arquivos: urlsArquivos
+    window.editarCusto = async function(id) {
+      try {
+        const docRef = doc(db, 'costs', id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const dados = docSnap.data();
+          const form = document.getElementById('costs-form');
+          form.tipo.value = dados.tipo;
+          form.valor.value = dados.valor;
+          form.descricao.value = dados.descricao;
+          form.mesAno.value = dados.mesAno;
+          form.linkDocumento.value = dados.linkDocumento || '';
+          editCostId = id;
+        }
+      } catch (erro) {
+        console.error('Erro ao editar custo:', erro);
+      }
     };
 
-    if (editId) {
-      await updateDoc(doc(db, colecao, editId), dados);
-    } else {
-      await addDoc(collection(db, colecao), dados);
+    window.editarDespesa = async function(id) {
+      try {
+        const docRef = doc(db, 'expenses', id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const dados = docSnap.data();
+          const form = document.getElementById('expenses-form');
+          form.tipo.value = dados.tipo;
+          form.valor.value = dados.valor;
+          form.descricao.value = dados.descricao;
+          form.mesAno.value = dados.mesAno;
+          form.linkDocumento.value = dados.linkDocumento || '';
+          editExpenseId = id;
+        }
+      } catch (erro) {
+        console.error('Erro ao editar despesa:', erro);
+      }
+    };
+
+    // Função genérica para carregar dados de uma coleção
+    async function carregarDados(colecao) {
+      try {
+        let querySnapshot = await getDocs(collection(db, colecao));
+        let tbody;
+        if (colecao === 'revenues') {
+          tbody = document.getElementById('revenue-history');
+        } else if (colecao === 'costs') {
+          tbody = document.getElementById('costs-history');
+        } else if (colecao === 'expenses') {
+          tbody = document.getElementById('expenses-history');
+        }
+        tbody.innerHTML = '';
+        querySnapshot.forEach((doc) => {
+          const dados = doc.data();
+          tbody.appendChild(criarLinhaTabelaComArquivos(doc, dados, colecao.charAt(0).toUpperCase() + colecao.slice(1)));
+        });
+      } catch (erro) {
+        console.error(`Erro ao carregar dados de ${colecao}:`, erro);
+      }
     }
-    
-    e.target.reset();
-    await carregarDados(colecao);
-    await atualizarGraficos();
-  } catch (erro) {
-    console.error('Erro ao salvar:', erro);
-  }
-}
 
-// Função genérica para carregar dados
-async function carregarDados(colecao) {
-  switch(colecao) {
-    case 'revenues':
-      await carregarReceitas();
-      break;
-    case 'costs':
-      await carregarCustos();
-      break;
-    case 'expenses':
-      await carregarDespesas();
-      break;
-  }
-}
+    // Funções de exclusão
+    window.excluirReceita = async function(id) {
+      if (confirm('Tem certeza que deseja excluir esta receita?')) {
+        try {
+          await deleteDoc(doc(db, 'revenues', id));
+          await carregarDados('revenues');
+          await atualizarGraficos();
+        } catch (erro) {
+          console.error('Erro ao excluir receita:', erro);
+        }
+      }
+    };
 
-// Função para mostrar painéis
-function showPanel(panelId, clickedElement) {
-  document.querySelectorAll('.sidebar li').forEach(item => item.classList.remove('active'));
-  document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active-panel'));
-  clickedElement.classList.add('active');
-  document.getElementById(panelId).classList.add('active-panel');
-}
+    window.excluirCusto = async function(id) {
+      if (confirm('Tem certeza que deseja excluir este custo?')) {
+        try {
+          await deleteDoc(doc(db, 'costs', id));
+          await carregarDados('costs');
+          await atualizarGraficos();
+        } catch (erro) {
+          console.error('Erro ao excluir custo:', erro);
+        }
+      }
+    };
 
-// Funções de formatação
-function formatarData(dataString) {
-  const [ano, mes] = dataString.split('-');
-  return `${mes}/${ano}`;
-}
+    window.excluirDespesa = async function(id) {
+      if (confirm('Tem certeza que deseja excluir esta despesa?')) {
+        try {
+          await deleteDoc(doc(db, 'expenses', id));
+          await carregarDados('expenses');
+          await atualizarGraficos();
+        } catch (erro) {
+          console.error('Erro ao excluir despesa:', erro);
+        }
+      }
+    };
 
-function formatarMoeda(valor) {
-  return valor.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  });
-}
-
-// Função para criar linha da tabela com arquivos
-function criarLinhaTabelaComArquivos(doc, dados, colecao) {
-  const tr = document.createElement('tr');
-  tr.innerHTML = `
-    <td>${dados.tipo}</td>
-    <td>${formatarMoeda(dados.valor)}</td>
-    <td>${dados.descricao}</td>
-    <td>${formatarData(dados.mesAno)}</td>
-    <td>
-      ${dados.arquivos ? dados.arquivos.map(arquivo => 
-        `<a href="${arquivo.url}" target="_blank" class="arquivo-link">${arquivo.nome}</a>`
-      ).join('<br>') : ''}
-    </td>
-    <td>
-      <button class="btn" onclick="editar${colecao}('${doc.id}')">Editar</button>
-      <button class="btn btn-delete" onclick="excluir${colecao}('${doc.id}')">Excluir</button>
-    </td>
-  `;
-  return tr;
-}
-
-// Inicialização dos gráficos
-function inicializarGraficos() {
-  const ctxLine = document.getElementById('lineChart').getContext('2d');
-  lineChart = new Chart(ctxLine, {
-    type: 'line',
-    data: {
-      labels: [],
-      datasets: [
-        {
-          label: 'Receita Bruta',
-          data: [],
-          borderColor: '#3498db',
-          backgroundColor: 'rgba(52, 152, 219, 0.2)',
-          fill: true,
-          tension: 0.1
+    // Função para inicializar gráficos
+    function inicializarGraficos() {
+      const ctxLine = document.getElementById('lineChart').getContext('2d');
+      lineChart = new Chart(ctxLine, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'Receita Bruta',
+              data: [],
+              borderColor: '#3498db',
+              backgroundColor: 'rgba(52, 152, 219, 0.2)',
+              fill: true,
+              tension: 0.1,
+            },
+            {
+              label: 'Lucro Líquido',
+              data: [],
+              borderColor: '#e74c3c',
+              backgroundColor: 'rgba(231, 76, 60, 0.2)',
+              fill: true,
+              tension: 0.1,
+            },
+          ],
         },
-        {
-          label: 'Lucro Líquido',
-          data: [],
-          borderColor: '#e74c3c',
-          backgroundColor: 'rgba(231, 76, 60, 0.2)',
-          fill: true,
-          tension: 0.1
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { position: 'top' },
-        title: { display: true, text: 'Evolução Financeira' }
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'top' },
+            title: { display: true, text: 'Evolução Financeira' },
+          },
+        },
+      });
+
+      const ctxBar = document.getElementById('barChart').getContext('2d');
+      barChart = new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'Despesas',
+              data: [],
+              backgroundColor: '#e74c3c',
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'top' },
+            title: { display: true, text: 'Despesas por Mês' },
+          },
+        },
+      });
+
+      const ctxPie = document.getElementById('pieChart').getContext('2d');
+      pieChart = new Chart(ctxPie, {
+        type: 'pie',
+        data: {
+          labels: ['Administrativas', 'Comerciais', 'Financeiras', 'Caminhões', 'Combustível'],
+          datasets: [
+            {
+              data: [],
+              backgroundColor: ['#e74c3c', '#f1c40f', '#8e44ad', '#2ecc71', '#3498db'],
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            datalabels: {
+              formatter: (value) => formatarMoeda(value),
+              color: '#fff',
+              font: { weight: 'bold', size: 12 },
+              anchor: 'center',
+              align: 'center',
+              offset: 0,
+            },
+          },
+        },
+        plugins: [ChartDataLabels],
+      });
+    }
+
+    // Função para atualizar os gráficos com os novos dados
+    async function atualizarGraficos() {
+      try {
+        // Consultar todos os dados de receitas, custos e despesas
+        const receitas = await getDocs(collection(db, 'revenues'));
+        const custos = await getDocs(collection(db, 'costs'));
+        const despesas = await getDocs(collection(db, 'expenses'));
+
+        // Organizar dados por mês para receitas, custos e despesas
+        let receitasPorMes = {};
+        let custosPorMes = {};
+        let despesasPorMes = {};
+
+        receitas.forEach((doc) => {
+          const { valor, mesAno } = doc.data();
+          if (!receitasPorMes[mesAno]) receitasPorMes[mesAno] = 0;
+          receitasPorMes[mesAno] += valor;
+        });
+
+        custos.forEach((doc) => {
+          const { valor, mesAno } = doc.data();
+          if (!custosPorMes[mesAno]) custosPorMes[mesAno] = 0;
+          custosPorMes[mesAno] += valor;
+        });
+
+        despesas.forEach((doc) => {
+          const { valor, mesAno, tipo } = doc.data();
+          if (!despesasPorMes[mesAno]) despesasPorMes[mesAno] = 0;
+          despesasPorMes[mesAno] += valor;
+
+          // Atualizar valores para o gráfico de pizza de despesas por tipo
+          if (pieChart.data.labels.includes(tipo)) {
+            const index = pieChart.data.labels.indexOf(tipo);
+            pieChart.data.datasets[0].data[index] = (pieChart.data.datasets[0].data[index] || 0) + valor;
+          }
+        });
+
+        // Atualizar os gráficos
+        lineChart.data.labels = Object.keys(receitasPorMes);
+        lineChart.data.datasets[0].data = Object.values(receitasPorMes);
+        lineChart.data.datasets[1].data = Object.values(receitasPorMes).map(
+          (receita, index) => receita - (custosPorMes[lineChart.data.labels[index]] || 0) - (despesasPorMes[lineChart.data.labels[index]] || 0)
+        );
+
+        barChart.data.labels = Object.keys(despesasPorMes);
+        barChart.data.datasets[0].data = Object.values(despesasPorMes);
+
+        pieChart.update();
+        lineChart.update();
+        barChart.update();
+      } catch (erro) {
+        console.error('Erro ao atualizar gráficos:', erro);
       }
     }
-  });
 
-  const ctxBar = document.getElementById('barChart').getContext('2d');
-  barChart = new Chart(ctxBar, {
-    type: 'bar',
-    data: {
-      labels: [],
-      datasets: [{
-        label: 'Despesas',
-        data: [],
-        backgroundColor: '#e74c3c'
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { position: 'top' },
-        title: { display: true, text: 'Despesas por Mês' }
-      }
-    }
-  });
-
-  const ctxPie = document.getElementById('pieChart').getContext('2d');
-  pieChart = new Chart(ctxPie, {
-    type: 'pie',
-    data: {
-      labels: ['Administrativas', 'Comerciais', 'Financeiras', 'Caminhões', 'Combustível'],
-      datasets: [{
-        data: [],
-        backgroundColor: ['#e74c3c', '#f1c40f', '#8e44ad', '#2ecc71', '#3498db']
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        datalabels: {
-          formatter: (value) => formatarMoeda(value),
-          color: '#fff',
-          font: { weight: 'bold', size: 12 },
-          anchor: 'center',
-          align: 'center',
-          offset: 0
-        }
-      }
-    },
-    plugins: [ChartDataLabels]
-  });
-}
-
-// Atualização dos gráficos
-async function atualizarGraficos() {
-  try {
-    const [receitasSnapshot, custosSnapshot, despesasSnapshot] = await Promise.all([
-      getDocs(collection(db, 'revenues')),
-      getDocs(collection(db, 'costs')),
-      getDocs(collection(db, 'expenses'))
-    ]);
-
-    const mesesSet = new Set();
-    receitasSnapshot.forEach(doc => mesesSet.add(doc.data().mesAno));
-    custosSnapshot.forEach(doc => mesesSet.add(doc.data().mesAno));
-    despesasSnapshot.forEach(doc => mesesSet.add(doc.data().mesAno));
-
-    const meses = Array.from(mesesSet).sort();
-    const dadosReceita = [];
-    const dadosLucroLiquido = [];
-    const dadosDespesas = [];
-    const dadosCustos = [];
-
-    for (const mes of meses) {
-      const receitas = receitasSnapshot.docs.filter(doc => doc.data().mesAno === mes);
-      const custos = custosSnapshot.docs.filter(doc => doc.data().mesAno === mes);
-      const despesas = despesasSnapshot.docs.filter(doc => doc.data().mesAno === mes);
-
-      const totalReceita = receitas.reduce((soma, doc) => soma + doc.data().valor, 0);
-      const totalCusto = custos.reduce((soma, doc) => soma + doc.data().valor, 0);
-      const totalDespesas = despesas.reduce((soma, doc) => soma + doc.data().valor, 0);
-
-      const lucroBruto = totalReceita - totalCusto;
-      const lucroOperacional = lucroBruto - totalDespesas;
-
-      dadosReceita.push(totalReceita);
-      dadosLucroLiquido.push(lucroOperacional);
-      dadosDespesas.push(totalDespesas);
-      dadosCustos.push(totalCusto);
-    }
-
-    lineChart.data.labels = meses.map(formatarData);
-    lineChart.data.datasets[0].data = dadosReceita;
-    lineChart.data.datasets[1].data = dadosLucroLiquido;
-    lineChart.update();
-
-    barChart.data.labels = meses.map(formatarData);
-    barChart.data.datasets[0].data = dadosDespesas;
-    barChart.update();
-
-    atualizarTabelaHistorico(meses, dadosReceita, dadosCustos, dadosDespesas);
-    atualizarCartoesEGraficoPizza();
-  } catch (erro) {
-    console.error('Erro ao atualizar gráficos:', erro);
-  }
-}
-
-// Atualização da tabela de histórico
-function atualizarTabelaHistorico(meses, dadosReceita, dadosCustos, dadosDespesas) {
-  const tbody = document.getElementById('history-table-body');
-  tbody.innerHTML = '';
-  
-  meses.forEach((mes, index) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${formatarData(mes)}</td>
-      <td>${formatarMoeda(dadosReceita[index])}</td>
-      <td>${formatarMoeda(dadosCustos[index])}</td>
-      <td>${formatarMoeda(dadosDespesas[index])}</td>
-      <td><button class="btn btn-select" onclick="selecionarMes('${mes}')">Selecionar</button></td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-// Função para selecionar mês
-window.selecionarMes = function(mes) {
-  selectedMonth = mes;
-  atualizarCartoesEGraficoPizza();
-};
-
-// Atualização dos cartões e gráfico de pizza
-async function atualizarCartoesEGraficoPizza() {
-  try {
-    let receitasQuery = collection(db, 'revenues');
-    let custosQuery = collection(db, 'costs');
-    let despesasQuery = collection(db, 'expenses');
-
-    if (selectedMonth) {
-      receitasQuery = query(receitasQuery, where('mesAno', '==', selectedMonth));
-      custosQuery = query(custosQuery, where('mesAno', '==', selectedMonth));
-      despesasQuery = query(despesasQuery, where('mesAno', '==', selectedMonth));
-    }
-
-    const [receitasSnapshot, custosSnapshot, despesasSnapshot] = await Promise.all([
-      getDocs(receitasQuery),
-      getDocs(custosQuery),
-      getDocs(despesasQuery)
-    ]);
-
-    const totalReceitas = receitasSnapshot.docs.reduce((soma, doc) => soma + doc.data().valor, 0);
-    const totalCustos = custosSnapshot.docs.reduce((soma, doc) => soma + doc.data().valor, 0);
-    const totalDespesas = despesasSnapshot.docs.reduce((soma, doc) => soma + doc.data().valor, 0);
-
-    const lucroBruto = totalReceitas - totalCustos;
-    const lucroOperacional = lucroBruto - totalDespesas;
-
-    document.getElementById('selected-month-display').innerText = selectedMonth ? 
-      `Mês Selecionado: ${formatarData(selectedMonth)}` : 
-      'Mês Selecionado: Todos os Meses';
-
-    document.getElementById('gross-revenue').innerText = formatarMoeda(totalReceitas);
-    document.getElementById('operating-profit').innerText = formatarMoeda(lucroOperacional);
-    document.getElementById('net-profit').innerText = formatarMoeda(lucroOperacional);
-
-    const somasDespesas = {
-      'Administrativas': 0,
-      'Comerciais': 0,
-      'Financeiras': 0,
-      'Caminhões': 0,
-      'Combustível': 0
-    };
-
-    despesasSnapshot.docs.forEach(doc => {
-      const dados = doc.data();
-      if (somasDespesas.hasOwnProperty(dados.tipo)) {
-        somasDespesas[dados.tipo] += dados.valor;
-      }
+    // Inicialização quando a página carrega
+    document.addEventListener('DOMContentLoaded', function () {
+      inicializarGraficos();
+      carregarDados('revenues');
+      carregarDados('costs');
+      carregarDados('expenses');
+      atualizarGraficos();
     });
-
-    pieChart.data.datasets[0].data = Object.values(somasDespesas);
-    pieChart.update();
-  } catch (erro) {
-    console.error('Erro ao atualizar cartões e gráfico de pizza:', erro);
-  }
-}
-
-// Funções CRUD para Receitas
-async function carregarReceitas() {
-  try {
-    const snapshot = await getDocs(collection(db, 'revenues'));
-    const tbody = document.getElementById('revenue-history');
-    tbody.innerHTML = '';
-    
-    snapshot.forEach(doc => {
-      const dados = doc.data();
-      tbody.appendChild(criarLinhaTabelaComArquivos(doc, dados, 'Receita'));
-    });
-  } catch (erro) {
-    console.error('Erro ao carregar receitas:', erro);
-  }
-}
-
-// Funções CRUD para Custos
-async function carregarCustos() {
-  try {
-    const snapshot = await getDocs(collection(db, 'costs'));
-    const tbody = document.getElementById('costs-history');
-    tbody.innerHTML = '';
-    
-    snapshot.forEach(doc => {
-      const dados = doc.data();
-      tbody.appendChild(criarLinhaTabelaComArquivos(doc, dados, 'Custo'));
-    });
-  } catch (erro) {
-    console.error('Erro ao carregar custos:', erro);
-  }
-}
-
-// Funções CRUD para Despesas
-async function carregarDespesas() {
-  try {
-    const snapshot = await getDocs(collection(db, 'expenses'));
-    const tbody = document.getElementById('expenses-history');
-    tbody.innerHTML = '';
-    
-    snapshot.forEach(doc => {
-      const dados = doc.data();
-      tbody.appendChild(criarLinhaTabelaComArquivos(doc, dados, 'Despesa'));
-    });
-  } catch (erro) {
-    console.error('Erro ao carregar despesas:', erro);
-  }
-}
-
-// Event Listeners para os formulários
-document.getElementById('revenue-form').addEventListener('submit', async (e) => {
-  await handleFormSubmit(e, 'revenues', editRevenueId);
-});
-
-document.getElementById('costs-form').addEventListener('submit', async (e) => {
-  await handleFormSubmit(e, 'costs', editCostId);
-});
-
-document.getElementById('expenses-form').addEventListener('submit', async (e) => {
-  await handleFormSubmit(e, 'expenses', editExpenseId);
-});
-
-// Funções de edição
-window.editarReceita = async function(id) {
-  try {
-    const docRef = doc(db, 'revenues', id);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      const dados = docSnap.data();
-      const form = document.getElementById('revenue-form');
-      form.tipo.value = dados.tipo;
-      form.valor.value = dados.valor;
-      form.descricao.value = dados.descricao;
-      form.mesAno.value = dados.mesAno;
-      editRevenueId = id;
-    }
-  } catch (erro) {
-    console.error('Erro ao editar receita:', erro);
-  }
-};
-
-window.editarCusto = async function(id) {
-  try {
-    const docRef = doc(db, 'costs', id);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      const dados = docSnap.data();
-      const form = document.getElementById('costs-form');
-      form.tipo.value = dados.tipo;
-      form.valor.value = dados.valor;
-      form.descricao.value = dados.descricao;
-      form.mesAno.value = dados.mesAno;
-      editCostId = id;
-    }
-  } catch (erro) {
-    console.error('Erro ao editar custo:', erro);
-  }
-};
-
-window.editarDespesa = async function(id) {
-  try {
-    const docRef = doc(db, 'expenses', id);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      const dados = docSnap.data();
-      const form = document.getElementById('expenses-form');
-      form.tipo.value = dados.tipo;
-      form.valor.value = dados.valor;
-      form.descricao.value = dados.descricao;
-      form.mesAno.value = dados.mesAno;
-      editExpenseId = id;
-    }
-  } catch (erro) {
-    console.error('Erro ao editar despesa:', erro);
-  }
-};
-
-// Funções de exclusão
-window.excluirReceita = async function(id) {
-  if (confirm('Tem certeza que deseja excluir esta receita?')) {
-    try {
-      await deleteDoc(doc(db, 'revenues', id));
-      await carregarReceitas();
-      await atualizarGraficos();
-    } catch (erro) {
-      console.error('Erro ao excluir receita:', erro);
-    }
-  }
-};
-
-window.excluirCusto = async function(id) {
-  if (confirm('Tem certeza que deseja excluir este custo?')) {
-    try {
-      await deleteDoc(doc(db, 'costs', id));
-      await carregarCustos();
-      await atualizarGraficos();
-    } catch (erro) {
-      console.error('Erro ao excluir custo:', erro);
-    }
-  }
-};
-
-window.excluirDespesa = async function(id) {
-  if (confirm('Tem certeza que deseja excluir esta despesa?')) {
-    try {
-      await deleteDoc(doc(db, 'expenses', id));
-      await carregarDespesas();
-      await atualizarGraficos();
-    } catch (erro) {
-      console.error('Erro ao excluir despesa:', erro);
-    }
-  }
-};
-
-// Funções de busca
-window.buscarReceitas = async function() {
-  const termo = document.getElementById('revenue-search').value.toLowerCase();
-  const mes = document.getElementById('revenue-search-month').value;
-  
-  try {
-    let queryRef = collection(db, 'revenues');
-    if (mes) {
-      queryRef = query(queryRef, where('mesAno', '==', mes));
-    }
-    
-    const snapshot = await getDocs(queryRef);
-    const tbody = document.getElementById('revenue-history');
-    tbody.innerHTML = '';
-
-    snapshot.forEach(doc => {
-      const dados = doc.data();
-      if (!termo || 
-          dados.tipo.toLowerCase().includes(termo) ||
-          dados.descricao.toLowerCase().includes(termo)) {
-        tbody.appendChild(criarLinhaTabelaComArquivos(doc, dados, 'Receita'));
-      }
-    });
-  } catch (erro) {
-    console.error('Erro ao buscar receitas:', erro);
-  }
-};
-
-window.buscarCustos = async function() {
-  const termo = document.getElementById('costs-search').value.toLowerCase();
-  const mes = document.getElementById('costs-search-month').value;
-  
-  try {
-    let queryRef = collection(db, 'costs');
-    if (mes) {
-      queryRef = query(queryRef, where('mesAno', '==', mes));
-    }
-    
-    const snapshot = await getDocs(queryRef);
-    const tbody = document.getElementById('costs-history');
-    tbody.innerHTML = '';
-
-    snapshot.forEach(doc => {
-      const dados = doc.data();
-      if (!termo || 
-          dados.tipo.toLowerCase().includes(termo) ||
-          dados.descricao.toLowerCase().includes(termo)) {
-        tbody.appendChild(criarLinhaTabelaComArquivos(doc, dados, 'Custo'));
-      }
-    });
-  } catch (erro) {
-    console.error('Erro ao buscar custos:', erro);
-  }
-};
-
-window.buscarDespesas = async function() {
-  const termo = document.getElementById('expenses-search').value.toLowerCase();
-  const mes = document.getElementById('expenses-search-month').value;
-  
-  try {
-    let queryRef = collection(db, 'expenses');
-    if (mes) {
-      queryRef = query(queryRef, where('mesAno', '==', mes));
-    }
-    
-    const snapshot = await getDocs(queryRef);
-    const tbody = document.getElementById('expenses-history');
-    tbody.innerHTML = '';
-
-    snapshot.forEach(doc => {
-      const dados = doc.data();
-      if (!termo || 
-          dados.tipo.toLowerCase().includes(termo) ||
-          dados.descricao.toLowerCase().includes(termo)) {
-        tbody.appendChild(criarLinhaTabelaComArquivos(doc, dados, 'Despesa'));
-      }
-    });
-  } catch (erro) {
-    console.error('Erro ao buscar despesas:', erro);
-  }
-};
-
-// Funções de manipulação de arquivos
-function manipularSelecaoArquivo(evento, listaId) {
-  const listaArquivos = evento.target.files;
-  const elementoLista = document.getElementById(listaId);
-  elementoLista.innerHTML = '';
-  
-  for (let i = 0; i < listaArquivos.length; i++) {
-    const p = document.createElement('p');
-    p.innerText = listaArquivos[i].name;
-    elementoLista.appendChild(p);
-  }
-}
-
-// Event Listeners para arquivos
-document.getElementById('revenue-file').addEventListener('change', 
-  (e) => manipularSelecaoArquivo(e, 'revenue-file-list'));
-document.getElementById('costs-file').addEventListener('change', 
-  (e) => manipularSelecaoArquivo(e, 'costs-file-list'));
-document.getElementById('expenses-file').addEventListener('change', 
-  (e) => manipularSelecaoArquivo(e, 'expenses-file-list'));
-
-// Funções de exportação
-window.exportarPDF = function() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  const conteudo = document.getElementById('report-content').innerText;
-  doc.text(conteudo, 10, 10);
-  doc.save('relatorio-dre.pdf');
-};
-
-window.exportarExcel = function() {
-  const wb = XLSX.utils.book_new();
-  const conteudo = document.getElementById('report-content').innerText;
-  const ws = XLSX.utils.aoa_to_sheet([[conteudo]]);
-  XLSX.utils.book_append_sheet(wb, ws, "Relatório");
-  XLSX.writeFile(wb, 'relatorio-dre.xlsx');
-};
-
-// Event listener para geração de relatórios
-document.getElementById('report-form').addEventListener('submit', async function(e) {
-  e.preventDefault();
-  const tipo = document.getElementById('report-type').value;
-  const inicio = document.getElementById('report-start').value;
-  const fim = document.getElementById('report-end').value;
-
-  try {
-    const [receitasSnapshot, custosSnapshot, despesasSnapshot] = await Promise.all([
-      getDocs(query(collection(db, 'revenues'), where('mesAno', '>=', inicio), where('mesAno', '<=', fim))),
-      getDocs(query(collection(db, 'costs'), where('mesAno', '>=', inicio), where('mesAno', '<=', fim))),
-      getDocs(query(collection(db, 'expenses'), where('mesAno', '>=', inicio), where('mesAno', '<=', fim)))
-    ]);
-
-    const totalReceitas = receitasSnapshot.docs.reduce((soma, doc) => soma + doc.data().valor, 0);
-    const totalCustos = custosSnapshot.docs.reduce((soma, doc) => soma + doc.data().valor, 0);
-    const totalDespesas = despesasSnapshot.docs.reduce((soma, doc) => soma + doc.data().valor, 0);
-
-    const lucroBruto = totalReceitas - totalCustos;
-    const lucroOperacional = lucroBruto - totalDespesas;
-
-    const conteudo = `
-      DRE - Demonstração do Resultado do Exercício
-      Período: ${formatarData(inicio)} a ${formatarData(fim)}
-
-      Receita Bruta: ${formatarMoeda(totalReceitas)}
-      (-) Custos: ${formatarMoeda(totalCustos)}
-      (=) Lucro Bruto: ${formatarMoeda(lucroBruto)}
-      (-) Despesas Operacionais: ${formatarMoeda(totalDespesas)}
-      (=) Lucro Operacional: ${formatarMoeda(lucroOperacional)}
-    `;
-
-    document.getElementById('report-content').innerText = conteudo;
-    document.getElementById('report-output').style.display = 'block';
-  } catch (erro) {
-    console.error('Erro ao gerar relatório:', erro);
-  }
-});
-
-// Tornar showPanel global
-window.showPanel = showPanel;
-
-// Inicialização quando a página carrega
-document.addEventListener('DOMContentLoaded', function() {
-  inicializarGraficos();
-  carregarDados('revenues');
-  carregarDados('costs');
-  carregarDados('expenses');
-  atualizarGraficos();
-});
   </script>
 </body>
 </html>
