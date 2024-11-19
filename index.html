@@ -1,1065 +1,1486 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <title>DRE Gerencial</title>
-  <!-- Estilos e Bibliotecas -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Adicionado plugin de datalabels que faltava -->
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-  <!-- Corrigido import do jsPDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
-  <style>
-    :root {
-      --primary: #2c3e50;
-      --secondary: #34495e;
-      --accent: #3498db;
-      --success: #2ecc71;
-      --warning: #f1c40f;
-      --danger: #e74c3c;
-      --info: #3498db;
-      --light: #ecf0f1;
-      --dark: #2c3e50;
-      --background: #f4f6f9;
-    }
-    
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    
-    body {
-      background-color: var(--background);
-      overflow-x: hidden;
-    }
-    
-    .navbar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 60px;
-      background-color: var(--primary);
-      color: white;
-      display: flex;
-      align-items: center;
-      padding: 0 20px;
-      z-index: 1000;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .navbar h1 {
-      font-size: 1.5rem;
-    }
-    
-    .sidebar {
-      position: fixed;
-      top: 60px;
-      left: 0;
-      width: 80px;
-      height: calc(100% - 60px);
-      background-color: var(--primary);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding-top: 20px;
-      transition: width 0.3s;
-    }
-    
-    .sidebar:hover {
-      width: 200px;
-    }
-    
-    .sidebar ul {
-      list-style: none;
-      width: 100%;
-    }
-    
-    .sidebar li {
-      width: 100%;
-      padding: 15px 20px;
-      color: white;
-      display: flex;
-      align-items: center;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-    
-    .sidebar li:hover, 
-    .sidebar li.active {
-      background-color: var(--accent);
-    }
-    
-    .sidebar li i {
-      font-size: 1.2rem;
-      margin-right: 10px;
-    }
-    
-    .sidebar li span {
-      display: none;
-      white-space: nowrap;
-    }
-    
-    .sidebar:hover li span {
-      display: inline;
-    }
-    
-    .container {
-      margin-top: 60px;
-      margin-left: 80px;
-      padding: 20px;
-      transition: margin-left 0.3s;
-    }
-    
-    .sidebar:hover + .container {
-      margin-left: 200px;
-    }
-    
-    .panel {
-      display: none;
-      background-color: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      margin-bottom: 20px;
-    }
-    
-    .panel.active-panel {
-      display: block;
-    }
-    
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 20px;
-      margin-bottom: 20px;
-    }
-    
-    .card {
-      background-color: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      display: flex;
-      align-items: center;
-      transition: transform 0.3s;
-      position: relative;
-    }
-    
-    .card:hover {
-      transform: translateY(-5px);
-    }
-    
-    .card-icon {
-      font-size: 2rem;
-      margin-right: 15px;
-    }
-    
-    .card-content h3 {
-      margin-bottom: 10px;
-      font-size: 1.2rem;
-    }
-    
-    .card-content .value {
-      font-size: 1.5rem;
-      font-weight: bold;
-    }
-    
-    .percentage {
-      display: flex;
-      align-items: center;
-      margin-top: 5px;
-      font-size: 0.9rem;
-    }
-    
-    .percentage i {
-      margin-right: 5px;
-    }
-    
-    .btn {
-      padding: 10px 20px;
-      background-color: var(--accent);
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-      margin-top: 10px;
-    }
-    
-    .btn:hover {
-      background-color: #2980b9;
-    }
-    
-    .btn-delete {
-      background-color: var(--danger);
-    }
-    
-    .btn-delete:hover {
-      background-color: #c0392b;
-    }
-    
-    .btn-select {
-      background-color: var(--success);
-    }
-    
-    .btn-select:hover {
-      background-color: #27ae60;
-    }
-    
-    .form-group {
-      margin-bottom: 15px;
-    }
-    
-    .form-group label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: 500;
-    }
-    
-    .form-control {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 1rem;
-    }
-    
-    .file-upload {
-      border: 2px dashed #ccc;
-      padding: 20px;
-      text-align: center;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: border-color 0.3s;
-    }
-    
-    .file-upload:hover {
-      border-color: var(--accent);
-    }
-    
-    .table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-    
-    .table th,
-    .table td {
-      padding: 10px;
-      border: 1px solid #ddd;
-      text-align: left;
-    }
-    
-    .table th {
-      background-color: var(--light);
-    }
-    
-    .chart-container {
-      background-color: white;
-      padding: 10px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      margin-bottom: 20px;
-    }
-    
-    .chart-small {
-      height: 300px;
-      position: relative;
-    }
-    
-    .chart-small canvas {
-      max-height: 100%;
-    }
-    
-    .notifications {
-      margin-top: 20px;
-    }
-    
-    .notification-item {
-      background-color: white;
-      padding: 15px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      display: flex;
-      align-items: center;
-      margin-bottom: 10px;
-      transition: background-color 0.3s;
-    }
-    
-    .notification-item:hover {
-      background-color: var(--light);
-    }
-    
-    .notification-item i {
-      font-size: 1.5rem;
-      margin-right: 10px;
-      color: var(--warning);
-    }
-    
-    .footer {
-      position: fixed;
-      bottom: 0;
-      right: 0;
-      padding: 10px;
-      background-color: var(--primary);
-      color: white;
-      font-size: 0.9rem;
-    }
-    
-    @media (max-width: 768px) {
-      .sidebar {
-        width: 60px;
-      }
-      
-      .sidebar:hover {
-        width: 150px;
-      }
-      
-      .sidebar li span {
-        display: none;
-      }
-      
-      .sidebar:hover li span {
-        display: inline;
-      }
-      
-      .container {
-        margin-left: 60px;
-      }
-      
-      .sidebar:hover + .container {
-        margin-left: 150px;
-      }
-    }
-    
-    .arquivo-link {
-      color: #3498db;
-      text-decoration: none;
-      display: inline-block;
-      margin: 2px 0;
-    }
-    
-    .arquivo-link:hover {
-      text-decoration: underline;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>DRE Gerencial</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --success: #2ecc71;
+            --warning: #f1c40f;
+            --danger: #e74c3c;
+            --info: #3498db;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+            --background: #f4f6f9;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--background);
+            overflow-x: hidden;
+            min-height: 100vh;
+            position: relative;
+            padding-bottom: 40px; /* Espaço para o footer */
+        }
+        
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .navbar h1 {
+            font-size: 1.5rem;
+        }
+        
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 80px;
+            height: calc(100% - 60px);
+            background-color: var(--primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 20px;
+            transition: width 0.3s;
+            z-index: 999;
+        }
+        
+        .sidebar:hover {
+            width: 200px;
+        }
+        
+        .sidebar ul {
+            list-style: none;
+            width: 100%;
+        }
+        
+        .sidebar li {
+            width: 100%;
+            padding: 15px 20px;
+            color: white;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .sidebar li:hover,
+        .sidebar li.active {
+            background-color: var(--accent);
+        }
+        
+        .sidebar li i {
+            font-size: 1.2rem;
+            margin-right: 10px;
+        }
+        
+        .sidebar li span {
+            display: none;
+            white-space: nowrap;
+        }
+        
+        .sidebar:hover li span {
+            display: inline;
+        }
+        
+        .container {
+            margin-left: 80px;
+            margin-top: 60px;
+            padding: 20px;
+            transition: margin-left 0.3s;
+        }
+        
+        .sidebar:hover + .container {
+            margin-left: 200px;
+        }
+        
+        .panel {
+            display: none;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .panel.active-panel {
+            display: block;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            transition: transform 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card-icon {
+            font-size: 2rem;
+            margin-right: 15px;
+            color: var(--accent);
+        }
+        
+        .card-content h3 {
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+            color: var(--dark);
+        }
+        
+        .card-content .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        .btn-delete {
+            background-color: var(--danger);
+        }
+        
+        .btn-delete:hover {
+            background-color: #c0392b;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--dark);
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .table th,
+        .table td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        
+        .table th {
+            background-color: var(--light);
+            font-weight: 600;
+        }
+        
+        .table tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .chart-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .chart-small {
+            height: 300px;
+            position: relative;
+        }
+        
+        .arquivo-link {
+            color: var(--accent);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .arquivo-link:hover {
+            text-decoration: underline;
+        }
+
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .report-table th,
+        .report-table td {
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+
+        .report-table th {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .report-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .report-total {
+            font-weight: bold;
+            background-color: var(--light) !important;
+        }
+
+        .period-filter {
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .period-filter .form-group {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            padding: 10px 20px;
+            background-color: var(--primary);
+            color: white;
+            font-size: 0.8rem;
+            z-index: 1000;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 60px;
+            }
+            
+            .container {
+                margin-left: 60px;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
-  <nav class="navbar">
-    <h1>DRE Gerencial</h1>
-  </nav>
-  
-  <div class="sidebar">
-    <ul>
-      <li class="active" onclick="showPanel('overview', this)">
-        <i class="fas fa-tachometer-alt"></i><span>Visão Geral</span>
-      </li>
-      <li onclick="showPanel('revenue', this)">
-        <i class="fas fa-chart-line"></i><span>Receitas</span>
-      </li>
-      <li onclick="showPanel('costs', this)">
-        <i class="fas fa-coins"></i><span>Custos</span>
-      </li>
-      <li onclick="showPanel('expenses', this)">
-        <i class="fas fa-money-bill-wave"></i><span>Despesas</span>
-      </li>
-      <li onclick="showPanel('reports', this)">
-        <i class="fas fa-file-alt"></i><span>Relatórios</span>
-      </li>
-    </ul>
-  </div>
-  
-  <div class="container">
-    <div id="overview" class="panel active-panel">
-      <h2>Visão Geral</h2>
-      
-      <div id="selected-month-display" style="text-align: center; margin-bottom: 10px; font-size: 1.2rem; font-weight: bold;">
-        Mês Selecionado: Todos os Meses
-      </div>
-      
-      <div class="grid">
-        <div class="card" style="background-color: #3498db;">
-          <div class="card-icon">
-            <i class="fas fa-dollar-sign"></i>
-          </div>
-          <div class="card-content">
-            <h3>Receita Bruta</h3>
-            <p class="value" id="gross-revenue">R$ 0,00</p>
-          </div>
-        </div>
-        
-        <div class="card" style="background-color: #2ecc71;">
-          <div class="card-icon">
-            <i class="fas fa-chart-pie"></i>
-          </div>
-          <div class="card-content">
-            <h3>Lucro Operacional</h3>
-            <p class="value" id="operating-profit">R$ 0,00</p>
-          </div>
-        </div>
-        
-        <div class="card" style="background-color: #e74c3c;">
-          <div class="card-icon">
-            <i class="fas fa-money-bill-wave"></i>
-          </div>
-          <div class="card-content">
-            <h3>Lucro Líquido</h3>
-            <p class="value" id="net-profit">R$ 0,00</p>
-          </div>
-        </div>
-      </div>
-      
-      <div class="grid">
-        <div class="chart-container chart-small">
-          <canvas id="lineChart"></canvas>
-        </div>
-        
-        <div class="chart-container chart-small">
-          <canvas id="barChart"></canvas>
-        </div>
-        
-        <div class="chart-container chart-small">
-          <canvas id="pieChart"></canvas>
-        </div>
-      </div>
-      
-      <div class="chart-container">
-        <h3>Histórico de Receitas e Despesas</h3>
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Mês/Ano</th>
-              <th>Receita Bruta</th>
-              <th>Custos</th>
-              <th>Despesas</th>
-              <th>Selecionar</th>
-            </tr>
-          </thead>
-          <tbody id="history-table-body">
-          </tbody>
-        </table>
-      </div>
-      
-      <div class="notifications">
-        <h3>Notificações</h3>
-        <div id="notifications-list">
-        </div>
-      </div>
+    <nav class="navbar">
+        <h1>DRE Gerencial</h1>
+    </nav>
+
+    <div class="sidebar">
+        <ul>
+            <li class="active" onclick="showPanel('overview', this)">
+                <i class="fas fa-tachometer-alt"></i><span>Visão Geral</span>
+            </li>
+            <li onclick="showPanel('revenue', this)">
+                <i class="fas fa-chart-line"></i><span>Receitas</span>
+            </li>
+            <li onclick="showPanel('costs', this)">
+                <i class="fas fa-coins"></i><span>Custos</span>
+            </li>
+            <li onclick="showPanel('expenses', this)">
+                <i class="fas fa-money-bill-wave"></i><span>Despesas</span>
+            </li>
+            <li onclick="showPanel('reports', this)">
+                <i class="fas fa-file-alt"></i><span>Relatórios</span>
+            </li>
+        </ul>
     </div>
 
-    <!-- Painel Receitas -->
-    <div id="revenue" class="panel">
-      <h2>Cadastro de Receitas</h2>
-      <form id="revenue-form">
-        <div class="form-group">
-          <label>Tipo de Receita</label>
-          <select class="form-control" name="tipo" required>
-            <option value="Vendas Matriz/Curitiba">Vendas Matriz/Curitiba</option>
-            <option value="Vendas Maringá">Vendas Maringá</option>
-            <option value="Vendas Prudente">Vendas Prudente</option>
-            <option value="Receitas Financeiras">Receitas Financeiras</option>
-            <option value="Outras Receitas">Outras Receitas</option>
-          </select>
+    <div class="container">
+        <!-- Painel Visão Geral -->
+        <div id="overview" class="panel active-panel">
+            <h2>Visão Geral</h2>
+            <div class="grid">
+                <div class="card">
+                    <div class="card-icon">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Receita Bruta</h3>
+                        <p class="value" id="gross-revenue">R$ 0,00</p>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-icon">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Lucro Operacional</h3>
+                        <p class="value" id="operating-profit">R$ 0,00</p>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-icon">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Lucro Líquido</h3>
+                        <p class="value" id="net-profit">R$ 0,00</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="chart-container chart-small">
+                    <canvas id="lineChart"></canvas>
+                </div>
+                <div class="chart-container chart-small">
+                    <canvas id="barChart"></canvas>
+                </div>
+                <div class="chart-container chart-small">
+                    <canvas id="pieChart"></canvas>
+                </div>
+            </div>
+
+            <div class="period-filter">
+                <div class="form-group">
+                    <div>
+                        <label>Filtrar por Período</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="month" id="overview-period-start" class="form-control">
+                            <input type="month" id="overview-period-end" class="form-control">
+                        </div>
+                    </div>
+                    <button class="btn" onclick="filtrarDados()">Filtrar</button>
+                    <button class="btn" onclick="limparFiltro()">Limpar Filtro</button>
+                </div>
+            </div>
         </div>
-        <div class="form-group">
-          <label>Valor (R$)</label>
-          <input type="number" name="valor" class="form-control" step="0.01" required>
+
+        <!-- Painel Receitas -->
+        <div id="revenue" class="panel">
+            <h2>Cadastro de Receitas</h2>
+            <form id="revenue-form">
+                <div class="form-group">
+                    <label>Tipo de Receita</label>
+                    <select class="form-control" name="tipo" required>
+                        <option value="Vendas Matriz/Curitiba">Vendas Matriz/Curitiba</option>
+                        <option value="Vendas Maringá">Vendas Maringá</option>
+                        <option value="Vendas Prudente">Vendas Prudente</option>
+                        <option value="Receitas Financeiras">Receitas Financeiras</option>
+                        <option value="Outras Receitas">Outras Receitas</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Valor (R$)</label>
+                    <input type="number" name="valor" class="form-control" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>(-) Devoluções (R$)</label>
+                    <input type="number" name="devolucoes" class="form-control" step="0.01" value="0">
+                </div>
+                <div class="form-group">
+                    <label>(-) Desconto Financeiro (R$)</label>
+                    <input type="number" name="descontoFinanceiro" class="form-control" step="0.01" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Descrição</label>
+                    <textarea class="form-control" name="descricao" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Mês/Ano</label>
+                    <input type="month" name="mesAno" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Arquivo Comprobatório (URL)</label>
+                    <input type="url" name="arquivoUrl" class="form-control" placeholder="Insira o link do arquivo">
+                </div>
+                <button type="submit" class="btn">Salvar</button>
+            </form>
+
+            <div class="form-group">
+                <label>Pesquisar</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="revenue-search" class="form-control" placeholder="Pesquisar...">
+                    <input type="month" id="revenue-search-month" class="form-control">
+                    <button class="btn" onclick="buscarReceitas()">Buscar</button>
+                </div>
+            </div>
+
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Valor</th>
+                        <th>Devoluções</th>
+                        <th>Desconto Financeiro</th>
+                        <th>Valor Líquido</th>
+                        <th>Descrição</th>
+                        <th>Mês/Ano</th>
+                        <th>Arquivo</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="revenues-history"></tbody>
+            </table>
         </div>
-        <div class="form-group">
-          <label>Descrição</label>
-          <textarea class="form-control" name="descricao" required></textarea>
+
+        <!-- Painel Custos -->
+        <div id="costs" class="panel">
+            <h2>Cadastro de Custos</h2>
+            <form id="costs-form">
+                <div class="form-group">
+                    <label>Tipo de Custo</label>
+                    <select class="form-control" name="tipo" required>
+                        <option value="Matéria Prima">Matéria Prima</option>
+                        <option value="Mão de Obra">Mão de Obra</option>
+                        <option value="Mão de Obra Terceirizada">Mão de Obra Terceirizada</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Valor (R$)</label>
+                    <input type="number" name="valor" class="form-control" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Descrição</label>
+                    <textarea class="form-control" name="descricao" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Mês/Ano</label>
+                    <input type="month" name="mesAno" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Arquivo Comprobatório (URL)</label>
+                    <input type="url" name="arquivoUrl" class="form-control" placeholder="Insira o link do arquivo">
+                </div>
+                <button type="submit" class="btn">Salvar</button>
+            </form>
+
+            <div class="form-group">
+                <label>Pesquisar</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="costs-search" class="form-control" placeholder="Pesquisar...">
+                    <input type="month" id="costs-search-month" class="form-control">
+                    <button class="btn" onclick="buscarCustos()">Buscar</button>
+                </div>
+            </div>
+
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Valor</th>
+                        <th>Descrição</th>
+                        <th>Mês/Ano</th>
+                        <th>Arquivo</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="costs-history"></tbody>
+            </table>
         </div>
-        <div class="form-group">
-          <label>Mês/Ano</label>
-          <input type="month" name="mesAno" class="form-control" required>
+
+        <!-- Painel Despesas -->
+        <div id="expenses" class="panel">
+            <h2>Cadastro de Despesas</h2>
+            <form id="expenses-form">
+                <div class="form-group">
+                    <label>Tipo de Despesa</label>
+                    <select class="form-control" name="tipo" required>
+                        <option value="Outras Despesas Operacionais">Outras Despesas Operacionais</option>
+                        <option value="Embalagens">Embalagens</option>
+                        <option value="Caminhões">Caminhões</option>
+                        <option value="Combustível">Combustível</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Valor (R$)</label>
+                    <input type="number" name="valor" class="form-control" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Descrição</label>
+                    <textarea class="form-control" name="descricao" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Mês/Ano</label>
+                    <input type="month" name="mesAno" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Arquivo Comprobatório (URL)</label>
+                    <input type="url" name="arquivoUrl" class="form-control" placeholder="Insira o link do arquivo">
+                </div>
+                <button type="submit" class="btn">Salvar</button>
+            </form>
+
+            <div class="form-group">
+                <label>Pesquisar</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="expenses-search" class="form-control" placeholder="Pesquisar...">
+                    <input type="month" id="expenses-search-month" class="form-control">
+                    <button class="btn" onclick="buscarDespesas()">Buscar</button>
+                </div>
+            </div>
+
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Valor</th>
+                        <th>Descrição</th>
+                        <th>Mês/Ano</th>
+                        <th>Arquivo</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="expenses-history"></tbody>
+            </table>
         </div>
-        <div class="form-group">
-          <label>Arquivo Comprobatório (URL)</label>
-          <input type="url" name="arquivoUrl" class="form-control" placeholder="Insira o link do arquivo comprovante" required>
+
+        <!-- Painel Relatórios -->
+        <div id="reports" class="panel">
+            <h2>Relatórios</h2>
+            <form id="report-form">
+                <div class="form-group">
+                    <label>Tipo de Relatório</label>
+                    <select class="form-control" id="report-type" required>
+                        <option value="dre">DRE</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Mês/Ano Inicial</label>
+                    <input type="month" class="form-control" id="report-start" required>
+                </div>
+                <div class="form-group">
+                    <label>Mês/Ano Final</label>
+                    <input type="month" class="form-control" id="report-end" required>
+                </div>
+                <button type="submit" class="btn">Gerar Relatório</button>
+            </form>
+
+            <div id="report-output" class="chart-container" style="display: none;">
+                <h3>Relatório Gerado</h3>
+                <div id="report-content"></div>
+                <button class="btn" onclick="exportarPDF()">Exportar PDF</button>
+                <button class="btn" onclick="exportarExcel()">Exportar Excel</button>
+            </div>
         </div>
-        <button type="submit" class="btn">Salvar</button>
-      </form>
-      
-      <div class="form-group">
-        <label>Pesquisar Registros</label>
-        <div style="display: flex; gap: 10px;">
-          <input type="text" id="revenue-search" class="form-control" placeholder="Pesquisar por tipo, arquivo ou descrição...">
-          <input type="month" id="revenue-search-month" class="form-control">
-          <button class="btn" onclick="buscarReceitas()">Buscar</button>
-        </div>
-      </div>
-      
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Tipo</th>
-            <th>Valor (R$)</th>
-            <th>Descrição</th>
-            <th>Mês/Ano</th>
-            <th>Arquivos</th>
-            <th>Ações</th>
-          </tr>
-        </thead>
-        <tbody id="revenue-history">
-        </tbody>
-      </table>
     </div>
-    
-    <!-- Painel de Custos -->
-    <div id="costs" class="panel">
-      <h2>Cadastro de Custos</h2>
-      <form id="costs-form">
-        <div class="form-group">
-          <label>Tipo de Custo</label>
-          <select class="form-control" name="tipo" required>
-            <option value="Matéria Prima">Matéria Prima</option>
-            <option value="Mão de Obra">Mão de Obra</option>
-            <option value="Mão de Obra Terceirizada">Mão de Obra Terceirizada</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Valor (R$)</label>
-          <input type="number" name="valor" class="form-control" step="0.01" required>
-        </div>
-        <div class="form-group">
-          <label>Descrição</label>
-          <textarea class="form-control" name="descricao" required></textarea>
-        </div>
-        <div class="form-group">
-          <label>Mês/Ano</label>
-          <input type="month" name="mesAno" class="form-control" required>
-        </div>
-        <div class="form-group">
-          <label>Arquivo Comprobatório (URL)</label>
-          <input type="url" name="arquivoUrl" class="form-control" placeholder="Insira o link do arquivo comprovante" required>
-        </div>
-        <button type="submit" class="btn">Salvar</button>
-      </form>
 
-      <div class="form-group">
-        <label>Pesquisar Registros</label>
-        <div style="display: flex; gap: 10px;">
-          <input type="text" id="costs-search" class="form-control" placeholder="Pesquisar por tipo, arquivo ou descrição...">
-          <input type="month" id="costs-search-month" class="form-control">
-          <button class="btn" onclick="buscarCustos()">Buscar</button>
-        </div>
-      </div>
-      
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Tipo</th>
-            <th>Valor (R$)</th>
-            <th>Descrição</th>
-            <th>Mês/Ano</th>
-            <th>Arquivos</th>
-            <th>Ações</th>
-          </tr>
-        </thead>
-        <tbody id="costs-history">
-        </tbody>
-      </table>
-    </div>
+    <footer class="footer">
+        Desenvolvido por Samuel Bloch
+    </footer>
 
-    <!-- Painel de Despesas -->
-    <div id="expenses" class="panel">
-      <h2>Cadastro de Despesas</h2>
-      <form id="expenses-form">
-        <div class="form-group">
-          <label>Tipo de Despesa</label>
-          <select class="form-control" name="tipo" required>
-            <option value="Administrativas">Administrativas</option>
-            <option value="Comerciais">Comerciais</option>
-            <option value="Financeiras">Financeiras</option>
-            <option value="Caminhões">Caminhões</option>
-            <option value="Combustível">Combustível</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Valor (R$)</label>
-          <input type="number" name="valor" class="form-control" step="0.01" required>
-        </div>
-        <div class="form-group">
-          <label>Descrição</label>
-          <textarea class="form-control" name="descricao" required></textarea>
-        </div>
-        <div class="form-group">
-          <label>Mês/Ano</label>
-          <input type="month" name="mesAno" class="form-control" required>
-        </div>
-        <div class="form-group">
-          <label>Arquivo Comprobatório (URL)</label>
-          <input type="url" name="arquivoUrl" class="form-control" placeholder="Insira o link do arquivo comprovante" required>
-        </div>
-        <div id="expenses-file-list"></div>
-        <button type="submit" class="btn">Salvar</button>
-      </form>
-
-      <div class="form-group">
-        <label>Pesquisar Registros</label>
-        <div style="display: flex; gap: 10px;">
-          <input type="text" id="expenses-search" class="form-control" placeholder="Pesquisar por tipo, arquivo ou descrição...">
-          <input type="month" id="expenses-search-month" class="form-control">
-          <button class="btn" onclick="buscarDespesas()">Buscar</button>
-        </div>
-      </div>
-      
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Tipo</th>
-            <th>Valor (R$)</th>
-            <th>Descrição</th>
-            <th>Mês/Ano</th>
-            <th>Arquivos</th>
-            <th>Ações</th>
-          </tr>
-        </thead>
-        <tbody id="expenses-history">
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Painel de Relatórios -->
-    <div id="reports" class="panel">
-      <h2>Relatórios</h2>
-      <form id="report-form">
-        <div class="form-group">
-          <label>Tipo de Relatório</label>
-          <select class="form-control" id="report-type" required>
-            <option value="dre">DRE</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Mês/Ano Inicial</label>
-          <input type="month" class="form-control" id="report-start" required>
-        </div>
-        <div class="form-group">
-          <label>Mês/Ano Final</label>
-          <input type="month" class="form-control" id="report-end" required>
-        </div>
-        <button type="submit" class="btn">Gerar Relatório</button>
-      </form>
-      
-      <div id="report-output" class="chart-container" style="display: none;">
-        <h3>Relatório Gerado</h3>
-        <div id="report-content"></div>
-        <button class="btn" onclick="exportarPDF()">Exportar PDF</button>
-        <button class="btn" onclick="exportarExcel()">Exportar Excel</button>
-      </div>
-    </div>
-  </div>
-  
-  <div class="footer">
-    Desenvolvido por Samuel Bloch
-  </div>
-
-  <script type="module">
-      // Função auxiliar para validação de URL
-    function validarURL(url) {
-      if (!url) return true;
-      try {
-        new URL(url);
-        return true;
-      } catch {
-        return false;
-      }
-    }
-
-    // Função para formatar moeda
-    function formatarMoeda(valor) {
-      return valor.toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-      });
-    }
-
-    // Função para formatar data
-    function formatarData(dataString) {
-      const [ano, mes] = dataString.split('-');
-      return `${mes}/${ano}`;
-    }
-
+<script type="module">
     // Importações do Firebase
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js';
-    import { getAnalytics } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-analytics.js';
-    import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js';
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+    import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy } 
+    from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 
     // Configuração do Firebase
     const firebaseConfig = {
-      apiKey: "AIzaSyAbJeDK8Q2KZMWfHtqWpUYqvwa1dIbJXQA",
-      authDomain: "santome-5518c.firebaseapp.com",
-      projectId: "santome-5518c",
-      storageBucket: "santome-5518c.appspot.com",
-      messagingSenderId: "586838170514",
-      appId: "1:586838170514:web:68845f852d7d83ccebbf4b",
-      measurementId: "G-HGBWW5BZMM"
+        apiKey: "AIzaSyAbJeDK8Q2KZMWfHtqWpUYqvwa1dIbJXQA",
+        authDomain: "santome-5518c.firebaseapp.com",
+        projectId: "santome-5518c",
+        storageBucket: "santome-5518c.appspot.com",
+        messagingSenderId: "586838170514",
+        appId: "1:586838170514:web:68845f852d7d83ccebbf4b",
+        measurementId: "G-HGBWW5BZMM"
     };
 
     // Inicialização do Firebase
     const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
     const db = getFirestore(app);
 
     // Variáveis globais
     let editRevenueId = null;
     let editCostId = null;
     let editExpenseId = null;
-    let selectedMonth = null;
     let lineChart, barChart, pieChart;
+    let dadosDRE = {};
+    let periodoSelecionado = null;
 
     // Função para mostrar painéis
     window.showPanel = function(panelId, clickedElement) {
-      document.querySelectorAll('.sidebar li').forEach(item => item.classList.remove('active'));
-      document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active-panel'));
-      clickedElement.classList.add('active');
-      document.getElementById(panelId).classList.add('active-panel');
+        document.querySelectorAll('.sidebar li').forEach(item => item.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active-panel'));
+        clickedElement.classList.add('active');
+        document.getElementById(panelId).classList.add('active-panel');
+
+        if (panelId === 'reports') {
+            document.getElementById('report-output').style.display = 'none';
+        }
     };
 
-    // Função para criar linha da tabela com link do documento
-    function criarLinhaTabelaComArquivos(doc, dados, colecao) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${dados.tipo}</td>
-        <td>${formatarMoeda(dados.valor)}</td>
-        <td>${dados.descricao}</td>
-        <td>${formatarData(dados.mesAno)}</td>
-        <td>
-          ${dados.linkDocumento ? 
-            `<a href="${dados.linkDocumento}" target="_blank" class="arquivo-link">
-              <i class="fas fa-external-link-alt"></i> Ver documento
-            </a>` : 
-            '-'}
-        </td>
-        <td>
-          <button class="btn" onclick="editar${colecao}('${doc.id}')">Editar</button>
-          <button class="btn btn-delete" onclick="excluir${colecao}('${doc.id}')">Excluir</button>
-        </td>
-      `;
-      return tr;
-    }
-
-    // Função genérica para manipular o envio do formulário
-    async function handleFormSubmit(e, colecao, editId) {
-      e.preventDefault();
-      try {
-        // Mostrar loading
-        e.target.querySelector('button[type="submit"]').disabled = true;
-        e.target.querySelector('button[type="submit"]').innerText = 'Salvando...';
-
-        const formData = new FormData(e.target);
-        const linkDocumento = formData.get('linkDocumento');
-        
-        if (linkDocumento && !validarURL(linkDocumento)) {
-          throw new Error('URL inválida');
-        }
-
-        // Dados do documento
-        const dados = {
-          tipo: formData.get('tipo'),
-          valor: parseFloat(formData.get('valor')),
-          descricao: formData.get('descricao'),
-          mesAno: formData.get('mesAno'),
-          linkDocumento: linkDocumento || '',
-          dataRegistro: new Date().toISOString(),
-          ultimaAtualizacao: new Date().toISOString()
-        };
-
-        // Salvar no Firestore
-        if (editId) {
-          await updateDoc(doc(db, colecao, editId), dados);
-        } else {
-          await addDoc(collection(db, colecao), dados);
-        }
-        
-        // Limpar formulário e atualizar
-        e.target.reset();
-        await carregarDados(colecao);
-        await atualizarGraficos();
-        // Feedback para o usuário
-        alert('Registro salvo com sucesso!');
-      } catch (erro) {
-        console.error('Erro ao salvar:', erro);
-        alert('Erro ao salvar o registro. Por favor, tente novamente.');
-      } finally {
-        // Restaurar botão
-        e.target.querySelector('button[type="submit"]').disabled = false;
-        e.target.querySelector('button[type="submit"]').innerText = 'Salvar';
-      }
-    }
-
-    // Função única para editar registros
-    window.editarReceita = async function(id) {
-      try {
-        const docRef = doc(db, 'revenues', id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const dados = docSnap.data();
-          const form = document.getElementById('revenue-form');
-          form.tipo.value = dados.tipo;
-          form.valor.value = dados.valor;
-          form.descricao.value = dados.descricao;
-          form.mesAno.value = dados.mesAno;
-          form.linkDocumento.value = dados.linkDocumento || '';
-          editRevenueId = id;
-        }
-      } catch (erro) {
-        console.error('Erro ao editar receita:', erro);
-      }
-    };
-
-    window.editarCusto = async function(id) {
-      try {
-        const docRef = doc(db, 'costs', id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const dados = docSnap.data();
-          const form = document.getElementById('costs-form');
-          form.tipo.value = dados.tipo;
-          form.valor.value = dados.valor;
-          form.descricao.value = dados.descricao;
-          form.mesAno.value = dados.mesAno;
-          form.linkDocumento.value = dados.linkDocumento || '';
-          editCostId = id;
-        }
-      } catch (erro) {
-        console.error('Erro ao editar custo:', erro);
-      }
-    };
-
-    window.editarDespesa = async function(id) {
-      try {
-        const docRef = doc(db, 'expenses', id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const dados = docSnap.data();
-          const form = document.getElementById('expenses-form');
-          form.tipo.value = dados.tipo;
-          form.valor.value = dados.valor;
-          form.descricao.value = dados.descricao;
-          form.mesAno.value = dados.mesAno;
-          form.linkDocumento.value = dados.linkDocumento || '';
-          editExpenseId = id;
-        }
-      } catch (erro) {
-        console.error('Erro ao editar despesa:', erro);
-      }
-    };
-
-    // Função genérica para carregar dados de uma coleção
-    async function carregarDados(colecao) {
-      try {
-        let querySnapshot = await getDocs(collection(db, colecao));
-        let tbody;
-        if (colecao === 'revenues') {
-          tbody = document.getElementById('revenue-history');
-        } else if (colecao === 'costs') {
-          tbody = document.getElementById('costs-history');
-        } else if (colecao === 'expenses') {
-          tbody = document.getElementById('expenses-history');
-        }
-        tbody.innerHTML = '';
-        querySnapshot.forEach((doc) => {
-          const dados = doc.data();
-          tbody.appendChild(criarLinhaTabelaComArquivos(doc, dados, colecao.charAt(0).toUpperCase() + colecao.slice(1)));
+    // Funções auxiliares
+    function formatarMoeda(valor) {
+        return valor.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
         });
-      } catch (erro) {
-        console.error(`Erro ao carregar dados de ${colecao}:`, erro);
-      }
     }
+
+    function formatarData(dataString) {
+        const [ano, mes] = dataString.split('-');
+        return `${mes}/${ano}`;
+    }
+
+    function calcularImpostos(lucroTributavel) {
+        const irpjBase = lucroTributavel * 0.15;
+        const adicionalIrpj = lucroTributavel > 20000 ? (lucroTributavel - 20000) * 0.10 : 0;
+        const irpjTotal = irpjBase + adicionalIrpj;
+        const csll = lucroTributavel * 0.09;
+        
+        return {
+            irpj: irpjTotal,
+            csll: csll,
+            total: irpjTotal + csll
+        };
+    }
+
+    // Função para criar linha da tabela
+    function criarLinhaTabelaComArquivos(doc, dados, colecao) {
+        const tr = document.createElement('tr');
+        let valorLiquido = dados.valor || 0;
+
+        if (colecao === 'revenues') {
+            valorLiquido -= (dados.devolucoes || 0) + (dados.descontoFinanceiro || 0);
+        }
+
+        let innerHTML = `
+            <td>${dados.tipo}</td>
+            <td>${formatarMoeda(dados.valor || 0)}</td>
+        `;
+
+        if (colecao === 'revenues') {
+            innerHTML += `
+                <td>${formatarMoeda(dados.devolucoes || 0)}</td>
+                <td>${formatarMoeda(dados.descontoFinanceiro || 0)}</td>
+                <td>${formatarMoeda(valorLiquido)}</td>
+            `;
+        }
+
+        if (colecao !== 'revenues') {
+            innerHTML += `
+                <td>${dados.descricao}</td>
+                <td>${formatarData(dados.mesAno)}</td>
+            `;
+        } else {
+            innerHTML += `
+                <td>${dados.descricao}</td>
+                <td>${formatarData(dados.mesAno)}</td>
+            `;
+        }
+
+        innerHTML += `
+            <td>
+                ${dados.arquivoUrl ? 
+                    `<a href="${dados.arquivoUrl}" target="_blank" class="arquivo-link">
+                        <i class="fas fa-external-link-alt"></i> Ver documento
+                    </a>` : 
+                    '-'}
+            </td>
+            <td>
+                <button class="btn" onclick="editar${colecao.charAt(0).toUpperCase() + colecao.slice(1)}('${doc.id}')">Editar</button>
+                <button class="btn btn-delete" onclick="excluir${colecao.charAt(0).toUpperCase() + colecao.slice(1)}('${doc.id}')">Excluir</button>
+            </td>
+        `;
+
+        tr.innerHTML = innerHTML;
+        return tr;
+    }
+
+    // Função para manipular envio de formulário
+    async function handleFormSubmit(e, colecao, editId) {
+        e.preventDefault();
+        const submitButton = e.target.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        submitButton.textContent = 'Salvando...';
+
+        try {
+            const formData = new FormData(e.target);
+            const dados = {
+                tipo: formData.get('tipo'),
+                valor: parseFloat(formData.get('valor')),
+                descricao: formData.get('descricao'),
+                mesAno: formData.get('mesAno'),
+                arquivoUrl: formData.get('arquivoUrl') || '',
+                dataRegistro: new Date().toISOString()
+            };
+
+            if (colecao === 'revenues') {
+                dados.devolucoes = parseFloat(formData.get('devolucoes')) || 0;
+                dados.descontoFinanceiro = parseFloat(formData.get('descontoFinanceiro')) || 0;
+            }
+
+            let docRef;
+            if (editId) {
+                docRef = doc(db, colecao, editId);
+                await updateDoc(docRef, dados);
+            } else {
+                docRef = await addDoc(collection(db, colecao), dados);
+            }
+
+            // Atualiza imediatamente o histórico
+            const tbody = document.getElementById(`${colecao}-history`);
+            if (tbody) {
+                const docSnapshot = await getDoc(docRef);
+                if (docSnapshot.exists()) {
+                    const tr = criarLinhaTabelaComArquivos(docSnapshot, dados, colecao);
+                    tbody.insertBefore(tr, tbody.firstChild);
+                }
+            }
+
+            e.target.reset();
+            await atualizarGraficos();
+            alert('Registro salvo com sucesso!');
+
+            if (colecao === 'revenues') {
+                editRevenueId = null;
+            } else if (colecao === 'costs') {
+                editCostId = null;
+            } else if (colecao === 'expenses') {
+                editExpenseId = null;
+            }
+
+        } catch (erro) {
+            console.error('Erro ao salvar:', erro);
+            alert('Erro ao salvar: ' + erro.message);
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = 'Salvar';
+        }
+    }
+
+    // Funções de edição
+    window.editarRevenues = async function(id) {
+        try {
+            const docRef = doc(db, 'revenues', id);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const dados = docSnap.data();
+                const form = document.getElementById('revenue-form');
+                form.tipo.value = dados.tipo;
+                form.valor.value = dados.valor;
+                form.devolucoes.value = dados.devolucoes || 0;
+                form.descontoFinanceiro.value = dados.descontoFinanceiro || 0;
+                form.descricao.value = dados.descricao;
+                form.mesAno.value = dados.mesAno;
+                form.arquivoUrl.value = dados.arquivoUrl || '';
+                editRevenueId = id;
+            }
+        } catch (erro) {
+            console.error('Erro ao editar:', erro);
+            alert('Erro ao editar: ' + erro.message);
+        }
+    };
+
+    window.editarCosts = async function(id) {
+        try {
+            const docRef = doc(db, 'costs', id);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const dados = docSnap.data();
+                const form = document.getElementById('costs-form');
+                form.tipo.value = dados.tipo;
+                form.valor.value = dados.valor;
+                form.descricao.value = dados.descricao;
+                form.mesAno.value = dados.mesAno;
+                form.arquivoUrl.value = dados.arquivoUrl || '';
+                editCostId = id;
+            }
+        } catch (erro) {
+            console.error('Erro ao editar:', erro);
+            alert('Erro ao editar: ' + erro.message);
+        }
+    };
+
+    window.editarExpenses = async function(id) {
+        try {
+            const docRef = doc(db, 'expenses', id);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const dados = docSnap.data();
+                const form = document.getElementById('expenses-form');
+                form.tipo.value = dados.tipo;
+                form.valor.value = dados.valor;
+                form.descricao.value = dados.descricao;
+                form.mesAno.value = dados.mesAno;
+                form.arquivoUrl.value = dados.arquivoUrl || '';
+                editExpenseId = id;
+            }
+        } catch (erro) {
+            console.error('Erro ao editar:', erro);
+            alert('Erro ao editar: ' + erro.message);
+        }
+    };
 
     // Funções de exclusão
-    window.excluirReceita = async function(id) {
-      if (confirm('Tem certeza que deseja excluir esta receita?')) {
-        try {
-          await deleteDoc(doc(db, 'revenues', id));
-          await carregarDados('revenues');
-          await atualizarGraficos();
-        } catch (erro) {
-          console.error('Erro ao excluir receita:', erro);
+    window.excluirRevenues = async function(id) {
+        if (confirm('Tem certeza que deseja excluir este registro?')) {
+            try {
+                await deleteDoc(doc(db, 'revenues', id));
+                await carregarDados('revenues');
+                await atualizarGraficos();
+                alert('Registro excluído com sucesso!');
+            } catch (erro) {
+                console.error('Erro ao excluir:', erro);
+                alert('Erro ao excluir: ' + erro.message);
+            }
         }
-      }
     };
 
-    window.excluirCusto = async function(id) {
-      if (confirm('Tem certeza que deseja excluir este custo?')) {
-        try {
-          await deleteDoc(doc(db, 'costs', id));
-          await carregarDados('costs');
-          await atualizarGraficos();
-        } catch (erro) {
-          console.error('Erro ao excluir custo:', erro);
+    window.excluirCosts = async function(id) {
+        if (confirm('Tem certeza que deseja excluir este registro?')) {
+            try {
+                await deleteDoc(doc(db, 'costs', id));
+                await carregarDados('costs');
+                await atualizarGraficos();
+                alert('Registro excluído com sucesso!');
+            } catch (erro) {
+                console.error('Erro ao excluir:', erro);
+                alert('Erro ao excluir: ' + erro.message);
+            }
         }
-      }
     };
 
-    window.excluirDespesa = async function(id) {
-      if (confirm('Tem certeza que deseja excluir esta despesa?')) {
-        try {
-          await deleteDoc(doc(db, 'expenses', id));
-          await carregarDados('expenses');
-          await atualizarGraficos();
-        } catch (erro) {
-          console.error('Erro ao excluir despesa:', erro);
+    window.excluirExpenses = async function(id) {
+        if (confirm('Tem certeza que deseja excluir este registro?')) {
+            try {
+                await deleteDoc(doc(db, 'expenses', id));
+                await carregarDados('expenses');
+                await atualizarGraficos();
+                alert('Registro excluído com sucesso!');
+            } catch (erro) {
+                console.error('Erro ao excluir:', erro);
+                alert('Erro ao excluir: ' + erro.message);
+            }
         }
-      }
     };
 
-    // Função para inicializar gráficos
+    // Função para carregar dados
+    async function carregarDados(colecao) {
+        try {
+            const tbody = document.getElementById(`${colecao}-history`);
+            if (!tbody) {
+                console.warn(`Elemento ${colecao}-history não encontrado`);
+                return;
+            }
+            
+            let q = collection(db, colecao);
+            if (periodoSelecionado) {
+                q = query(
+                    q,
+                    where('mesAno', '>=', periodoSelecionado.inicio),
+                    where('mesAno', '<=', periodoSelecionado.fim)
+                );
+            }
+            q = query(q, orderBy('mesAno', 'desc'));
+            
+            const querySnapshot = await getDocs(q);
+            tbody.innerHTML = '';
+            
+            querySnapshot.forEach((doc) => {
+                const dados = doc.data();
+                tbody.appendChild(criarLinhaTabelaComArquivos(doc, dados, colecao));
+            });
+        } catch (erro) {
+            console.error(`Erro ao carregar ${colecao}:`, erro);
+        }
+    }
+
+    // Funções de filtro de período
+    window.filtrarDados = async function() {
+        const periodoInicio = document.getElementById('overview-period-start').value;
+        const periodoFim = document.getElementById('overview-period-end').value;
+
+        if (!periodoInicio || !periodoFim) {
+            alert('Selecione o período inicial e final para filtrar');
+            return;
+        }
+
+        if (periodoInicio > periodoFim) {
+            alert('O período inicial não pode ser maior que o período final');
+            return;
+        }
+
+        periodoSelecionado = { inicio: periodoInicio, fim: periodoFim };
+
+        await Promise.all([
+            carregarDados('revenues'),
+            carregarDados('costs'),
+            carregarDados('expenses')
+        ]);
+        await atualizarGraficos();
+    };
+
+    window.limparFiltro = async function() {
+        periodoSelecionado = null;
+        document.getElementById('overview-period-start').value = '';
+        document.getElementById('overview-period-end').value = '';
+        await Promise.all([
+            carregarDados('revenues'),
+            carregarDados('costs'),
+            carregarDados('expenses')
+        ]);
+        await atualizarGraficos();
+    };
+
+    // Funções de busca
+    window.buscarReceitas = async function() {
+        const termo = document.getElementById('revenue-search').value;
+        const mes = document.getElementById('revenue-search-month').value;
+        await buscarRegistros('revenues', termo, mes);
+    };
+
+    window.buscarCustos = async function() {
+        const termo = document.getElementById('costs-search').value;
+        const mes = document.getElementById('costs-search-month').value;
+        await buscarRegistros('costs', termo, mes);
+    };
+
+    window.buscarDespesas = async function() {
+        const termo = document.getElementById('expenses-search').value;
+        const mes = document.getElementById('expenses-search-month').value;
+        await buscarRegistros('expenses', termo, mes);
+    };
+
+    async function buscarRegistros(colecao, termo, mes) {
+        try {
+            let q = collection(db, colecao);
+            const filtros = [];
+
+            if (mes) filtros.push(where('mesAno', '==', mes));
+            if (termo) {
+                filtros.push(where('tipo', '>=', termo));
+                filtros.push(where('tipo', '<=', termo + '\uf8ff'));
+            }
+
+            if (filtros.length > 0) {
+                q = query(q, ...filtros);
+            } else {
+                q = query(q, orderBy('mesAno', 'desc'));
+            }
+
+            const querySnapshot = await getDocs(q);
+            const tbody = document.getElementById(`${colecao}-history`);
+            tbody.innerHTML = '';
+            
+            querySnapshot.forEach((doc) => {
+                const dados = doc.data();
+                tbody.appendChild(criarLinhaTabelaComArquivos(doc, dados, colecao));
+            });
+        } catch (erro) {
+            console.error(`Erro ao buscar ${colecao}:`, erro);
+            alert(`Erro ao buscar registros: ${erro.message}`);
+        }
+    }
+
+    // Inicialização dos gráficos
     function inicializarGraficos() {
-      const ctxLine = document.getElementById('lineChart').getContext('2d');
-      lineChart = new Chart(ctxLine, {
-        type: 'line',
-        data: {
-          labels: [],
-          datasets: [
-            {
-              label: 'Receita Bruta',
-              data: [],
-              borderColor: '#3498db',
-              backgroundColor: 'rgba(52, 152, 219, 0.2)',
-              fill: true,
-              tension: 0.1,
-            },
-            {
-              label: 'Lucro Líquido',
-              data: [],
-              borderColor: '#e74c3c',
-              backgroundColor: 'rgba(231, 76, 60, 0.2)',
-              fill: true,
-              tension: 0.1,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { position: 'top' },
-            title: { display: true, text: 'Evolução Financeira' },
-          },
-        },
-      });
+        const ctxLine = document.getElementById('lineChart')?.getContext('2d');
+        if (ctxLine) {
+            lineChart = new Chart(ctxLine, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Receita Bruta',
+                            data: [],
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.2)',
+                            fill: true
+                        },
+                        {
+                            label: 'Lucro Líquido',
+                            data: [],
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231, 76, 60, 0.2)',
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: true, text: 'Evolução Financeira' }
+                    }
+                }
+            });
+        }
 
-      const ctxBar = document.getElementById('barChart').getContext('2d');
-      barChart = new Chart(ctxBar, {
-        type: 'bar',
-        data: {
-          labels: [],
-          datasets: [
-            {
-              label: 'Despesas',
-              data: [],
-              backgroundColor: '#e74c3c',
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { position: 'top' },
-            title: { display: true, text: 'Despesas por Mês' },
-          },
-        },
-      });
+        const ctxBar = document.getElementById('barChart')?.getContext('2d');
+        if (ctxBar) {
+            barChart = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Despesas',
+                            data: [],
+                            backgroundColor: '#e74c3c',
+                            barPercentage: 0.8
+                        },
+                        {
+                            label: 'Devoluções',
+                            data: [],
+                            backgroundColor: '#f1c40f',
+                            barPercentage: 0.8
+                        },
+                        {
+                            label: 'Desconto Financeiro',
+                            data: [],
+                            backgroundColor: '#2ecc71',
+                            barPercentage: 0.8
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: true, text: 'Despesas, Devoluções e Desconto Financeiro por Mês' }
+                    },
+                    scales: {
+                        x: {
+                            stacked: false,
+                            gridLines: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            stacked: false,
+                            beginAtZero: true
+                        }
+                    },
+                    barPercentage: 0.9,
+                    categoryPercentage: 0.8
+                }
+            });
+        }
 
-      const ctxPie = document.getElementById('pieChart').getContext('2d');
-      pieChart = new Chart(ctxPie, {
-        type: 'pie',
-        data: {
-          labels: ['Administrativas', 'Comerciais', 'Financeiras', 'Caminhões', 'Combustível'],
-          datasets: [
-            {
-              data: [],
-              backgroundColor: ['#e74c3c', '#f1c40f', '#8e44ad', '#2ecc71', '#3498db'],
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { display: false },
-            datalabels: {
-              formatter: (value) => formatarMoeda(value),
-              color: '#fff',
-              font: { weight: 'bold', size: 12 },
-              anchor: 'center',
-              align: 'center',
-              offset: 0,
-            },
-          },
-        },
-        plugins: [ChartDataLabels],
-      });
+        const ctxPie = document.getElementById('pieChart')?.getContext('2d');
+        if (ctxPie) {
+            pieChart = new Chart(ctxPie, {
+                type: 'pie',
+                data: {
+                    labels: ['Outras Despesas Operacionais', 'Embalagens', 'Caminhões', 'Combustível'],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: ['#e74c3c', '#f1c40f', '#8e44ad', '#2ecc71']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'right' },
+                        datalabels: {
+                            formatter: (value) => formatarMoeda(value),
+                            color: '#fff',
+                            font: { weight: 'bold' }
+                        }
+                    },
+                    plugins: [ChartDataLabels]
+                }
+            });
+        }
     }
 
-    // Função para atualizar os gráficos com os novos dados
+    // Atualização dos gráficos
     async function atualizarGraficos() {
-      try {
-        // Consultar todos os dados de receitas, custos e despesas
-        const receitas = await getDocs(collection(db, 'revenues'));
-        const custos = await getDocs(collection(db, 'costs'));
-        const despesas = await getDocs(collection(db, 'expenses'));
+        try {
+            let qFilter = null;
+            if (periodoSelecionado) {
+                qFilter = [
+                    where('mesAno', '>=', periodoSelecionado.inicio),
+                    where('mesAno', '<=', periodoSelecionado.fim)
+                ];
+            }
 
-        // Organizar dados por mês para receitas, custos e despesas
-        let receitasPorMes = {};
-        let custosPorMes = {};
-        let despesasPorMes = {};
+            const [receitas, custos, despesas] = await Promise.all([
+                getDocs(qFilter ? query(collection(db, 'revenues'), ...qFilter) : query(collection(db, 'revenues'), orderBy('mesAno'))),
+                getDocs(qFilter ? query(collection(db, 'costs'), ...qFilter) : query(collection(db, 'costs'), orderBy('mesAno'))),
+                getDocs(qFilter ? query(collection(db, 'expenses'), ...qFilter) : query(collection(db, 'expenses'), orderBy('mesAno')))
+            ]);
 
-        receitas.forEach((doc) => {
-          const { valor, mesAno } = doc.data();
-          if (!receitasPorMes[mesAno]) receitasPorMes[mesAno] = 0;
-          receitasPorMes[mesAno] += valor;
-        });
+            const dadosPorMes = {};
+            const devolucoesTotais = {};
+            const despesasPorTipo = {
+                'Outras Despesas Operacionais': 0,
+                'Embalagens': 0,
+                'Caminhões': 0,
+                'Combustível': 0
+            };
 
-        custos.forEach((doc) => {
-          const { valor, mesAno } = doc.data();
-          if (!custosPorMes[mesAno]) custosPorMes[mesAno] = 0;
-          custosPorMes[mesAno] += valor;
-        });
+            // Processa receitas, devoluções e descontos financeiros
+            receitas.forEach(doc => {
+                const { valor, devolucoes = 0, descontoFinanceiro = 0, mesAno } = doc.data();
+                if (!dadosPorMes[mesAno]) {
+                    dadosPorMes[mesAno] = { receitas: 0, custos: 0, despesas: 0, devolucoes: 0, descontoFinanceiro: 0 };
+                }
+                dadosPorMes[mesAno].receitas += valor;
+                dadosPorMes[mesAno].devolucoes += devolucoes;
+                dadosPorMes[mesAno].descontoFinanceiro += descontoFinanceiro;
+                devolucoesTotais[mesAno] = (devolucoesTotais[mesAno] || 0) + devolucoes;
+            });
 
-        despesas.forEach((doc) => {
-          const { valor, mesAno, tipo } = doc.data();
-          if (!despesasPorMes[mesAno]) despesasPorMes[mesAno] = 0;
-          despesasPorMes[mesAno] += valor;
+            // Processa custos
+            custos.forEach(doc => {
+                const { valor, mesAno } = doc.data();
+                if (!dadosPorMes[mesAno]) {
+                    dadosPorMes[mesAno] = { receitas: 0, custos: 0, despesas: 0, devolucoes: 0, descontoFinanceiro: 0 };
+                }
+                dadosPorMes[mesAno].custos += valor;
+            });
 
-          // Atualizar valores para o gráfico de pizza de despesas por tipo
-          if (pieChart.data.labels.includes(tipo)) {
-            const index = pieChart.data.labels.indexOf(tipo);
-            pieChart.data.datasets[0].data[index] = (pieChart.data.datasets[0].data[index] || 0) + valor;
-          }
-        });
+            // Processa despesas
+            despesas.forEach(doc => {
+                const { valor, mesAno, tipo } = doc.data();
+                if (!dadosPorMes[mesAno]) {
+                    dadosPorMes[mesAno] = { receitas: 0, custos: 0, despesas: 0, devolucoes: 0, descontoFinanceiro: 0 };
+                }
+                dadosPorMes[mesAno].despesas += valor;
+                if (despesasPorTipo.hasOwnProperty(tipo)) {
+                    despesasPorTipo[tipo] += valor;
+                }
+            });
 
-        // Atualizar os gráficos
-        lineChart.data.labels = Object.keys(receitasPorMes);
-        lineChart.data.datasets[0].data = Object.values(receitasPorMes);
-        lineChart.data.datasets[1].data = Object.values(receitasPorMes).map(
-          (receita, index) => receita - (custosPorMes[lineChart.data.labels[index]] || 0) - (despesasPorMes[lineChart.data.labels[index]] || 0)
-        );
+            // Atualiza gráficos
+            const meses = Object.keys(dadosPorMes).sort();
+            const mesesFormatados = meses.map(formatarData);
+            
+            if (lineChart) {
+                lineChart.data.labels = mesesFormatados;
+                lineChart.data.datasets[0].data = meses.map(mes => dadosPorMes[mes].receitas - dadosPorMes[mes].devolucoes - dadosPorMes[mes].descontoFinanceiro);
+                lineChart.data.datasets[1].data = meses.map(mes => 
+                    dadosPorMes[mes].receitas - dadosPorMes[mes].devolucoes - dadosPorMes[mes].descontoFinanceiro - dadosPorMes[mes].custos - dadosPorMes[mes].despesas
+                );
+                lineChart.update();
+            }
 
-        barChart.data.labels = Object.keys(despesasPorMes);
-        barChart.data.datasets[0].data = Object.values(despesasPorMes);
+            if (barChart) {
+                barChart.data.labels = mesesFormatados;
+                barChart.data.datasets[0].data = meses.map(mes => dadosPorMes[mes].despesas);
+                barChart.data.datasets[1].data = meses.map(mes => dadosPorMes[mes].devolucoes);
+                barChart.data.datasets[2].data = meses.map(mes => dadosPorMes[mes].descontoFinanceiro);
+                barChart.update();
+            }
 
-        pieChart.update();
-        lineChart.update();
-        barChart.update();
-      } catch (erro) {
-        console.error('Erro ao atualizar gráficos:', erro);
-      }
+            if (pieChart) {
+                pieChart.data.datasets[0].data = Object.values(despesasPorTipo);
+                pieChart.update();
+            }
+
+            // Atualiza cards
+            const totalReceitas = Object.values(dadosPorMes).reduce((acc, curr) => acc + curr.receitas - curr.devolucoes - curr.descontoFinanceiro, 0);
+            const totalCustos = Object.values(dadosPorMes).reduce((acc, curr) => acc + curr.custos, 0);
+            const totalDespesas = Object.values(dadosPorMes).reduce((acc, curr) => acc + curr.despesas, 0);
+            
+            document.getElementById('gross-revenue').textContent = formatarMoeda(totalReceitas);
+            document.getElementById('operating-profit').textContent = formatarMoeda(totalReceitas - totalCustos);
+            document.getElementById('net-profit').textContent = formatarMoeda(totalReceitas - totalCustos - totalDespesas);
+
+            // Armazena dados para relatório
+            dadosDRE = { dadosPorMes, despesasPorTipo, devolucoesTotais };
+
+        } catch (erro) {
+            console.error('Erro ao atualizar gráficos:', erro);
+            alert('Erro ao atualizar gráficos: ' + erro.message);
+        }
     }
 
-    // Inicialização quando a página carrega
-    document.addEventListener('DOMContentLoaded', function () {
-      inicializarGraficos();
-      carregarDados('revenues');
-      carregarDados('costs');
-      carregarDados('expenses');
-      atualizarGraficos();
+    // Event listeners
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            // Inicializa os gráficos primeiro
+            inicializarGraficos();
+
+            // Adiciona os event listeners
+            document.getElementById('revenue-form')?.addEventListener('submit', e => handleFormSubmit(e, 'revenues', editRevenueId));
+            document.getElementById('costs-form')?.addEventListener('submit', e => handleFormSubmit(e, 'costs', editCostId));
+            document.getElementById('expenses-form')?.addEventListener('submit', e => handleFormSubmit(e, 'expenses', editExpenseId));
+            
+            document.getElementById('report-form')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const mesInicial = document.getElementById('report-start').value;
+                const mesFinal = document.getElementById('report-end').value;
+
+                if (!mesInicial || !mesFinal) {
+                    alert('Selecione o período para gerar o relatório');
+                    return;
+                }
+
+                if (mesInicial > mesFinal) {
+                    alert('O mês inicial não pode ser maior que o mês final');
+                    return;
+                }
+
+                const reportOutput = document.getElementById('report-output');
+                const reportContent = document.getElementById('report-content');
+                
+                reportContent.innerHTML = gerarHTMLRelatorio(dadosDRE, mesInicial, mesFinal);
+                reportOutput.style.display = 'block';
+            });
+
+            // Carrega os dados
+            await Promise.all([
+                carregarDados('revenues'),
+                carregarDados('costs'),
+                carregarDados('expenses')
+            ]);
+
+            // Atualiza os gráficos
+            await atualizarGraficos();
+
+        } catch (erro) {
+            console.error('Erro durante a inicialização:', erro);
+        }
     });
-  </script>
+
+    // Funções de exportação
+    window.exportarPDF = function() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        const reportContent = document.getElementById('report-content');
+        doc.html(reportContent, {
+            callback: function(doc) {
+                doc.save('relatorio-dre.pdf');
+            },
+            x: 10,
+            y: 10,
+            width: 190,
+            windowWidth: reportContent.offsetWidth
+        });
+    };
+
+    window.exportarExcel = function() {
+        const reportContent = document.getElementById('report-content');
+        const wb = XLSX.utils.book_new();
+        
+        // Adiciona a primeira tabela (DRE)
+        const wsDRE = XLSX.utils.table_to_sheet(reportContent.getElementsByTagName('table')[0]);
+        XLSX.utils.book_append_sheet(wb, wsDRE, 'DRE');
+        
+        // Se houver uma segunda tabela (Detalhamento), adiciona também
+        const tables = reportContent.getElementsByTagName('table');
+        if (tables.length > 1) {
+            const wsDetalhamento = XLSX.utils.table_to_sheet(tables[1]);
+            XLSX.utils.book_append_sheet(wb, wsDetalhamento, 'Detalhamento');
+        }
+        
+        XLSX.writeFile(wb, 'relatorio-dre.xlsx');
+    };
+
+    // Função para gerar relatório HTML
+    function gerarHTMLRelatorio(dados, mesInicial, mesFinal) {
+        const meses = Object.keys(dados.dadosPorMes)
+            .filter(mes => mes >= mesInicial && mes <= mesFinal)
+            .sort();
+
+        let totalReceitaBruta = 0;
+        let totalDevolucoes = 0;
+        let totalDescontoFinanceiro = 0;
+        let totalCustos = 0;
+        let totalDespesasOperacionais = 0;
+        let totalDespesasCombustivel = 0;
+        let totalDespesasCaminhoes = 0;
+        let totalDespesasEmbalagens = 0;
+
+        meses.forEach(mes => {
+            const dadosMes = dados.dadosPorMes[mes] || { 
+                receitas: 0, 
+                devolucoes: 0, 
+                descontoFinanceiro: 0,
+                custos: 0, 
+                despesas: 0 
+            };
+
+            totalReceitaBruta += dadosMes.receitas || 0;
+            totalDevolucoes += dadosMes.devolucoes || 0;
+            totalDescontoFinanceiro += dadosMes.descontoFinanceiro || 0;
+            totalCustos += dadosMes.custos || 0;
+        });
+
+        // Calcula despesas por tipo
+        Object.entries(dados.despesasPorTipo).forEach(([tipo, valor]) => {
+            if (tipo === 'Combustível') {
+                totalDespesasCombustivel += valor;
+            } else if (tipo === 'Caminhões') {
+                totalDespesasCaminhoes += valor;
+            } else if (tipo === 'Embalagens') {
+                totalDespesasEmbalagens += valor;
+            } else {
+                totalDespesasOperacionais += valor;
+            }
+        });
+
+        const receitaLiquida = totalReceitaBruta - totalDevolucoes - totalDescontoFinanceiro;
+        const lucroBruto = receitaLiquida - totalCustos;
+        const lucroOperacional = lucroBruto - totalDespesasOperacionais - totalDespesasCombustivel - totalDespesasCaminhoes - totalDespesasEmbalagens;
+        const impostos = calcularImpostos(lucroOperacional);
+        const lucroLiquido = lucroOperacional - impostos.total;
+
+        const html = `
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th colspan="2">DRE - Demonstração do Resultado do Exercício</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="2"><strong>1. Receita Bruta de Vendas</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Receita Bruta</td>
+                        <td>${formatarMoeda(totalReceitaBruta)}</td>
+                    </tr>
+                    <tr>
+                        <td>(-) Deduções de Vendas (devoluções)</td>
+                        <td>${formatarMoeda(totalDevolucoes)}</td>
+                    </tr>
+                    <tr>
+                        <td>(-) Desconto Financeiro</td>
+                        <td>${formatarMoeda(totalDescontoFinanceiro)}</td>
+                    </tr>
+                    <tr>
+                        <td>Receita Líquida de Vendas</td>
+                        <td>${formatarMoeda(receitaLiquida)}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2"><strong>2. Custos das Mercadorias Vendidas (CMV)</strong></td>
+                    </tr>
+                    <tr>
+                        <td>(-) Custos das Mercadorias Vendidas</td>
+                        <td>${formatarMoeda(totalCustos)}</td>
+                    </tr>
+                    <tr>
+                        <td>Lucro Bruto</td>
+                        <td>${formatarMoeda(lucroBruto)}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2"><strong>3. Despesas Operacionais</strong></td>
+                    </tr>
+                    <tr>
+                        <td>(-) Outras Despesas Operacionais</td>
+                        <td>${formatarMoeda(totalDespesasOperacionais)}</td>
+                    </tr>
+                    <tr>
+                        <td>(-) Despesas com Embalagens</td>
+                        <td>${formatarMoeda(totalDespesasEmbalagens)}</td>
+                    </tr>
+                    <tr>
+                        <td>(-) Despesas Com Combustíveis</td>
+                        <td>${formatarMoeda(totalDespesasCombustivel)}</td>
+                    </tr>
+                    <tr>
+                        <td>(-) Despesas Com Caminhões</td>
+                        <td>${formatarMoeda(totalDespesasCaminhoes)}</td>
+                    </tr>
+                    <tr>
+                        <td>Lucro Operacional</td>
+                        <td>${formatarMoeda(lucroOperacional)}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2"><strong>4. Impostos sobre o Lucro</strong></td>
+                    </tr>
+                    <tr>
+                        <td>IRPJ (15% + adicional 10%)</td>
+                        <td>${formatarMoeda(impostos.irpj)}</td>
+                    </tr>
+                    <tr>
+                        <td>CSLL (9%)</td>
+                        <td>${formatarMoeda(impostos.csll)}</td>
+                    </tr>
+                    <tr>
+                        <td>(-) Total de Impostos sobre o Lucro</td>
+                        <td>${formatarMoeda(impostos.total)}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2"><strong>5. Lucro Líquido do Exercício</strong></td>
+                    </tr>
+                    <tr class="report-total">
+                        <td><strong>Lucro Líquido</strong></td>
+                        <td><strong>${formatarMoeda(lucroLiquido)}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+
+        return html;
+    }
+</script>
 </body>
 </html>
