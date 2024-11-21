@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <title>DRE Gerencial</title>
+    <!-- Links para Font Awesome e Chart.js -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
     <style>
+        /* Estilos CSS */
         :root {
             --primary: #2c3e50;
             --secondary: #34495e;
@@ -272,6 +274,10 @@
             text-decoration: underline;
         }
 
+        .arquivo-link i {
+            margin-right: 5px;
+        }
+
         .report-table {
             width: 100%;
             border-collapse: collapse;
@@ -339,10 +345,12 @@
     </style>
 </head>
 <body>
+    <!-- Navbar -->
     <nav class="navbar">
         <h1>DRE Gerencial</h1>
     </nav>
 
+    <!-- Sidebar -->
     <div class="sidebar">
         <ul>
             <li class="active" onclick="showPanel('overview', this)">
@@ -363,6 +371,7 @@
         </ul>
     </div>
 
+    <!-- Container Principal -->
     <div class="container">
         <!-- Painel Visão Geral -->
         <div id="overview" class="panel active-panel">
@@ -461,8 +470,8 @@
                     <input type="month" name="mesAno" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label>Arquivo Comprobatório (URL)</label>
-                    <input type="url" name="arquivoUrl" class="form-control" placeholder="Insira o link do arquivo">
+                    <label>Arquivo Comprobatório</label>
+                    <input type="file" name="arquivo" class="form-control">
                 </div>
                 <button type="submit" class="btn">Salvar</button>
             </form>
@@ -519,8 +528,8 @@
                     <input type="month" name="mesAno" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label>Arquivo Comprobatório (URL)</label>
-                    <input type="url" name="arquivoUrl" class="form-control" placeholder="Insira o link do arquivo">
+                    <label>Arquivo Comprobatório</label>
+                    <input type="file" name="arquivo" class="form-control">
                 </div>
                 <button type="submit" class="btn">Salvar</button>
             </form>
@@ -575,8 +584,8 @@
                     <input type="month" name="mesAno" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label>Arquivo Comprobatório (URL)</label>
-                    <input type="url" name="arquivoUrl" class="form-control" placeholder="Insira o link do arquivo">
+                    <label>Arquivo Comprobatório</label>
+                    <input type="file" name="arquivo" class="form-control">
                 </div>
                 <button type="submit" class="btn">Salvar</button>
             </form>
@@ -635,852 +644,943 @@
         </div>
     </div>
 
+    <!-- Footer -->
     <footer class="footer">
         Desenvolvido por Samuel Bloch
     </footer>
 
-<script type="module">
-    // Importações do Firebase
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
-    import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy } 
-    from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+    <!-- Scripts JavaScript -->
+    <script type="module">
+        // Importações do Firebase
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+        import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy } 
+        from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+        import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } 
+        from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js';
 
-    // Configuração do Firebase
-    const firebaseConfig = {
-        apiKey: "AIzaSyAbJeDK8Q2KZMWfHtqWpUYqvwa1dIbJXQA",
-        authDomain: "santome-5518c.firebaseapp.com",
-        projectId: "santome-5518c",
-        storageBucket: "santome-5518c.appspot.com",
-        messagingSenderId: "586838170514",
-        appId: "1:586838170514:web:68845f852d7d83ccebbf4b",
-        measurementId: "G-HGBWW5BZMM"
-    };
-
-    // Inicialização do Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    // Variáveis globais
-    let editRevenueId = null;
-    let editCostId = null;
-    let editExpenseId = null;
-    let lineChart, barChart, pieChart;
-    let dadosDRE = {};
-    let periodoSelecionado = null;
-
-    // Função para mostrar painéis
-    window.showPanel = function(panelId, clickedElement) {
-        document.querySelectorAll('.sidebar li').forEach(item => item.classList.remove('active'));
-        document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active-panel'));
-        clickedElement.classList.add('active');
-        document.getElementById(panelId).classList.add('active-panel');
-
-        if (panelId === 'reports') {
-            document.getElementById('report-output').style.display = 'none';
-        }
-    };
-
-    // Funções auxiliares
-    function formatarMoeda(valor) {
-        return valor.toLocaleString('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-        });
-    }
-
-    function formatarData(dataString) {
-        const [ano, mes] = dataString.split('-');
-        return `${mes}/${ano}`;
-    }
-
-    function calcularImpostos(lucroTributavel) {
-        const irpjBase = lucroTributavel * 0.15;
-        const adicionalIrpj = lucroTributavel > 20000 ? (lucroTributavel - 20000) * 0.10 : 0;
-        const irpjTotal = irpjBase + adicionalIrpj;
-        const csll = lucroTributavel * 0.09;
-        
-        return {
-            irpj: irpjTotal,
-            csll: csll,
-            total: irpjTotal + csll
+        // Configuração do Firebase
+        const firebaseConfig = {
+           apiKey: "AIzaSyAbJeDK8Q2KZMWfHtqWpUYqvwa1dIbJXQA",
+           authDomain: "santome-5518c.firebaseapp.com",
+           projectId: "santome-5518c",
+           storageBucket: "santome-5518c.appspot.com",
+           messagingSenderId: "586838170514",
+           appId: "1:586838170514:web:68845f852d7d83ccebbf4b",
+           measurementId: "G-HGBWW5BZMM"
         };
-    }
 
-    // Função para criar linha da tabela
-    function criarLinhaTabelaComArquivos(doc, dados, colecao) {
-        const tr = document.createElement('tr');
-        let valorLiquido = dados.valor || 0;
+        // Inicialização do Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
 
-        if (colecao === 'revenues') {
-            valorLiquido -= (dados.devolucoes || 0) + (dados.descontoFinanceiro || 0);
+        // Variáveis globais
+        let editRevenueId = null;
+        let editCostId = null;
+        let editExpenseId = null;
+        let lineChart, barChart, pieChart;
+        let dadosDRE = {};
+        let periodoSelecionado = null;
+
+        // Função para mostrar painéis
+        window.showPanel = function(panelId, clickedElement) {
+            document.querySelectorAll('.sidebar li').forEach(item => item.classList.remove('active'));
+            document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active-panel'));
+            clickedElement.classList.add('active');
+            document.getElementById(panelId).classList.add('active-panel');
+
+            if (panelId === 'reports') {
+                document.getElementById('report-output').style.display = 'none';
+            }
+        };
+
+        // Funções auxiliares
+        function formatarMoeda(valor) {
+            return valor.toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            });
         }
 
-        let innerHTML = `
-            <td>${dados.tipo}</td>
-            <td>${formatarMoeda(dados.valor || 0)}</td>
-        `;
-
-        if (colecao === 'revenues') {
-            innerHTML += `
-                <td>${formatarMoeda(dados.devolucoes || 0)}</td>
-                <td>${formatarMoeda(dados.descontoFinanceiro || 0)}</td>
-                <td>${formatarMoeda(valorLiquido)}</td>
-            `;
+        function formatarData(dataString) {
+            const [ano, mes] = dataString.split('-');
+            return `${mes}/${ano}`;
         }
 
-        if (colecao !== 'revenues') {
-            innerHTML += `
-                <td>${dados.descricao}</td>
-                <td>${formatarData(dados.mesAno)}</td>
-            `;
-        } else {
-            innerHTML += `
-                <td>${dados.descricao}</td>
-                <td>${formatarData(dados.mesAno)}</td>
-            `;
-        }
-
-        innerHTML += `
-            <td>
-                ${dados.arquivoUrl ? 
-                    `<a href="${dados.arquivoUrl}" target="_blank" class="arquivo-link">
-                        <i class="fas fa-external-link-alt"></i> Ver documento
-                    </a>` : 
-                    '-'}
-            </td>
-            <td>
-                <button class="btn" onclick="editar${colecao.charAt(0).toUpperCase() + colecao.slice(1)}('${doc.id}')">Editar</button>
-                <button class="btn btn-delete" onclick="excluir${colecao.charAt(0).toUpperCase() + colecao.slice(1)}('${doc.id}')">Excluir</button>
-            </td>
-        `;
-
-        tr.innerHTML = innerHTML;
-        return tr;
-    }
-
-    // Função para manipular envio de formulário
-    async function handleFormSubmit(e, colecao, editId) {
-        e.preventDefault();
-        const submitButton = e.target.querySelector('button[type="submit"]');
-        submitButton.disabled = true;
-        submitButton.textContent = 'Salvando...';
-
-        try {
-            const formData = new FormData(e.target);
-            const dados = {
-                tipo: formData.get('tipo'),
-                valor: parseFloat(formData.get('valor')),
-                descricao: formData.get('descricao'),
-                mesAno: formData.get('mesAno'),
-                arquivoUrl: formData.get('arquivoUrl') || '',
-                dataRegistro: new Date().toISOString()
+        function calcularImpostos(lucroTributavel) {
+            const irpjBase = lucroTributavel * 0.15;
+            const adicionalIrpj = lucroTributavel > 20000 ? (lucroTributavel - 20000) * 0.10 : 0;
+            const irpjTotal = irpjBase + adicionalIrpj;
+            const csll = lucroTributavel * 0.09;
+            
+            return {
+                irpj: irpjTotal,
+                csll: csll,
+                total: irpjTotal + csll
             };
+        }
+
+        // Função para criar linha da tabela
+        function criarLinhaTabelaComArquivos(doc, dados, colecao) {
+            const tr = document.createElement('tr');
+            let valorLiquido = dados.valor || 0;
 
             if (colecao === 'revenues') {
-                dados.devolucoes = parseFloat(formData.get('devolucoes')) || 0;
-                dados.descontoFinanceiro = parseFloat(formData.get('descontoFinanceiro')) || 0;
+                valorLiquido -= (dados.devolucoes || 0) + (dados.descontoFinanceiro || 0);
             }
 
-            let docRef;
-            if (editId) {
-                docRef = doc(db, colecao, editId);
-                await updateDoc(docRef, dados);
+            let innerHTML = `
+                <td>${dados.tipo}</td>
+                <td>${formatarMoeda(dados.valor || 0)}</td>
+            `;
+
+            if (colecao === 'revenues') {
+                innerHTML += `
+                    <td>${formatarMoeda(dados.devolucoes || 0)}</td>
+                    <td>${formatarMoeda(dados.descontoFinanceiro || 0)}</td>
+                    <td>${formatarMoeda(valorLiquido)}</td>
+                `;
+            }
+
+            if (colecao !== 'revenues') {
+                innerHTML += `
+                    <td>${dados.descricao}</td>
+                    <td>${formatarData(dados.mesAno)}</td>
+                `;
             } else {
-                docRef = await addDoc(collection(db, colecao), dados);
+                innerHTML += `
+                    <td>${dados.descricao}</td>
+                    <td>${formatarData(dados.mesAno)}</td>
+                `;
             }
 
-            // Atualiza imediatamente o histórico
-            const tbody = document.getElementById(`${colecao}-history`);
-            if (tbody) {
-                const docSnapshot = await getDoc(docRef);
-                if (docSnapshot.exists()) {
-                    const tr = criarLinhaTabelaComArquivos(docSnapshot, dados, colecao);
-                    tbody.insertBefore(tr, tbody.firstChild);
+            innerHTML += `
+                <td>
+                    ${dados.arquivoUrl ? 
+                        `<a href="${dados.arquivoUrl}" target="_blank" class="arquivo-link">
+                            <i class="fas fa-external-link-alt"></i> Ver documento
+                        </a>` : 
+                        '-'}
+                </td>
+                <td>
+                    <button class="btn" onclick="editar${colecao.charAt(0).toUpperCase() + colecao.slice(1)}('${doc.id}')">Editar</button>
+                    <button class="btn btn-delete" onclick="excluir${colecao.charAt(0).toUpperCase() + colecao.slice(1)}('${doc.id}')">Excluir</button>
+                </td>
+            `;
+
+            tr.innerHTML = innerHTML;
+            return tr;
+        }
+
+        // Função para manipular envio de formulário
+        async function handleFormSubmit(e, colecao, editId) {
+            e.preventDefault();
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Salvando...';
+
+            try {
+                const formData = new FormData(e.target);
+                const dados = {
+                    tipo: formData.get('tipo'),
+                    valor: parseFloat(formData.get('valor')),
+                    descricao: formData.get('descricao'),
+                    mesAno: formData.get('mesAno'),
+                    dataRegistro: new Date().toISOString()
+                };
+
+                if (colecao === 'revenues') {
+                    dados.devolucoes = parseFloat(formData.get('devolucoes')) || 0;
+                    dados.descontoFinanceiro = parseFloat(formData.get('descontoFinanceiro')) || 0;
                 }
-            }
 
-            e.target.reset();
-            await atualizarGraficos();
-            alert('Registro salvo com sucesso!');
+                // Verifique se um arquivo foi selecionado
+                const arquivoInput = e.target.querySelector('input[name="arquivo"]');
+                if (arquivoInput && arquivoInput.files.length > 0) {
+                    const arquivo = arquivoInput.files[0];
+                    const storageRefPath = `${colecao}/${dados.mesAno}/${arquivo.name}`;
+                    const uploadRef = storageRef(storage, storageRefPath);
 
-            if (colecao === 'revenues') {
-                editRevenueId = null;
-            } else if (colecao === 'costs') {
-                editCostId = null;
-            } else if (colecao === 'expenses') {
-                editExpenseId = null;
-            }
+                    // Inicia o upload
+                    const uploadTask = uploadBytesResumable(uploadRef, arquivo);
 
-        } catch (erro) {
-            console.error('Erro ao salvar:', erro);
-            alert('Erro ao salvar: ' + erro.message);
-        } finally {
-            submitButton.disabled = false;
-            submitButton.textContent = 'Salvar';
-        }
-    }
-
-    // Funções de edição
-    window.editarRevenues = async function(id) {
-        try {
-            const docRef = doc(db, 'revenues', id);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                const dados = docSnap.data();
-                const form = document.getElementById('revenue-form');
-                form.tipo.value = dados.tipo;
-                form.valor.value = dados.valor;
-                form.devolucoes.value = dados.devolucoes || 0;
-                form.descontoFinanceiro.value = dados.descontoFinanceiro || 0;
-                form.descricao.value = dados.descricao;
-                form.mesAno.value = dados.mesAno;
-                form.arquivoUrl.value = dados.arquivoUrl || '';
-                editRevenueId = id;
-            }
-        } catch (erro) {
-            console.error('Erro ao editar:', erro);
-            alert('Erro ao editar: ' + erro.message);
-        }
-    };
-
-    window.editarCosts = async function(id) {
-        try {
-            const docRef = doc(db, 'costs', id);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                const dados = docSnap.data();
-                const form = document.getElementById('costs-form');
-                form.tipo.value = dados.tipo;
-                form.valor.value = dados.valor;
-                form.descricao.value = dados.descricao;
-                form.mesAno.value = dados.mesAno;
-                form.arquivoUrl.value = dados.arquivoUrl || '';
-                editCostId = id;
-            }
-        } catch (erro) {
-            console.error('Erro ao editar:', erro);
-            alert('Erro ao editar: ' + erro.message);
-        }
-    };
-
-    window.editarExpenses = async function(id) {
-        try {
-            const docRef = doc(db, 'expenses', id);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                const dados = docSnap.data();
-                const form = document.getElementById('expenses-form');
-                form.tipo.value = dados.tipo;
-                form.valor.value = dados.valor;
-                form.descricao.value = dados.descricao;
-                form.mesAno.value = dados.mesAno;
-                form.arquivoUrl.value = dados.arquivoUrl || '';
-                editExpenseId = id;
-            }
-        } catch (erro) {
-            console.error('Erro ao editar:', erro);
-            alert('Erro ao editar: ' + erro.message);
-        }
-    };
-
-    // Funções de exclusão
-    window.excluirRevenues = async function(id) {
-        if (confirm('Tem certeza que deseja excluir este registro?')) {
-            try {
-                await deleteDoc(doc(db, 'revenues', id));
-                await carregarDados('revenues');
-                await atualizarGraficos();
-                alert('Registro excluído com sucesso!');
-            } catch (erro) {
-                console.error('Erro ao excluir:', erro);
-                alert('Erro ao excluir: ' + erro.message);
-            }
-        }
-    };
-
-    window.excluirCosts = async function(id) {
-        if (confirm('Tem certeza que deseja excluir este registro?')) {
-            try {
-                await deleteDoc(doc(db, 'costs', id));
-                await carregarDados('costs');
-                await atualizarGraficos();
-                alert('Registro excluído com sucesso!');
-            } catch (erro) {
-                console.error('Erro ao excluir:', erro);
-                alert('Erro ao excluir: ' + erro.message);
-            }
-        }
-    };
-
-    window.excluirExpenses = async function(id) {
-        if (confirm('Tem certeza que deseja excluir este registro?')) {
-            try {
-                await deleteDoc(doc(db, 'expenses', id));
-                await carregarDados('expenses');
-                await atualizarGraficos();
-                alert('Registro excluído com sucesso!');
-            } catch (erro) {
-                console.error('Erro ao excluir:', erro);
-                alert('Erro ao excluir: ' + erro.message);
-            }
-        }
-    };
-
-    // Função para carregar dados
-    async function carregarDados(colecao) {
-        try {
-            const tbody = document.getElementById(`${colecao}-history`);
-            if (!tbody) {
-                console.warn(`Elemento ${colecao}-history não encontrado`);
-                return;
-            }
-            
-            let q = collection(db, colecao);
-            if (periodoSelecionado) {
-                q = query(
-                    q,
-                    where('mesAno', '>=', periodoSelecionado.inicio),
-                    where('mesAno', '<=', periodoSelecionado.fim)
-                );
-            }
-            q = query(q, orderBy('mesAno', 'desc'));
-            
-            const querySnapshot = await getDocs(q);
-            tbody.innerHTML = '';
-            
-            querySnapshot.forEach((doc) => {
-                const dados = doc.data();
-                tbody.appendChild(criarLinhaTabelaComArquivos(doc, dados, colecao));
-            });
-        } catch (erro) {
-            console.error(`Erro ao carregar ${colecao}:`, erro);
-        }
-    }
-
-    // Funções de filtro de período
-    window.filtrarDados = async function() {
-        const periodoInicio = document.getElementById('overview-period-start').value;
-        const periodoFim = document.getElementById('overview-period-end').value;
-
-        if (!periodoInicio || !periodoFim) {
-            alert('Selecione o período inicial e final para filtrar');
-            return;
-        }
-
-        if (periodoInicio > periodoFim) {
-            alert('O período inicial não pode ser maior que o período final');
-            return;
-        }
-
-        periodoSelecionado = { inicio: periodoInicio, fim: periodoFim };
-
-        await Promise.all([
-            carregarDados('revenues'),
-            carregarDados('costs'),
-            carregarDados('expenses')
-        ]);
-        await atualizarGraficos();
-    };
-
-    window.limparFiltro = async function() {
-        periodoSelecionado = null;
-        document.getElementById('overview-period-start').value = '';
-        document.getElementById('overview-period-end').value = '';
-        await Promise.all([
-            carregarDados('revenues'),
-            carregarDados('costs'),
-            carregarDados('expenses')
-        ]);
-        await atualizarGraficos();
-    };
-
-    // Funções de busca
-    window.buscarReceitas = async function() {
-        const termo = document.getElementById('revenue-search').value;
-        const mes = document.getElementById('revenue-search-month').value;
-        await buscarRegistros('revenues', termo, mes);
-    };
-
-    window.buscarCustos = async function() {
-        const termo = document.getElementById('costs-search').value;
-        const mes = document.getElementById('costs-search-month').value;
-        await buscarRegistros('costs', termo, mes);
-    };
-
-    window.buscarDespesas = async function() {
-        const termo = document.getElementById('expenses-search').value;
-        const mes = document.getElementById('expenses-search-month').value;
-        await buscarRegistros('expenses', termo, mes);
-    };
-
-    async function buscarRegistros(colecao, termo, mes) {
-        try {
-            let q = collection(db, colecao);
-            const filtros = [];
-
-            if (mes) filtros.push(where('mesAno', '==', mes));
-            if (termo) {
-                filtros.push(where('tipo', '>=', termo));
-                filtros.push(where('tipo', '<=', termo + '\uf8ff'));
-            }
-
-            if (filtros.length > 0) {
-                q = query(q, ...filtros);
-            } else {
-                q = query(q, orderBy('mesAno', 'desc'));
-            }
-
-            const querySnapshot = await getDocs(q);
-            const tbody = document.getElementById(`${colecao}-history`);
-            tbody.innerHTML = '';
-            
-            querySnapshot.forEach((doc) => {
-                const dados = doc.data();
-                tbody.appendChild(criarLinhaTabelaComArquivos(doc, dados, colecao));
-            });
-        } catch (erro) {
-            console.error(`Erro ao buscar ${colecao}:`, erro);
-            alert(`Erro ao buscar registros: ${erro.message}`);
-        }
-    }
-
-    // Inicialização dos gráficos
-    function inicializarGraficos() {
-        const ctxLine = document.getElementById('lineChart')?.getContext('2d');
-        if (ctxLine) {
-            lineChart = new Chart(ctxLine, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [
-                        {
-                            label: 'Receita Bruta',
-                            data: [],
-                            borderColor: '#3498db',
-                            backgroundColor: 'rgba(52, 152, 219, 0.2)',
-                            fill: true
-                        },
-                        {
-                            label: 'Lucro Líquido',
-                            data: [],
-                            borderColor: '#e74c3c',
-                            backgroundColor: 'rgba(231, 76, 60, 0.2)',
-                            fill: true
+                    // Aguardar o upload concluir e obter a URL de download
+                    await new Promise((resolve, reject) => {
+                        uploadTask.on(
+                            'state_changed',
+                            null,
+                            (error) => {
+                                console.error('Erro no upload:', error);
+                                reject(error);
+                            },
+                            async () => {
+                                // Upload concluído, obter a URL de download
+                                dados.arquivoUrl = await getDownloadURL(uploadTask.snapshot.ref);
+                                resolve();
+                            }
+                        );
+                    });
+                } else {
+                    // Se não houver arquivo novo e estiver editando, manter a URL existente
+                    if (editId) {
+                        const docRef = doc(db, colecao, editId);
+                        const docSnap = await getDoc(docRef);
+                        if (docSnap.exists()) {
+                            dados.arquivoUrl = docSnap.data().arquivoUrl || '';
                         }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { position: 'top' },
-                        title: { display: true, text: 'Evolução Financeira' }
+                    } else {
+                        dados.arquivoUrl = '';
                     }
                 }
-            });
+
+                let docRef;
+                if (editId) {
+                    docRef = doc(db, colecao, editId);
+                    await updateDoc(docRef, dados);
+                } else {
+                    docRef = await addDoc(collection(db, colecao), dados);
+                }
+
+                // Atualiza imediatamente o histórico
+                const tbody = document.getElementById(`${colecao}-history`);
+                if (tbody) {
+                    const docSnapshot = await getDoc(docRef);
+                    if (docSnapshot.exists()) {
+                        const tr = criarLinhaTabelaComArquivos(docSnapshot, dados, colecao);
+                        tbody.insertBefore(tr, tbody.firstChild);
+                    }
+                }
+
+                e.target.reset();
+                await atualizarGraficos();
+                alert('Registro salvo com sucesso!');
+
+                if (colecao === 'revenues') {
+                    editRevenueId = null;
+                } else if (colecao === 'costs') {
+                    editCostId = null;
+                } else if (colecao === 'expenses') {
+                    editExpenseId = null;
+                }
+
+            } catch (erro) {
+                console.error('Erro ao salvar:', erro);
+                alert('Erro ao salvar: ' + erro.message);
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Salvar';
+            }
         }
 
-        const ctxBar = document.getElementById('barChart')?.getContext('2d');
-        if (ctxBar) {
-            barChart = new Chart(ctxBar, {
-                type: 'bar',
-                data: {
-                    labels: [],
-                    datasets: [
-                        {
-                            label: 'Despesas',
-                            data: [],
-                            backgroundColor: '#e74c3c',
-                            barPercentage: 0.8
-                        },
-                        {
-                            label: 'Devoluções',
-                            data: [],
-                            backgroundColor: '#f1c40f',
-                            barPercentage: 0.8
-                        },
-                        {
-                            label: 'Desconto Financeiro',
-                            data: [],
-                            backgroundColor: '#2ecc71',
-                            barPercentage: 0.8
+        // Funções de edição
+        window.editarRevenues = async function(id) {
+            try {
+                const docRef = doc(db, 'revenues', id);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const dados = docSnap.data();
+                    const form = document.getElementById('revenue-form');
+                    form.tipo.value = dados.tipo;
+                    form.valor.value = dados.valor;
+                    form.devolucoes.value = dados.devolucoes || 0;
+                    form.descontoFinanceiro.value = dados.descontoFinanceiro || 0;
+                    form.descricao.value = dados.descricao;
+                    form.mesAno.value = dados.mesAno;
+                    // Limpa o campo de arquivo
+                    form.arquivo.value = '';
+                    editRevenueId = id;
+                }
+            } catch (erro) {
+                console.error('Erro ao editar:', erro);
+                alert('Erro ao editar: ' + erro.message);
+            }
+        };
+
+        window.editarCosts = async function(id) {
+            try {
+                const docRef = doc(db, 'costs', id);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const dados = docSnap.data();
+                    const form = document.getElementById('costs-form');
+                    form.tipo.value = dados.tipo;
+                    form.valor.value = dados.valor;
+                    form.descricao.value = dados.descricao;
+                    form.mesAno.value = dados.mesAno;
+                    // Limpa o campo de arquivo
+                    form.arquivo.value = '';
+                    editCostId = id;
+                }
+            } catch (erro) {
+                console.error('Erro ao editar:', erro);
+                alert('Erro ao editar: ' + erro.message);
+            }
+        };
+
+        window.editarExpenses = async function(id) {
+            try {
+                const docRef = doc(db, 'expenses', id);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const dados = docSnap.data();
+                    const form = document.getElementById('expenses-form');
+                    form.tipo.value = dados.tipo;
+                    form.valor.value = dados.valor;
+                    form.descricao.value = dados.descricao;
+                    form.mesAno.value = dados.mesAno;
+                    // Limpa o campo de arquivo
+                    form.arquivo.value = '';
+                    editExpenseId = id;
+                }
+            } catch (erro) {
+                console.error('Erro ao editar:', erro);
+                alert('Erro ao editar: ' + erro.message);
+            }
+        };
+
+        // Funções de exclusão
+        window.excluirRevenues = async function(id) {
+            if (confirm('Tem certeza que deseja excluir este registro?')) {
+                try {
+                    // Excluir arquivo do Storage, se existir
+                    const docRef = doc(db, 'revenues', id);
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                        const dados = docSnap.data();
+                        if (dados.arquivoUrl) {
+                            const fileRef = storageRef(storage, dados.arquivoUrl);
+                            await deleteObject(fileRef).catch((error) => {
+                                console.error('Erro ao excluir o arquivo:', error);
+                            });
                         }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { position: 'top' },
-                        title: { display: true, text: 'Despesas, Devoluções e Desconto Financeiro por Mês' }
-                    },
-                    scales: {
-                        x: {
-                            stacked: false,
-                            gridLines: {
-                                display: false
-                            }
-                        },
-                        y: {
-                            stacked: false,
-                            beginAtZero: true
+                    }
+
+                    // Excluir documento do Firestore
+                    await deleteDoc(doc(db, 'revenues', id));
+                    await carregarDados('revenues');
+                    await atualizarGraficos();
+                    alert('Registro excluído com sucesso!');
+                } catch (erro) {
+                    console.error('Erro ao excluir:', erro);
+                    alert('Erro ao excluir: ' + erro.message);
+                }
+            }
+        };
+
+        window.excluirCosts = async function(id) {
+            if (confirm('Tem certeza que deseja excluir este registro?')) {
+                try {
+                    // Excluir arquivo do Storage, se existir
+                    const docRef = doc(db, 'costs', id);
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                        const dados = docSnap.data();
+                        if (dados.arquivoUrl) {
+                            const fileRef = storageRef(storage, dados.arquivoUrl);
+                            await deleteObject(fileRef).catch((error) => {
+                                console.error('Erro ao excluir o arquivo:', error);
+                            });
                         }
-                    },
-                    barPercentage: 0.9,
-                    categoryPercentage: 0.8
-                }
-            });
-        }
+                    }
 
-        const ctxPie = document.getElementById('pieChart')?.getContext('2d');
-        if (ctxPie) {
-            pieChart = new Chart(ctxPie, {
-                type: 'pie',
-                data: {
-                    labels: ['Outras Despesas Operacionais', 'Embalagens', 'Caminhões', 'Combustível'],
-                    datasets: [{
-                        data: [],
-                        backgroundColor: ['#e74c3c', '#f1c40f', '#8e44ad', '#2ecc71']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { position: 'right' },
-                        datalabels: {
-                            formatter: (value) => formatarMoeda(value),
-                            color: '#fff',
-                            font: { weight: 'bold' }
+                    // Excluir documento do Firestore
+                    await deleteDoc(doc(db, 'costs', id));
+                    await carregarDados('costs');
+                    await atualizarGraficos();
+                    alert('Registro excluído com sucesso!');
+                } catch (erro) {
+                    console.error('Erro ao excluir:', erro);
+                    alert('Erro ao excluir: ' + erro.message);
+                }
+            }
+        };
+
+        window.excluirExpenses = async function(id) {
+            if (confirm('Tem certeza que deseja excluir este registro?')) {
+                try {
+                    // Excluir arquivo do Storage, se existir
+                    const docRef = doc(db, 'expenses', id);
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                        const dados = docSnap.data();
+                        if (dados.arquivoUrl) {
+                            const fileRef = storageRef(storage, dados.arquivoUrl);
+                            await deleteObject(fileRef).catch((error) => {
+                                console.error('Erro ao excluir o arquivo:', error);
+                            });
                         }
-                    },
-                    plugins: [ChartDataLabels]
-                }
-            });
-        }
-    }
+                    }
 
-    // Atualização dos gráficos
-    async function atualizarGraficos() {
-        try {
-            let qFilter = null;
-            if (periodoSelecionado) {
-                qFilter = [
-                    where('mesAno', '>=', periodoSelecionado.inicio),
-                    where('mesAno', '<=', periodoSelecionado.fim)
-                ];
+                    // Excluir documento do Firestore
+                    await deleteDoc(doc(db, 'expenses', id));
+                    await carregarDados('expenses');
+                    await atualizarGraficos();
+                    alert('Registro excluído com sucesso!');
+                } catch (erro) {
+                    console.error('Erro ao excluir:', erro);
+                    alert('Erro ao excluir: ' + erro.message);
+                }
             }
+        };
 
-            const [receitas, custos, despesas] = await Promise.all([
-                getDocs(qFilter ? query(collection(db, 'revenues'), ...qFilter) : query(collection(db, 'revenues'), orderBy('mesAno'))),
-                getDocs(qFilter ? query(collection(db, 'costs'), ...qFilter) : query(collection(db, 'costs'), orderBy('mesAno'))),
-                getDocs(qFilter ? query(collection(db, 'expenses'), ...qFilter) : query(collection(db, 'expenses'), orderBy('mesAno')))
-            ]);
-
-            const dadosPorMes = {};
-            const devolucoesTotais = {};
-            const despesasPorTipo = {
-                'Outras Despesas Operacionais': 0,
-                'Embalagens': 0,
-                'Caminhões': 0,
-                'Combustível': 0
-            };
-
-            // Processa receitas, devoluções e descontos financeiros
-            receitas.forEach(doc => {
-                const { valor, devolucoes = 0, descontoFinanceiro = 0, mesAno } = doc.data();
-                if (!dadosPorMes[mesAno]) {
-                    dadosPorMes[mesAno] = { receitas: 0, custos: 0, despesas: 0, devolucoes: 0, descontoFinanceiro: 0 };
-                }
-                dadosPorMes[mesAno].receitas += valor;
-                dadosPorMes[mesAno].devolucoes += devolucoes;
-                dadosPorMes[mesAno].descontoFinanceiro += descontoFinanceiro;
-                devolucoesTotais[mesAno] = (devolucoesTotais[mesAno] || 0) + devolucoes;
-            });
-
-            // Processa custos
-            custos.forEach(doc => {
-                const { valor, mesAno } = doc.data();
-                if (!dadosPorMes[mesAno]) {
-                    dadosPorMes[mesAno] = { receitas: 0, custos: 0, despesas: 0, devolucoes: 0, descontoFinanceiro: 0 };
-                }
-                dadosPorMes[mesAno].custos += valor;
-            });
-
-            // Processa despesas
-            despesas.forEach(doc => {
-                const { valor, mesAno, tipo } = doc.data();
-                if (!dadosPorMes[mesAno]) {
-                    dadosPorMes[mesAno] = { receitas: 0, custos: 0, despesas: 0, devolucoes: 0, descontoFinanceiro: 0 };
-                }
-                dadosPorMes[mesAno].despesas += valor;
-                if (despesasPorTipo.hasOwnProperty(tipo)) {
-                    despesasPorTipo[tipo] += valor;
-                }
-            });
-
-            // Atualiza gráficos
-            const meses = Object.keys(dadosPorMes).sort();
-            const mesesFormatados = meses.map(formatarData);
-            
-            if (lineChart) {
-                lineChart.data.labels = mesesFormatados;
-                lineChart.data.datasets[0].data = meses.map(mes => dadosPorMes[mes].receitas - dadosPorMes[mes].devolucoes - dadosPorMes[mes].descontoFinanceiro);
-                lineChart.data.datasets[1].data = meses.map(mes => 
-                    dadosPorMes[mes].receitas - dadosPorMes[mes].devolucoes - dadosPorMes[mes].descontoFinanceiro - dadosPorMes[mes].custos - dadosPorMes[mes].despesas
-                );
-                lineChart.update();
-            }
-
-            if (barChart) {
-                barChart.data.labels = mesesFormatados;
-                barChart.data.datasets[0].data = meses.map(mes => dadosPorMes[mes].despesas);
-                barChart.data.datasets[1].data = meses.map(mes => dadosPorMes[mes].devolucoes);
-                barChart.data.datasets[2].data = meses.map(mes => dadosPorMes[mes].descontoFinanceiro);
-                barChart.update();
-            }
-
-            if (pieChart) {
-                pieChart.data.datasets[0].data = Object.values(despesasPorTipo);
-                pieChart.update();
-            }
-
-            // Atualiza cards
-            const totalReceitas = Object.values(dadosPorMes).reduce((acc, curr) => acc + curr.receitas - curr.devolucoes - curr.descontoFinanceiro, 0);
-            const totalCustos = Object.values(dadosPorMes).reduce((acc, curr) => acc + curr.custos, 0);
-            const totalDespesas = Object.values(dadosPorMes).reduce((acc, curr) => acc + curr.despesas, 0);
-            
-            document.getElementById('gross-revenue').textContent = formatarMoeda(totalReceitas);
-            document.getElementById('operating-profit').textContent = formatarMoeda(totalReceitas - totalCustos);
-            document.getElementById('net-profit').textContent = formatarMoeda(totalReceitas - totalCustos - totalDespesas);
-
-            // Armazena dados para relatório
-            dadosDRE = { dadosPorMes, despesasPorTipo, devolucoesTotais };
-
-        } catch (erro) {
-            console.error('Erro ao atualizar gráficos:', erro);
-            alert('Erro ao atualizar gráficos: ' + erro.message);
-        }
-    }
-
-    // Event listeners
-    document.addEventListener('DOMContentLoaded', async () => {
-        try {
-            // Inicializa os gráficos primeiro
-            inicializarGraficos();
-
-            // Adiciona os event listeners
-            document.getElementById('revenue-form')?.addEventListener('submit', e => handleFormSubmit(e, 'revenues', editRevenueId));
-            document.getElementById('costs-form')?.addEventListener('submit', e => handleFormSubmit(e, 'costs', editCostId));
-            document.getElementById('expenses-form')?.addEventListener('submit', e => handleFormSubmit(e, 'expenses', editExpenseId));
-            
-            document.getElementById('report-form')?.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const mesInicial = document.getElementById('report-start').value;
-                const mesFinal = document.getElementById('report-end').value;
-
-                if (!mesInicial || !mesFinal) {
-                    alert('Selecione o período para gerar o relatório');
+        // Função para carregar dados
+        async function carregarDados(colecao) {
+            try {
+                const tbody = document.getElementById(`${colecao}-history`);
+                if (!tbody) {
+                    console.warn(`Elemento ${colecao}-history não encontrado`);
                     return;
                 }
-
-                if (mesInicial > mesFinal) {
-                    alert('O mês inicial não pode ser maior que o mês final');
-                    return;
-                }
-
-                const reportOutput = document.getElementById('report-output');
-                const reportContent = document.getElementById('report-content');
                 
-                reportContent.innerHTML = gerarHTMLRelatorio(dadosDRE, mesInicial, mesFinal);
-                reportOutput.style.display = 'block';
-            });
+                let q = collection(db, colecao);
+                if (periodoSelecionado) {
+                    q = query(
+                        q,
+                        where('mesAno', '>=', periodoSelecionado.inicio),
+                        where('mesAno', '<=', periodoSelecionado.fim)
+                    );
+                }
+                q = query(q, orderBy('mesAno', 'desc'));
+                
+                const querySnapshot = await getDocs(q);
+                tbody.innerHTML = '';
+                
+                querySnapshot.forEach((doc) => {
+                    const dados = doc.data();
+                    tbody.appendChild(criarLinhaTabelaComArquivos(doc, dados, colecao));
+                });
+            } catch (erro) {
+                console.error(`Erro ao carregar ${colecao}:`, erro);
+            }
+        }
 
-            // Carrega os dados
+        // Funções de filtro de período
+        window.filtrarDados = async function() {
+            const periodoInicio = document.getElementById('overview-period-start').value;
+            const periodoFim = document.getElementById('overview-period-end').value;
+
+            if (!periodoInicio || !periodoFim) {
+                alert('Selecione o período inicial e final para filtrar');
+                return;
+            }
+
+            if (periodoInicio > periodoFim) {
+                alert('O período inicial não pode ser maior que o período final');
+                return;
+            }
+
+            periodoSelecionado = { inicio: periodoInicio, fim: periodoFim };
+
             await Promise.all([
                 carregarDados('revenues'),
                 carregarDados('costs'),
                 carregarDados('expenses')
             ]);
-
-            // Atualiza os gráficos
             await atualizarGraficos();
+        };
 
-        } catch (erro) {
-            console.error('Erro durante a inicialização:', erro);
+        window.limparFiltro = async function() {
+            periodoSelecionado = null;
+            document.getElementById('overview-period-start').value = '';
+            document.getElementById('overview-period-end').value = '';
+            await Promise.all([
+                carregarDados('revenues'),
+                carregarDados('costs'),
+                carregarDados('expenses')
+            ]);
+            await atualizarGraficos();
+        };
+
+        // Funções de busca
+        window.buscarReceitas = async function() {
+            const termo = document.getElementById('revenue-search').value;
+            const mes = document.getElementById('revenue-search-month').value;
+            await buscarRegistros('revenues', termo, mes);
+        };
+
+        window.buscarCustos = async function() {
+            const termo = document.getElementById('costs-search').value;
+            const mes = document.getElementById('costs-search-month').value;
+            await buscarRegistros('costs', termo, mes);
+        };
+
+        window.buscarDespesas = async function() {
+            const termo = document.getElementById('expenses-search').value;
+            const mes = document.getElementById('expenses-search-month').value;
+            await buscarRegistros('expenses', termo, mes);
+        };
+
+        async function buscarRegistros(colecao, termo, mes) {
+            try {
+                let q = collection(db, colecao);
+                const filtros = [];
+
+                if (mes) filtros.push(where('mesAno', '==', mes));
+                if (termo) {
+                    filtros.push(where('tipo', '>=', termo));
+                    filtros.push(where('tipo', '<=', termo + '\uf8ff'));
+                }
+
+                if (filtros.length > 0) {
+                    q = query(q, ...filtros);
+                } else {
+                    q = query(q, orderBy('mesAno', 'desc'));
+                }
+
+                const querySnapshot = await getDocs(q);
+                const tbody = document.getElementById(`${colecao}-history`);
+                tbody.innerHTML = '';
+                
+                querySnapshot.forEach((doc) => {
+                    const dados = doc.data();
+                    tbody.appendChild(criarLinhaTabelaComArquivos(doc, dados, colecao));
+                });
+            } catch (erro) {
+                console.error(`Erro ao buscar ${colecao}:`, erro);
+                alert(`Erro ao buscar registros: ${erro.message}`);
+            }
         }
-    });
 
-    // Funções de exportação
-    window.exportarPDF = function() {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        
-        const reportContent = document.getElementById('report-content');
-        doc.html(reportContent, {
-            callback: function(doc) {
-                doc.save('relatorio-dre.pdf');
-            },
-            x: 10,
-            y: 10,
-            width: 190,
-            windowWidth: reportContent.offsetWidth
-        });
-    };
+        // Inicialização dos gráficos
+        function inicializarGraficos() {
+            const ctxLine = document.getElementById('lineChart')?.getContext('2d');
+            if (ctxLine) {
+                lineChart = new Chart(ctxLine, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: 'Receita Bruta',
+                                data: [],
+                                borderColor: '#3498db',
+                                backgroundColor: 'rgba(52, 152, 219, 0.2)',
+                                fill: true
+                            },
+                            {
+                                label: 'Lucro Líquido',
+                                data: [],
+                                borderColor: '#e74c3c',
+                                backgroundColor: 'rgba(231, 76, 60, 0.2)',
+                                fill: true
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'top' },
+                            title: { display: true, text: 'Evolução Financeira' }
+                        }
+                    }
+                });
+            }
 
-    window.exportarExcel = function() {
-        const reportContent = document.getElementById('report-content');
-        const wb = XLSX.utils.book_new();
-        
-        // Adiciona a primeira tabela (DRE)
-        const wsDRE = XLSX.utils.table_to_sheet(reportContent.getElementsByTagName('table')[0]);
-        XLSX.utils.book_append_sheet(wb, wsDRE, 'DRE');
-        
-        // Se houver uma segunda tabela (Detalhamento), adiciona também
-        const tables = reportContent.getElementsByTagName('table');
-        if (tables.length > 1) {
-            const wsDetalhamento = XLSX.utils.table_to_sheet(tables[1]);
-            XLSX.utils.book_append_sheet(wb, wsDetalhamento, 'Detalhamento');
+            const ctxBar = document.getElementById('barChart')?.getContext('2d');
+            if (ctxBar) {
+                barChart = new Chart(ctxBar, {
+                    type: 'bar',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: 'Despesas',
+                                data: [],
+                                backgroundColor: '#e74c3c',
+                                barPercentage: 0.8
+                            },
+                            {
+                                label: 'Devoluções',
+                                data: [],
+                                backgroundColor: '#f1c40f',
+                                barPercentage: 0.8
+                            },
+                            {
+                                label: 'Desconto Financeiro',
+                                data: [],
+                                backgroundColor: '#2ecc71',
+                                barPercentage: 0.8
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'top' },
+                            title: { display: true, text: 'Despesas, Devoluções e Desconto Financeiro por Mês' }
+                        },
+                        scales: {
+                            x: {
+                                stacked: false,
+                                gridLines: {
+                                    display: false
+                                }
+                            },
+                            y: {
+                                stacked: false,
+                                beginAtZero: true
+                            }
+                        },
+                        barPercentage: 0.9,
+                        categoryPercentage: 0.8
+                    }
+                });
+            }
+
+            const ctxPie = document.getElementById('pieChart')?.getContext('2d');
+            if (ctxPie) {
+                pieChart = new Chart(ctxPie, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Outras Despesas Operacionais', 'Embalagens', 'Caminhões', 'Combustível'],
+                        datasets: [{
+                            data: [],
+                            backgroundColor: ['#e74c3c', '#f1c40f', '#8e44ad', '#2ecc71']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'right' }, // Legenda ao lado direito
+                            datalabels: {
+                                formatter: (value, context) => {
+                                    const label = context.chart.data.labels[context.dataIndex];
+                                    return `${label}: ${formatarMoeda(value)}`;
+                                },
+                                color: '#fff',
+                                font: { weight: 'bold' }
+                            }
+                        },
+                        plugins: [ChartDataLabels]
+                    }
+                });
+            }
         }
-        
-        XLSX.writeFile(wb, 'relatorio-dre.xlsx');
-    };
 
-    // Função para gerar relatório HTML
-    function gerarHTMLRelatorio(dados, mesInicial, mesFinal) {
-        const meses = Object.keys(dados.dadosPorMes)
-            .filter(mes => mes >= mesInicial && mes <= mesFinal)
-            .sort();
+        // Atualização dos gráficos
+        async function atualizarGraficos() {
+            try {
+                let qFilter = null;
+                if (periodoSelecionado) {
+                    qFilter = [
+                        where('mesAno', '>=', periodoSelecionado.inicio),
+                        where('mesAno', '<=', periodoSelecionado.fim)
+                    ];
+                }
 
-        let totalReceitaBruta = 0;
-        let totalDevolucoes = 0;
-        let totalDescontoFinanceiro = 0;
-        let totalCustos = 0;
-        let totalDespesasOperacionais = 0;
-        let totalDespesasCombustivel = 0;
-        let totalDespesasCaminhoes = 0;
-        let totalDespesasEmbalagens = 0;
+                const [receitas, custos, despesas] = await Promise.all([
+                    getDocs(qFilter ? query(collection(db, 'revenues'), ...qFilter) : query(collection(db, 'revenues'), orderBy('mesAno'))),
+                    getDocs(qFilter ? query(collection(db, 'costs'), ...qFilter) : query(collection(db, 'costs'), orderBy('mesAno'))),
+                    getDocs(qFilter ? query(collection(db, 'expenses'), ...qFilter) : query(collection(db, 'expenses'), orderBy('mesAno')))
+                ]);
 
-        meses.forEach(mes => {
-            const dadosMes = dados.dadosPorMes[mes] || { 
-                receitas: 0, 
-                devolucoes: 0, 
-                descontoFinanceiro: 0,
-                custos: 0, 
-                despesas: 0 
-            };
+                const dadosPorMes = {};
+                const devolucoesTotais = {};
+                const despesasPorTipo = {
+                    'Outras Despesas Operacionais': 0,
+                    'Embalagens': 0,
+                    'Caminhões': 0,
+                    'Combustível': 0
+                };
 
-            totalReceitaBruta += dadosMes.receitas || 0;
-            totalDevolucoes += dadosMes.devolucoes || 0;
-            totalDescontoFinanceiro += dadosMes.descontoFinanceiro || 0;
-            totalCustos += dadosMes.custos || 0;
-        });
+                // Processa receitas, devoluções e descontos financeiros
+                receitas.forEach(doc => {
+                    const { valor, devolucoes = 0, descontoFinanceiro = 0, mesAno } = doc.data();
+                    if (!dadosPorMes[mesAno]) {
+                        dadosPorMes[mesAno] = { receitas: 0, custos: 0, despesas: 0, devolucoes: 0, descontoFinanceiro: 0 };
+                    }
+                    dadosPorMes[mesAno].receitas += valor;
+                    dadosPorMes[mesAno].devolucoes += devolucoes;
+                    dadosPorMes[mesAno].descontoFinanceiro += descontoFinanceiro;
+                    devolucoesTotais[mesAno] = (devolucoesTotais[mesAno] || 0) + devolucoes;
+                });
 
-        // Calcula despesas por tipo
-        Object.entries(dados.despesasPorTipo).forEach(([tipo, valor]) => {
-            if (tipo === 'Combustível') {
-                totalDespesasCombustivel += valor;
-            } else if (tipo === 'Caminhões') {
-                totalDespesasCaminhoes += valor;
-            } else if (tipo === 'Embalagens') {
-                totalDespesasEmbalagens += valor;
-            } else {
-                totalDespesasOperacionais += valor;
+                // Processa custos
+                custos.forEach(doc => {
+                    const { valor, mesAno } = doc.data();
+                    if (!dadosPorMes[mesAno]) {
+                        dadosPorMes[mesAno] = { receitas: 0, custos: 0, despesas: 0, devolucoes: 0, descontoFinanceiro: 0 };
+                    }
+                    dadosPorMes[mesAno].custos += valor;
+                });
+
+                // Processa despesas
+                despesas.forEach(doc => {
+                    const { valor, mesAno, tipo } = doc.data();
+                    if (!dadosPorMes[mesAno]) {
+                        dadosPorMes[mesAno] = { receitas: 0, custos: 0, despesas: 0, devolucoes: 0, descontoFinanceiro: 0 };
+                    }
+                    dadosPorMes[mesAno].despesas += valor;
+                    if (despesasPorTipo.hasOwnProperty(tipo)) {
+                        despesasPorTipo[tipo] += valor;
+                    }
+                });
+
+                // Atualiza gráficos
+                const meses = Object.keys(dadosPorMes).sort();
+                const mesesFormatados = meses.map(formatarData);
+                
+                if (lineChart) {
+                    lineChart.data.labels = mesesFormatados;
+                    lineChart.data.datasets[0].data = meses.map(mes => dadosPorMes[mes].receitas - dadosPorMes[mes].devolucoes - dadosPorMes[mes].descontoFinanceiro);
+                    lineChart.data.datasets[1].data = meses.map(mes => 
+                        dadosPorMes[mes].receitas - dadosPorMes[mes].devolucoes - dadosPorMes[mes].descontoFinanceiro - dadosPorMes[mes].custos - dadosPorMes[mes].despesas
+                    );
+                    lineChart.update();
+                }
+
+                if (barChart) {
+                    barChart.data.labels = mesesFormatados;
+                    barChart.data.datasets[0].data = meses.map(mes => dadosPorMes[mes].despesas);
+                    barChart.data.datasets[1].data = meses.map(mes => dadosPorMes[mes].devolucoes);
+                    barChart.data.datasets[2].data = meses.map(mes => dadosPorMes[mes].descontoFinanceiro);
+                    barChart.update();
+                }
+
+                if (pieChart) {
+                    pieChart.data.datasets[0].data = Object.values(despesasPorTipo);
+                    pieChart.update();
+                }
+
+                // Atualiza cards
+                const totalReceitas = Object.values(dadosPorMes).reduce((acc, curr) => acc + curr.receitas - curr.devolucoes - curr.descontoFinanceiro, 0);
+                const totalCustos = Object.values(dadosPorMes).reduce((acc, curr) => acc + curr.custos, 0);
+                const totalDespesas = Object.values(dadosPorMes).reduce((acc, curr) => acc + curr.despesas, 0);
+                
+                document.getElementById('gross-revenue').textContent = formatarMoeda(totalReceitas);
+                document.getElementById('operating-profit').textContent = formatarMoeda(totalReceitas - totalCustos);
+                document.getElementById('net-profit').textContent = formatarMoeda(totalReceitas - totalCustos - totalDespesas);
+
+                // Armazena dados para relatório
+                dadosDRE = { dadosPorMes, despesasPorTipo, devolucoesTotais };
+
+            } catch (erro) {
+                console.error('Erro ao atualizar gráficos:', erro);
+                alert('Erro ao atualizar gráficos: ' + erro.message);
+            }
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Inicializa os gráficos primeiro
+                inicializarGraficos();
+
+                // Adiciona os event listeners
+                document.getElementById('revenue-form')?.addEventListener('submit', e => handleFormSubmit(e, 'revenues', editRevenueId));
+                document.getElementById('costs-form')?.addEventListener('submit', e => handleFormSubmit(e, 'costs', editCostId));
+                document.getElementById('expenses-form')?.addEventListener('submit', e => handleFormSubmit(e, 'expenses', editExpenseId));
+                
+                document.getElementById('report-form')?.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const mesInicial = document.getElementById('report-start').value;
+                    const mesFinal = document.getElementById('report-end').value;
+
+                    if (!mesInicial || !mesFinal) {
+                        alert('Selecione o período para gerar o relatório');
+                        return;
+                    }
+
+                    if (mesInicial > mesFinal) {
+                        alert('O mês inicial não pode ser maior que o mês final');
+                        return;
+                    }
+
+                    const reportOutput = document.getElementById('report-output');
+                    const reportContent = document.getElementById('report-content');
+                    
+                    reportContent.innerHTML = gerarHTMLRelatorio(dadosDRE, mesInicial, mesFinal);
+                    reportOutput.style.display = 'block';
+                });
+
+                // Carrega os dados
+                await Promise.all([
+                    carregarDados('revenues'),
+                    carregarDados('costs'),
+                    carregarDados('expenses')
+                ]);
+
+                // Atualiza os gráficos
+                await atualizarGraficos();
+
+            } catch (erro) {
+                console.error('Erro durante a inicialização:', erro);
             }
         });
 
-        const receitaLiquida = totalReceitaBruta - totalDevolucoes - totalDescontoFinanceiro;
-        const lucroBruto = receitaLiquida - totalCustos;
-        const lucroOperacional = lucroBruto - totalDespesasOperacionais - totalDespesasCombustivel - totalDespesasCaminhoes - totalDespesasEmbalagens;
-        const impostos = calcularImpostos(lucroOperacional);
-        const lucroLiquido = lucroOperacional - impostos.total;
+        // Funções de exportação
+        window.exportarPDF = function() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const reportContent = document.getElementById('report-content');
+            doc.html(reportContent, {
+                callback: function(doc) {
+                    doc.save('relatorio-dre.pdf');
+                },
+                x: 10,
+                y: 10,
+                width: 190,
+                windowWidth: reportContent.offsetWidth
+            });
+        };
 
-        const html = `
-            <table class="report-table">
-                <thead>
-                    <tr>
-                        <th colspan="2">DRE - Demonstração do Resultado do Exercício</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td colspan="2"><strong>1. Receita Bruta de Vendas</strong></td>
-                    </tr>
-                    <tr>
-                        <td>Receita Bruta</td>
-                        <td>${formatarMoeda(totalReceitaBruta)}</td>
-                    </tr>
-                    <tr>
-                        <td>(-) Deduções de Vendas (devoluções)</td>
-                        <td>${formatarMoeda(totalDevolucoes)}</td>
-                    </tr>
-                    <tr>
-                        <td>(-) Desconto Financeiro</td>
-                        <td>${formatarMoeda(totalDescontoFinanceiro)}</td>
-                    </tr>
-                    <tr>
-                        <td>Receita Líquida de Vendas</td>
-                        <td>${formatarMoeda(receitaLiquida)}</td>
-                    </tr>
-                    <tr>
-                        <td colspan="2"><strong>2. Custos das Mercadorias Vendidas (CMV)</strong></td>
-                    </tr>
-                    <tr>
-                        <td>(-) Custos das Mercadorias Vendidas</td>
-                        <td>${formatarMoeda(totalCustos)}</td>
-                    </tr>
-                    <tr>
-                        <td>Lucro Bruto</td>
-                        <td>${formatarMoeda(lucroBruto)}</td>
-                    </tr>
-                    <tr>
-                        <td colspan="2"><strong>3. Despesas Operacionais</strong></td>
-                    </tr>
-                    <tr>
-                        <td>(-) Outras Despesas Operacionais</td>
-                        <td>${formatarMoeda(totalDespesasOperacionais)}</td>
-                    </tr>
-                    <tr>
-                        <td>(-) Despesas com Embalagens</td>
-                        <td>${formatarMoeda(totalDespesasEmbalagens)}</td>
-                    </tr>
-                    <tr>
-                        <td>(-) Despesas Com Combustíveis</td>
-                        <td>${formatarMoeda(totalDespesasCombustivel)}</td>
-                    </tr>
-                    <tr>
-                        <td>(-) Despesas Com Caminhões</td>
-                        <td>${formatarMoeda(totalDespesasCaminhoes)}</td>
-                    </tr>
-                    <tr>
-                        <td>Lucro Operacional</td>
-                        <td>${formatarMoeda(lucroOperacional)}</td>
-                    </tr>
-                    <tr>
-                        <td colspan="2"><strong>4. Impostos sobre o Lucro</strong></td>
-                    </tr>
-                    <tr>
-                        <td>IRPJ (15% + adicional 10%)</td>
-                        <td>${formatarMoeda(impostos.irpj)}</td>
-                    </tr>
-                    <tr>
-                        <td>CSLL (9%)</td>
-                        <td>${formatarMoeda(impostos.csll)}</td>
-                    </tr>
-                    <tr>
-                        <td>(-) Total de Impostos sobre o Lucro</td>
-                        <td>${formatarMoeda(impostos.total)}</td>
-                    </tr>
-                    <tr>
-                        <td colspan="2"><strong>5. Lucro Líquido do Exercício</strong></td>
-                    </tr>
-                    <tr class="report-total">
-                        <td><strong>Lucro Líquido</strong></td>
-                        <td><strong>${formatarMoeda(lucroLiquido)}</strong></td>
-                    </tr>
-                </tbody>
-            </table>
-        `;
+        window.exportarExcel = function() {
+            const reportContent = document.getElementById('report-content');
+            const wb = XLSX.utils.book_new();
+            
+            // Adiciona a primeira tabela (DRE)
+            const wsDRE = XLSX.utils.table_to_sheet(reportContent.getElementsByTagName('table')[0]);
+            XLSX.utils.book_append_sheet(wb, wsDRE, 'DRE');
+            
+            // Se houver uma segunda tabela (Detalhamento), adiciona também
+            const tables = reportContent.getElementsByTagName('table');
+            if (tables.length > 1) {
+                const wsDetalhamento = XLSX.utils.table_to_sheet(tables[1]);
+                XLSX.utils.book_append_sheet(wb, wsDetalhamento, 'Detalhamento');
+            }
+            
+            XLSX.writeFile(wb, 'relatorio-dre.xlsx');
+        };
 
-        return html;
-    }
-</script>
+        // Função para gerar relatório HTML
+        function gerarHTMLRelatorio(dados, mesInicial, mesFinal) {
+            const meses = Object.keys(dados.dadosPorMes)
+                .filter(mes => mes >= mesInicial && mes <= mesFinal)
+                .sort();
+
+            let totalReceitaBruta = 0;
+            let totalDevolucoes = 0;
+            let totalDescontoFinanceiro = 0;
+            let totalCustos = 0;
+            let totalDespesasOperacionais = 0;
+            let totalDespesasCombustivel = 0;
+            let totalDespesasCaminhoes = 0;
+            let totalDespesasEmbalagens = 0;
+
+            meses.forEach(mes => {
+                const dadosMes = dados.dadosPorMes[mes] || { 
+                    receitas: 0, 
+                    devolucoes: 0, 
+                    descontoFinanceiro: 0,
+                    custos: 0, 
+                    despesas: 0 
+                };
+
+                totalReceitaBruta += dadosMes.receitas || 0;
+                totalDevolucoes += dadosMes.devolucoes || 0;
+                totalDescontoFinanceiro += dadosMes.descontoFinanceiro || 0;
+                totalCustos += dadosMes.custos || 0;
+            });
+
+            // Calcula despesas por tipo
+            Object.entries(dados.despesasPorTipo).forEach(([tipo, valor]) => {
+                if (tipo === 'Combustível') {
+                    totalDespesasCombustivel += valor;
+                } else if (tipo === 'Caminhões') {
+                    totalDespesasCaminhoes += valor;
+                } else if (tipo === 'Embalagens') {
+                    totalDespesasEmbalagens += valor;
+                } else {
+                    totalDespesasOperacionais += valor;
+                }
+            });
+
+            const receitaLiquida = totalReceitaBruta - totalDevolucoes - totalDescontoFinanceiro;
+            const lucroBruto = receitaLiquida - totalCustos;
+            const lucroOperacional = lucroBruto - totalDespesasOperacionais - totalDespesasCombustivel - totalDespesasCaminhoes - totalDespesasEmbalagens;
+            const impostos = calcularImpostos(lucroOperacional);
+            const lucroLiquido = lucroOperacional - impostos.total;
+
+            const html = `
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th colspan="2">DRE - Demonstração do Resultado do Exercício</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="2"><strong>1. Receita Bruta de Vendas</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Receita Bruta</td>
+                            <td>${formatarMoeda(totalReceitaBruta)}</td>
+                        </tr>
+                        <tr>
+                            <td>(-) Deduções de Vendas (devoluções)</td>
+                            <td>${formatarMoeda(totalDevolucoes)}</td>
+                        </tr>
+                        <tr>
+                            <td>(-) Desconto Financeiro</td>
+                            <td>${formatarMoeda(totalDescontoFinanceiro)}</td>
+                        </tr>
+                        <tr>
+                            <td>Receita Líquida de Vendas</td>
+                            <td>${formatarMoeda(receitaLiquida)}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2"><strong>2. Custos das Mercadorias Vendidas (CMV)</strong></td>
+                        </tr>
+                        <tr>
+                            <td>(-) Custos das Mercadorias Vendidas</td>
+                            <td>${formatarMoeda(totalCustos)}</td>
+                        </tr>
+                        <tr>
+                            <td>Lucro Bruto</td>
+                            <td>${formatarMoeda(lucroBruto)}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2"><strong>3. Despesas Operacionais</strong></td>
+                        </tr>
+                        <tr>
+                            <td>(-) Outras Despesas Operacionais</td>
+                            <td>${formatarMoeda(totalDespesasOperacionais)}</td>
+                        </tr>
+                        <tr>
+                            <td>(-) Despesas com Embalagens</td>
+                            <td>${formatarMoeda(totalDespesasEmbalagens)}</td>
+                        </tr>
+                        <tr>
+                            <td>(-) Despesas Com Combustíveis</td>
+                            <td>${formatarMoeda(totalDespesasCombustivel)}</td>
+                        </tr>
+                        <tr>
+                            <td>(-) Despesas Com Caminhões</td>
+                            <td>${formatarMoeda(totalDespesasCaminhoes)}</td>
+                        </tr>
+                        <tr>
+                            <td>Lucro Operacional</td>
+                            <td>${formatarMoeda(lucroOperacional)}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2"><strong>4. Impostos sobre o Lucro</strong></td>
+                        </tr>
+                        <tr>
+                            <td>IRPJ (15% + adicional 10%)</td>
+                            <td>${formatarMoeda(impostos.irpj)}</td>
+                        </tr>
+                        <tr>
+                            <td>CSLL (9%)</td>
+                            <td>${formatarMoeda(impostos.csll)}</td>
+                        </tr>
+                        <tr>
+                            <td>(-) Total de Impostos sobre o Lucro</td>
+                            <td>${formatarMoeda(impostos.total)}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2"><strong>5. Lucro Líquido do Exercício</strong></td>
+                        </tr>
+                        <tr class="report-total">
+                            <td><strong>Lucro Líquido</strong></td>
+                            <td><strong>${formatarMoeda(lucroLiquido)}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            `;
+
+            return html;
+        }
+    </script>
 </body>
 </html>
