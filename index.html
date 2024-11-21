@@ -23,14 +23,14 @@
             --dark: #2c3e50;
             --background: #f4f6f9;
         }
-        
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        
+
         body {
             background-color: var(--background);
             overflow-x: hidden;
@@ -38,7 +38,7 @@
             position: relative;
             padding-bottom: 40px; /* Espaço para o footer */
         }
-        
+
         .navbar {
             position: fixed;
             top: 0;
@@ -53,11 +53,11 @@
             z-index: 1000;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        
+
         .navbar h1 {
             font-size: 1.5rem;
         }
-        
+
         .sidebar {
             position: fixed;
             top: 60px;
@@ -72,16 +72,16 @@
             transition: width 0.3s;
             z-index: 999;
         }
-        
+
         .sidebar:hover {
             width: 200px;
         }
-        
+
         .sidebar ul {
             list-style: none;
             width: 100%;
         }
-        
+
         .sidebar li {
             width: 100%;
             padding: 15px 20px;
@@ -91,37 +91,37 @@
             cursor: pointer;
             transition: background-color 0.3s;
         }
-        
+
         .sidebar li:hover,
         .sidebar li.active {
             background-color: var(--accent);
         }
-        
+
         .sidebar li i {
             font-size: 1.2rem;
             margin-right: 10px;
         }
-        
+
         .sidebar li span {
             display: none;
             white-space: nowrap;
         }
-        
+
         .sidebar:hover li span {
             display: inline;
         }
-        
+
         .container {
             margin-left: 80px;
             margin-top: 60px;
             padding: 20px;
             transition: margin-left 0.3s;
         }
-        
+
         .sidebar:hover + .container {
             margin-left: 200px;
         }
-        
+
         .panel {
             display: none;
             background-color: white;
@@ -130,18 +130,18 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             margin-bottom: 20px;
         }
-        
+
         .panel.active-panel {
             display: block;
         }
-        
+
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
             margin-bottom: 20px;
         }
-        
+
         .card {
             background-color: white;
             padding: 20px;
@@ -151,29 +151,29 @@
             align-items: center;
             transition: transform 0.3s;
         }
-        
+
         .card:hover {
             transform: translateY(-5px);
         }
-        
+
         .card-icon {
             font-size: 2rem;
             margin-right: 15px;
             color: var(--accent);
         }
-        
+
         .card-content h3 {
             margin-bottom: 10px;
             font-size: 1.2rem;
             color: var(--dark);
         }
-        
+
         .card-content .value {
             font-size: 1.5rem;
             font-weight: bold;
             color: var(--primary);
         }
-        
+
         .btn {
             padding: 10px 20px;
             background-color: var(--accent);
@@ -184,35 +184,35 @@
             transition: background-color 0.3s;
             margin: 5px;
         }
-        
+
         .btn:hover {
             background-color: #2980b9;
         }
-        
+
         .btn:disabled {
             background-color: #95a5a6;
             cursor: not-allowed;
         }
-        
+
         .btn-delete {
             background-color: var(--danger);
         }
-        
+
         .btn-delete:hover {
             background-color: #c0392b;
         }
-        
+
         .form-group {
             margin-bottom: 15px;
         }
-        
+
         .form-group label {
             display: block;
             margin-bottom: 5px;
             font-weight: 500;
             color: var(--dark);
         }
-        
+
         .form-control {
             width: 100%;
             padding: 10px;
@@ -221,34 +221,34 @@
             font-size: 1rem;
             transition: border-color 0.3s;
         }
-        
+
         .form-control:focus {
             outline: none;
             border-color: var(--accent);
         }
-        
+
         .table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
         }
-        
+
         .table th,
         .table td {
             padding: 12px;
             border: 1px solid #ddd;
             text-align: left;
         }
-        
+
         .table th {
             background-color: var(--light);
             font-weight: 600;
         }
-        
+
         .table tr:hover {
             background-color: #f8f9fa;
         }
-        
+
         .chart-container {
             background-color: white;
             padding: 20px;
@@ -256,12 +256,12 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             margin-bottom: 20px;
         }
-        
+
         .chart-small {
             height: 300px;
             position: relative;
         }
-        
+
         .arquivo-link {
             color: var(--accent);
             text-decoration: none;
@@ -269,7 +269,7 @@
             align-items: center;
             gap: 5px;
         }
-        
+
         .arquivo-link:hover {
             text-decoration: underline;
         }
@@ -328,16 +328,16 @@
             font-size: 0.8rem;
             z-index: 1000;
         }
-        
+
         @media (max-width: 768px) {
             .sidebar {
                 width: 60px;
             }
-            
+
             .container {
                 margin-left: 60px;
             }
-            
+
             .grid {
                 grid-template-columns: 1fr;
             }
@@ -386,7 +386,7 @@
                         <p class="value" id="gross-revenue">R$ 0,00</p>
                     </div>
                 </div>
-                
+
                 <div class="card">
                     <div class="card-icon">
                         <i class="fas fa-chart-pie"></i>
@@ -396,7 +396,7 @@
                         <p class="value" id="operating-profit">R$ 0,00</p>
                     </div>
                 </div>
-                
+
                 <div class="card">
                     <div class="card-icon">
                         <i class="fas fa-money-bill-wave"></i>
@@ -679,7 +679,6 @@
         let editCostId = null;
         let editExpenseId = null;
         let lineChart, barChart, pieChart;
-        let dadosDRE = {};
         let periodoSelecionado = null;
 
         // Função para mostrar painéis
@@ -1158,7 +1157,7 @@
                                 fill: true
                             },
                             {
-                                label: 'Lucro Operacional',
+                                label: 'Lucro Líquido',
                                 data: [],
                                 borderColor: '#e74c3c',
                                 backgroundColor: 'rgba(231, 76, 60, 0.2)',
@@ -1241,7 +1240,7 @@
                     options: {
                         responsive: true,
                         plugins: {
-                            legend: { position: 'right' }, // Legenda ao lado direito
+                            legend: { position: 'right' },
                             datalabels: {
                                 formatter: (value, context) => {
                                     const label = context.chart.data.labels[context.dataIndex];
@@ -1351,12 +1350,71 @@
                 document.getElementById('operating-profit').textContent = formatarMoeda(totalReceitas - totalCustos);
                 document.getElementById('net-profit').textContent = formatarMoeda(totalReceitas - totalCustos - totalDespesas);
 
-                // Armazena dados para relatório
-                dadosDRE = { dadosPorMes, despesasPorTipo, devolucoesTotais };
-
             } catch (erro) {
                 console.error('Erro ao atualizar gráficos:', erro);
                 alert('Erro ao atualizar gráficos: ' + erro.message);
+            }
+        }
+
+        // Nova função para buscar dados para o relatório
+        async function fetchDadosDRE(mesInicial, mesFinal) {
+            try {
+                const qFilter = [
+                    where('mesAno', '>=', mesInicial),
+                    where('mesAno', '<=', mesFinal)
+                ];
+
+                const [receitasSnapshot, custosSnapshot, despesasSnapshot] = await Promise.all([
+                    getDocs(query(collection(db, 'revenues'), ...qFilter)),
+                    getDocs(query(collection(db, 'costs'), ...qFilter)),
+                    getDocs(query(collection(db, 'expenses'), ...qFilter))
+                ]);
+
+                const dadosPorMes = {};
+                const despesasPorTipo = {
+                    'Outras Despesas Operacionais': 0,
+                    'Embalagens': 0,
+                    'Caminhões': 0,
+                    'Combustível': 0
+                };
+
+                // Processa receitas
+                receitasSnapshot.forEach(doc => {
+                    const { valor, devolucoes = 0, descontoFinanceiro = 0, mesAno } = doc.data();
+                    if (!dadosPorMes[mesAno]) {
+                        dadosPorMes[mesAno] = { receitas: 0, custos: 0, despesas: 0, devolucoes: 0, descontoFinanceiro: 0 };
+                    }
+                    dadosPorMes[mesAno].receitas += valor;
+                    dadosPorMes[mesAno].devolucoes += devolucoes;
+                    dadosPorMes[mesAno].descontoFinanceiro += descontoFinanceiro;
+                });
+
+                // Processa custos
+                custosSnapshot.forEach(doc => {
+                    const { valor, mesAno } = doc.data();
+                    if (!dadosPorMes[mesAno]) {
+                        dadosPorMes[mesAno] = { receitas: 0, custos: 0, despesas: 0, devolucoes: 0, descontoFinanceiro: 0 };
+                    }
+                    dadosPorMes[mesAno].custos += valor;
+                });
+
+                // Processa despesas
+                despesasSnapshot.forEach(doc => {
+                    const { valor, mesAno, tipo } = doc.data();
+                    if (!dadosPorMes[mesAno]) {
+                        dadosPorMes[mesAno] = { receitas: 0, custos: 0, despesas: 0, devolucoes: 0, descontoFinanceiro: 0 };
+                    }
+                    dadosPorMes[mesAno].despesas += valor;
+                    if (despesasPorTipo.hasOwnProperty(tipo)) {
+                        despesasPorTipo[tipo] += valor;
+                    }
+                });
+
+                return { dadosPorMes, despesasPorTipo };
+            } catch (erro) {
+                console.error('Erro ao buscar dados para o relatório:', erro);
+                alert('Erro ao buscar dados para o relatório: ' + erro.message);
+                return null;
             }
         }
 
@@ -1386,10 +1444,18 @@
                         return;
                     }
 
+                    // Buscar dados específicos para o relatório
+                    const dadosDRERelatorio = await fetchDadosDRE(mesInicial, mesFinal);
+                    if (!dadosDRERelatorio) {
+                        alert('Não foi possível gerar o relatório. Verifique se há dados disponíveis para o período selecionado.');
+                        return;
+                    }
+
                     const reportOutput = document.getElementById('report-output');
                     const reportContent = document.getElementById('report-content');
                     
-                    reportContent.innerHTML = gerarHTMLRelatorio(dadosDRE, mesInicial, mesFinal);
+                    // Gerar o relatório com os dados específicos
+                    reportContent.innerHTML = gerarHTMLRelatorio(dadosDRERelatorio, mesInicial, mesFinal);
                     reportOutput.style.display = 'block';
                 });
 
@@ -1584,3 +1650,4 @@
     </script>
 </body>
 </html>
+
