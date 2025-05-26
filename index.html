@@ -4,29 +4,10 @@
   <meta charset="utf-8">
   <title>Automatizador de Notas – Santomé</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-<!-- PDF.js (ES Module) -->
-<script type="module">
-  import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.2.133/build/pdf.mjs';
-  window.pdfjsLib = pdfjsLib;
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.2.133/build/pdf.worker.min.mjs';
-</script>
 
-<!-- Tesseract.js (ES Module) -->
-<script type="module">
-  import { createWorker } from 'https://cdn.jsdelivr.net/npm/tesseract.js@5.2.0/dist/tesseract.esm.min.js';
-  async function recognizeWrapper(image, lang = 'por+eng', options = {}) {
-    const worker = await createWorker();
-    await worker.loadLanguage(lang);
-    await worker.initialize(lang);
-    const result = await worker.recognize(image, undefined, options);
-    await worker.terminate();
-    return result;
-  }
-  window.Tesseract = { recognize: recognizeWrapper };
-</script>
+
   <!-- SheetJS -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.20.2/xlsx.full.min.js"></script>
-  <!-- Font Awesome -->
+<!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <style>
@@ -390,6 +371,25 @@
       }
     }
   </style>
+<!-- Bibliotecas via ESM (pdfjs, tesseract, sheetjs) -->
+<script type="module">
+  import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.2.133/+esm';
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.2.133/build/pdf.worker.min.js';
+  import { createWorker } from 'https://cdn.jsdelivr.net/npm/tesseract.js@5.2.0/+esm';
+  import * as XLSX from 'https://cdn.jsdelivr.net/npm/xlsx@0.20.2/+esm';
+  window.pdfjsLib = pdfjsLib;
+  window.XLSX = XLSX;
+  window.Tesseract = {
+    recognize: async (image, lang = 'por+eng', options = {}) => {
+      const worker = await createWorker();
+      await worker.loadLanguage(lang);
+      await worker.initialize(lang);
+      const result = await worker.recognize(image, undefined, options);
+      await worker.terminate();
+      return result;
+    }
+  };
+</script>
 </head>
 
 <body>
@@ -992,25 +992,5 @@
         .trim();
     }
   </script>
-<!-- Espera assíncrona até que todas as bibliotecas estejam definidas -->
-<script>
-  (function waitForLibs(retries = 20) {
-    const ok = (typeof pdfjsLib !== 'undefined') &&
-               (typeof Tesseract !== 'undefined') &&
-               (typeof XLSX !== 'undefined');
-    if (ok) {
-      console.log('Bibliotecas carregadas com sucesso');
-      if (typeof checkLibraries === 'function') {
-        checkLibraries();
-      }
-      return;
-    }
-    if (retries > 0) {
-      setTimeout(() => waitForLibs(retries - 1), 300);
-    } else {
-      console.error('Não foi possível carregar todas as bibliotecas.');
-    }
-  })();
-</script>
 </body>
 </html>
