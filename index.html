@@ -992,5 +992,25 @@
         .trim();
     }
   </script>
+<!-- Espera assíncrona até que todas as bibliotecas estejam definidas -->
+<script>
+  (function waitForLibs(retries = 20) {
+    const ok = (typeof pdfjsLib !== 'undefined') &&
+               (typeof Tesseract !== 'undefined') &&
+               (typeof XLSX !== 'undefined');
+    if (ok) {
+      console.log('Bibliotecas carregadas com sucesso');
+      if (typeof checkLibraries === 'function') {
+        checkLibraries();
+      }
+      return;
+    }
+    if (retries > 0) {
+      setTimeout(() => waitForLibs(retries - 1), 300);
+    } else {
+      console.error('Não foi possível carregar todas as bibliotecas.');
+    }
+  })();
+</script>
 </body>
 </html>
