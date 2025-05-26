@@ -4,9 +4,10 @@
   <meta charset="utf-8">
   <title>Automatizador de Notas – Santomé</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-
-
-  <!-- SheetJS -->
+  
+  <!-- PDF.js -->
+<!-- Tesseract.js -->
+<!-- SheetJS -->
 <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -371,25 +372,29 @@
       }
     }
   </style>
-<!-- Bibliotecas via ESM (pdfjs, tesseract, sheetjs) -->
-<script type="module">
-  import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.2.133/+esm';
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.2.133/build/pdf.worker.min.js';
-  import { createWorker } from 'https://cdn.jsdelivr.net/npm/tesseract.js@5.2.0/+esm';
-  import * as XLSX from 'https://cdn.jsdelivr.net/npm/xlsx@0.20.2/+esm';
-  window.pdfjsLib = pdfjsLib;
-  window.XLSX = XLSX;
-  window.Tesseract = {
-    recognize: async (image, lang = 'por+eng', options = {}) => {
-      const worker = await createWorker();
-      await worker.loadLanguage(lang);
-      await worker.initialize(lang);
-      const result = await worker.recognize(image, undefined, options);
-      await worker.terminate();
-      return result;
-    }
-  };
-</script>
+<!-- Bibliotecas locais (pdfjs, tesseract, sheetjs) -->
+    <script type="module">
+      import * as pdfjsLib from './libs/pdf.min.js';
+      pdfjsLib.GlobalWorkerOptions.workerSrc = './libs/pdf.worker.min.js';
+      window.pdfjsLib = pdfjsLib;
+
+      import { createWorker } from './libs/tesseract.esm.min.js';
+      window.Tesseract = {
+        recognize: async (image, lang = 'por+eng', options = {}) => {
+          const worker = await createWorker();
+          await worker.loadLanguage(lang);
+          await worker.initialize(lang);
+          const result = await worker.recognize(image, undefined, options);
+          await worker.terminate();
+          return result;
+        }
+      };
+
+      import * as XLSX from './libs/xlsx.full.min.js';
+      window.XLSX = XLSX;
+
+      if (typeof checkLibraries === 'function') checkLibraries();
+    </script>
 </head>
 
 <body>
@@ -461,7 +466,7 @@
     
     // Initialize PDF.js with verification
     if (typeof pdfjsLib !== 'undefined') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.2.133/build/pdf.worker.min.mjs';
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.js';
     }
     
     // Regular expressions
