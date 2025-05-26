@@ -4,9 +4,35 @@
   <meta charset="utf-8">
   <title>Automatizador de Notas – Santomé</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Bibliotecas locais (PDF.js, Tesseract.js, SheetJS) -->
+<script type="module">
+  // PDF.js
+  import * as pdfjsLib from './libs/pdf.min.mjs';
+  pdfjsLib.GlobalWorkerOptions.workerSrc = './libs/pdf.worker.min.mjs';
+  window.pdfjsLib = pdfjsLib;
+
+  // Tesseract.js
+  import { createWorker } from './libs/tesseract.esm.min.js';
+  window.Tesseract = {
+    recognize: async (image, lang = 'por+eng', options = {}) => {
+      const worker = await createWorker();
+      await worker.loadLanguage(lang);
+      await worker.initialize(lang);
+      const res = await worker.recognize(image, undefined, options);
+      await worker.terminate();
+      return res;
+    }
+  };
+
+  // SheetJS
+  import * as XLSX from './libs/xlsx.full.min.js';
+  window.XLSX = XLSX;
+
+  if (typeof checkLibraries === 'function') checkLibraries();
+</script>
   
   <!-- PDF.js -->
-<!-- Tesseract.js -->
+  <!-- Tesseract.js -->
 <!-- SheetJS -->
 <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -372,33 +398,6 @@
       }
     }
   </style>
-<!-- Bibliotecas locais (pdf.js, tesseract.js, sheetjs) -->
-<script type="module">
-  // Importações locais
-  import * as pdfjsLib from './libs/pdf.min.js';
-  pdfjsLib.GlobalWorkerOptions.workerSrc = './libs/pdf.worker.min.js';
-  window.pdfjsLib = pdfjsLib;
-
-  import { createWorker } from './libs/tesseract.esm.min.js';
-  window.Tesseract = {
-    recognize: async (image, lang = 'por+eng', options = {}) => {
-      const worker = await createWorker();
-      await worker.loadLanguage(lang);
-      await worker.initialize(lang);
-      const result = await worker.recognize(image, undefined, options);
-      await worker.terminate();
-      return result;
-    }
-  };
-
-  import * as XLSX from './libs/xlsx.full.min.js';
-  window.XLSX = XLSX;
-
-  // Chama verificação quando carregar
-  if (typeof checkLibraries === 'function') {
-    checkLibraries();
-  }
-</script>
 </head>
 
 <body>
@@ -470,7 +469,7 @@
     
     // Initialize PDF.js with verification
     if (typeof pdfjsLib !== 'undefined') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.js';
+      pdfjsLib.GlobalWorkerOptions.workerSrc = './libs/pdf.worker.min.mjs';
     }
     
     // Regular expressions
@@ -1001,20 +1000,19 @@
         .trim();
     }
   </script>
-<!-- Verifica se as libs subiram corretamente -->
+<!-- Espera assíncrona para confirmar carregamento das libs locais -->
 <script>
-  (function verifyLocalLibs(retries = 15) {
-    const ok = (typeof pdfjsLib !== 'undefined') &&
-               (typeof Tesseract !== 'undefined') &&
-               (typeof XLSX !== 'undefined');
-    if (ok) {
+  (function waitForLibs(retries = 20){
+    const ok = typeof pdfjsLib!=='undefined' && typeof Tesseract!=='undefined' && typeof XLSX!=='undefined';
+    if(ok){
       console.log('Bibliotecas locais carregadas OK');
+      if(typeof checkLibraries==='function') checkLibraries();
       return;
     }
-    if (retries > 0) {
-      setTimeout(() => verifyLocalLibs(retries - 1), 300);
-    } else {
-      alert('Algumas bibliotecas locais não foram encontradas. Confirme se a pasta /libs contém todos os arquivos e publique novamente.');
+    if(retries>0){
+      setTimeout(()=>waitForLibs(retries-1),300);
+    }else{
+      console.error('Não foi possível carregar todas as bibliotecas locais.');
     }
   })();
 </script>
