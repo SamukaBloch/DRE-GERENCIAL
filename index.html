@@ -4,11 +4,26 @@
   <meta charset="utf-8">
   <title>Automatizador de Notas – Santomé</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  
-  <!-- PDF.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js"></script>
-  <!-- Tesseract.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.2.0/tesseract.min.js"></script>
+<!-- PDF.js (ES Module) -->
+<script type="module">
+  import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.2.133/build/pdf.mjs';
+  window.pdfjsLib = pdfjsLib;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.2.133/build/pdf.worker.min.mjs';
+</script>
+
+<!-- Tesseract.js (ES Module) -->
+<script type="module">
+  import { createWorker } from 'https://cdn.jsdelivr.net/npm/tesseract.js@5.2.0/dist/tesseract.esm.min.js';
+  async function recognizeWrapper(image, lang = 'por+eng', options = {}) {
+    const worker = await createWorker();
+    await worker.loadLanguage(lang);
+    await worker.initialize(lang);
+    const result = await worker.recognize(image, undefined, options);
+    await worker.terminate();
+    return result;
+  }
+  window.Tesseract = { recognize: recognizeWrapper };
+</script>
   <!-- SheetJS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.20.2/xlsx.full.min.js"></script>
   <!-- Font Awesome -->
@@ -446,7 +461,7 @@
     
     // Initialize PDF.js with verification
     if (typeof pdfjsLib !== 'undefined') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.js';
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.2.133/build/pdf.worker.min.mjs';
     }
     
     // Regular expressions
