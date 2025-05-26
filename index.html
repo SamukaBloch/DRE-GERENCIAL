@@ -372,29 +372,33 @@
       }
     }
   </style>
-<!-- Bibliotecas locais (pdfjs, tesseract, sheetjs) -->
-    <script type="module">
-      import * as pdfjsLib from './libs/pdf.min.js';
-      pdfjsLib.GlobalWorkerOptions.workerSrc = './libs/pdf.worker.min.js';
-      window.pdfjsLib = pdfjsLib;
+<!-- Bibliotecas locais (pdf.js, tesseract.js, sheetjs) -->
+<script type="module">
+  // Importações locais
+  import * as pdfjsLib from './libs/pdf.min.js';
+  pdfjsLib.GlobalWorkerOptions.workerSrc = './libs/pdf.worker.min.js';
+  window.pdfjsLib = pdfjsLib;
 
-      import { createWorker } from './libs/tesseract.esm.min.js';
-      window.Tesseract = {
-        recognize: async (image, lang = 'por+eng', options = {}) => {
-          const worker = await createWorker();
-          await worker.loadLanguage(lang);
-          await worker.initialize(lang);
-          const result = await worker.recognize(image, undefined, options);
-          await worker.terminate();
-          return result;
-        }
-      };
+  import { createWorker } from './libs/tesseract.esm.min.js';
+  window.Tesseract = {
+    recognize: async (image, lang = 'por+eng', options = {}) => {
+      const worker = await createWorker();
+      await worker.loadLanguage(lang);
+      await worker.initialize(lang);
+      const result = await worker.recognize(image, undefined, options);
+      await worker.terminate();
+      return result;
+    }
+  };
 
-      import * as XLSX from './libs/xlsx.full.min.js';
-      window.XLSX = XLSX;
+  import * as XLSX from './libs/xlsx.full.min.js';
+  window.XLSX = XLSX;
 
-      if (typeof checkLibraries === 'function') checkLibraries();
-    </script>
+  // Chama verificação quando carregar
+  if (typeof checkLibraries === 'function') {
+    checkLibraries();
+  }
+</script>
 </head>
 
 <body>
@@ -997,5 +1001,22 @@
         .trim();
     }
   </script>
+<!-- Verifica se as libs subiram corretamente -->
+<script>
+  (function verifyLocalLibs(retries = 15) {
+    const ok = (typeof pdfjsLib !== 'undefined') &&
+               (typeof Tesseract !== 'undefined') &&
+               (typeof XLSX !== 'undefined');
+    if (ok) {
+      console.log('Bibliotecas locais carregadas OK');
+      return;
+    }
+    if (retries > 0) {
+      setTimeout(() => verifyLocalLibs(retries - 1), 300);
+    } else {
+      alert('Algumas bibliotecas locais não foram encontradas. Confirme se a pasta /libs contém todos os arquivos e publique novamente.');
+    }
+  })();
+</script>
 </body>
 </html>
