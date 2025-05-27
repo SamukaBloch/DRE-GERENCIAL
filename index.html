@@ -1001,24 +1001,46 @@ function getDescricaoServico(text) {
 
 /** Consulta nome da empresa via API pública se nome extraído estiver vazio */
 
+
 async function fillEmitenteViaAPI(cnpj, rowEl){
   const digits = cnpj.replace(/[^0-9]/g,'');
-  if(digits.length!==14) return;
-  try{
-    const resp = await fetch('https://publica.cnpj.ws/cnpj/'+digits);
-    if(!resp.ok) return;
-    const info = await resp.json();
-    const nome = (info.razao_social || info.nome_fantasia || '').trim();
-    if(!nome) return;
+  if(digits.length !== 14) return;
 
-    // Atualiza a célula "Nome Emitente"
-    const td = rowEl.querySelector('td:nth-child(2)');
-    if(td) td.textContent = nome;
+  const endpoints = [
+    `https://publica.cnpj.ws/cnpj/${digits}`,
+    `https://api-publica.speedio.com.br/buscarcnpj?cnpj=${digits}`
+  ];
 
-    // Mantém array de dados sincronizado
-    const idx = Array.from(rowEl.parentElement.children).indexOf(rowEl);
-    if(extractedData[idx]) extractedData[idx].nome = nome;
-  }catch(e){
+  let nome = '';
+  for (const url of endpoints){
+    try{
+      const resp = await fetch(url, {mode:'cors'});
+      if(!resp.ok) continue;
+      const info = await resp.json();
+      if(info.razao_social){
+          nome = info.razao_social;
+      } else if(info.NOME_EMPRESARIAL){
+          nome = info.NOME_EMPRESARIAL;
+      } else if(info.nome_fantasia){
+          nome = info.nome_fantasia;
+      }
+      nome = (nome || '').trim();
+      if(nome) break;
+    }catch(e){
+      console.warn('API CNPJ falhou para', url, e);
+    }
+  }
+  if(!nome) return;
+
+  // Atualiza célula
+  const td = rowEl.querySelector('td:nth-child(2)');
+  if(td) td.textContent = nome;
+
+  // Sincroniza array interno
+  const idx = Array.from(rowEl.parentElement.children).indexOf(rowEl);
+  if(extractedData[idx]) extractedData[idx].nome = nome;
+}
+catch(e){
     console.error('Falha ao buscar nome via API:', e);
   }
 }
