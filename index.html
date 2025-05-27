@@ -479,32 +479,34 @@ const normalize = s => s.normalize("NFD").replace(/[̀-\u036f]/g, "");
 
 
 
+
 /** Extrai nome do emitente a partir do texto bruto */
 function getEmitenteName(text, cnpj) {
-  if(!cnpj) return "";
-  const digits = cnpj.replace(/[^\d]/g,"");
-  const idx = text.replace(/[^\d]/g,"").indexOf(digits); // posição no texto sem pontuação
-  if(idx === -1) return "";
-  // obter fatia de 120 caracteres antes do CNPJ no texto original
-  const rawSlice = text.slice(Math.max(0, idx - 120), idx).replace(/[\r\n]+/g," ").trim();
-  // limpar palavras irrelevantes
-  const cleaned = rawSlice
-    .replace(/CNPJ.*$/i,"")
-    .replace(/PRESTADOR(?: DE SERVI[ÇC]OS)?/i,"")
-    .replace(/TOMADOR(?: DE SERVI[ÇC]OS)?/i,"")
-    .replace(/CPF.*$/i,"")
-    .trim();
-  // procurar sequência em caixa alta (>=2 palavras) mais perto do final do slice
-  const match = cleaned.match(/([A-ZÀ-Ü0-9&.,\- ]{5,})\s*$/);
-  if(match) return match[1].replace(/\s+/g," ").trim();
-  return cleaned.split(/\s{2,}/).pop().trim();
-}
+  if (!cnpj) return "";
+  const digits = cnpj.replace(/[^\d]/g, "");
+  const idxDigits = text.replace(/[^\d]/g, "").indexOf(digits);
+  if (idxDigits === -1) return "";
 
-      }
+  // Fatia de até 150 caracteres antes do CNPJ
+  const sliceStart = Math.max(0, idxDigits - 150);
+  const rawSlice = text.slice(sliceStart, idxDigits);
+
+  // Quebra em linhas, remove vazias
+  const lines = rawSlice.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean).reverse();
+
+  // Palavras‑chave de empresa
+  const companyRe = /(LTDA|EPP|MEI|S\.?A|Ltda|eireli|sociedade|comércio|industria)/i;
+
+  for (let i = 0; i < lines.length && i < 4; i++) {
+    const ln = lines[i];
+    if (/CNPJ|CPF|TOMADOR|PRESTADOR/i.test(ln)) continue;
+    if (companyRe.test(ln) || ln.split(/\s+/).length >= 2) {
+      return ln.replace(/\s+/g, " ").trim();
     }
   }
   return "";
 }
+
 
 
 /** Extrai descrição do serviço + placa se existir */
