@@ -6,26 +6,18 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
 <!-- Bibliotecas locais (PDF.js, Tesseract.js, SheetJS) -->
 <script type="module">
-  // PDF.js
+  /* ---------- PDF.js ---------- */
   import * as pdfjsLib from './libs/pdf.min.mjs';
   pdfjsLib.GlobalWorkerOptions.workerSrc = './libs/pdf.worker.min.mjs';
-  window.pdfjsLib = pdfjsLib;
+  window.pdfjsLib = pdfjsLib;                     /* mantém compatibilidade */
 
-  // Tesseract.js
-  import { createWorker } from './libs/tesseract.esm.min.js';
-  window.Tesseract = {
-    recognize: async (image, lang = 'por+eng', options = {}) => {
-      const worker = await createWorker();
-      await worker.loadLanguage(lang);
-      await worker.initialize(lang);
-      const res = await worker.recognize(image, undefined, options);
-      await worker.terminate();
-      return res;
-    }
-  };
+  /* ---------- Tesseract.js ---------- */
+  import Tesseract from './libs/tesseract.esm.min.js';   /* export default */
+  const { createWorker } = Tesseract;
+  window.Tesseract = { ...Tesseract, createWorker };
 
-  // SheetJS
-  import * as XLSX from './libs/xlsx.full.min.js';
+  /* ---------- SheetJS ---------- */
+  import * as XLSX from './libs/xlsx.mjs';               /* build ESM */
   window.XLSX = XLSX;
 
   if (typeof checkLibraries === 'function') checkLibraries();
