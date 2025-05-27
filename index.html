@@ -1040,6 +1040,24 @@ function getDescricaoServico(text) {
       console.error('Não foi possível carregar todas as bibliotecas locais.');
     }
   })();
+
+/** Consulta nome da empresa via API pública se nome extraído estiver vazio */
+async function fillEmitenteViaAPI(cnpj, rowEl) {
+  const digits = cnpj.replace(/[^\d]/g,"");
+  if(digits.length!==14) return;
+  try{
+    const resp = await fetch('https://publica.cnpj.ws/cnpj/'+digits);
+    if(!resp.ok) return;
+    const data = await resp.json();
+    const nome = (data.razao_social || data.nome_fantasia || "").trim();
+    if(nome){
+      // primeira célula depois do CNPJ é Nome emitente
+      const td = rowEl.querySelector('td:nth-child(2)');
+      if(td && !td.textContent.trim()) td.textContent = nome;
+    }
+  }catch(e){}
+}
+
 </script>
 </body>
 </html>
