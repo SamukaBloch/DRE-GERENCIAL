@@ -52,6 +52,24 @@
         --light-text: #ccc;
       }
     }
+    
+    /* Garantir que a tabela sempre tenha fundo claro, independente do modo escuro */
+    .table-container {
+      background-color: #ffffff !important;
+    }
+    
+    table {
+      background-color: #ffffff !important;
+    }
+    
+    th, td {
+      background-color: #ffffff !important;
+      color: #333333 !important;
+    }
+    
+    th {
+      background-color: #f0f4ff !important;
+    }
 
     /* Reset e base */
     * {
@@ -484,26 +502,84 @@ const normalize = s => s.normalize("NFD").replace(/[̀-\u036f]/g, "");
 function getEmitenteName(text, cnpj) {
   if (!cnpj) return "";
   const digits = cnpj.replace(/[^\d]/g, "");
-  const idxDigits = text.replace(/[^\d]/g, "").indexOf(digits);
-  if (idxDigits === -1) return "";
-
-  // Fatia de até 150 caracteres antes do CNPJ
-  const sliceStart = Math.max(0, idxDigits - 150);
-  const rawSlice = text.slice(sliceStart, idxDigits);
-
-  // Quebra em linhas, remove vazias
-  const lines = rawSlice.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean).reverse();
-
-  // Palavras‑chave de empresa
-  const companyRe = /(LTDA|EPP|MEI|S\.?A|Ltda|eireli|sociedade|comércio|industria)/i;
-
-  for (let i = 0; i < lines.length && i < 4; i++) {
-    const ln = lines[i];
-    if (/CNPJ|CPF|TOMADOR|PRESTADOR/i.test(ln)) continue;
-    if (companyRe.test(ln) || ln.split(/\s+/).length >= 2) {
-      return ln.replace(/\s+/g, " ").trim();
+  
+  // Busca padrões comuns de identificação do emitente
+  const prestadorRegex = /(?:Prestador|Emitente|Razão Social|Nome Fantasia|Fornecedor)[^\n:]*[:]\s*([^\n]+)/i;
+  const prestadorMatch = text.match(prestadorRegex);
+  if (prestadorMatch && prestadorMatch[1] && prestadorMatch[1].length > 5) {
+    return prestadorMatch[1].replace(/\s+/g, " ").trim();
+  }
+  
+  // Busca por linhas que contenham o CNPJ
+  const cnpjLineRegex = new RegExp(`([^\\n]+)[^\\n]*(?:CNPJ|CPF)[^\\n]*${digits}`, 'i');
+  const cnpjLineMatch = text.match(cnpjLineRegex);
+  if (cnpjLineMatch && cnpjLineMatch[1] && cnpjLineMatch[1].length > 5) {
+    return cnpjLineMatch[1].replace(/\s+/g, " ").trim();
+  }
+  
+  // Busca por linhas próximas ao CNPJ
+  const idxDigits = text.indexOf(digits);
+  if (idxDigits === -1) {
+    const idxFormatted = text.indexOf(cnpj);
+    if (idxFormatted === -1) return "";
+    
+    // Fatia de até 300 caracteres ao redor do CNPJ
+    const sliceStart = Math.max(0, idxFormatted - 200);
+    const sliceEnd = Math.min(text.length, idxFormatted + 100);
+    const textSlice = text.slice(sliceStart, sliceEnd);
+    
+    // Quebra em linhas, remove vazias
+    const lines = textSlice.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
+    
+    // Palavras-chave de empresa
+    const companyRe = /(LTDA|EPP|MEI|S\.?A|LTDA\.|S\/A|EIRELI|SOCIEDADE|COMÉRCIO|INDÚSTRIA|TECNOLOGIA|MARKETING|SERVIÇOS|PEÇAS)/i;
+    
+    // Procura por linhas que contenham palavras-chave de empresa
+    for (let i = 0; i < lines.length; i++) {
+      const ln = lines[i];
+      if (/CNPJ|CPF|TOMADOR|PRESTADOR/i.test(ln) && !companyRe.test(ln)) continue;
+      if (companyRe.test(ln) && ln.length > 5 && ln.split(/\s+/).length >= 2) {
+        return ln.replace(/\s+/g, " ").trim();
+      }
+    }
+    
+    // Se não encontrou com palavras-chave, tenta as primeiras linhas não-vazias
+    for (let i = 0; i < lines.length && i < 5; i++) {
+      const ln = lines[i];
+      if (ln.length > 10 && ln.split(/\s+/).length >= 2 && !/CNPJ|CPF|CEP|Telefone|Email|Endereço|Município/i.test(ln)) {
+        return ln.replace(/\s+/g, " ").trim();
+      }
+    }
+  } else {
+    // Fatia de até 300 caracteres ao redor do CNPJ
+    const sliceStart = Math.max(0, idxDigits - 200);
+    const sliceEnd = Math.min(text.length, idxDigits + 100);
+    const textSlice = text.slice(sliceStart, sliceEnd);
+    
+    // Quebra em linhas, remove vazias
+    const lines = textSlice.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
+    
+    // Palavras-chave de empresa
+    const companyRe = /(LTDA|EPP|MEI|S\.?A|LTDA\.|S\/A|EIRELI|SOCIEDADE|COMÉRCIO|INDÚSTRIA|TECNOLOGIA|MARKETING|SERVIÇOS|PEÇAS)/i;
+    
+    // Procura por linhas que contenham palavras-chave de empresa
+    for (let i = 0; i < lines.length; i++) {
+      const ln = lines[i];
+      if (/CNPJ|CPF|TOMADOR|PRESTADOR/i.test(ln) && !companyRe.test(ln)) continue;
+      if (companyRe.test(ln) && ln.length > 5 && ln.split(/\s+/).length >= 2) {
+        return ln.replace(/\s+/g, " ").trim();
+      }
+    }
+    
+    // Se não encontrou com palavras-chave, tenta as primeiras linhas não-vazias
+    for (let i = 0; i < lines.length && i < 5; i++) {
+      const ln = lines[i];
+      if (ln.length > 10 && ln.split(/\s+/).length >= 2 && !/CNPJ|CPF|CEP|Telefone|Email|Endereço|Município/i.test(ln)) {
+        return ln.replace(/\s+/g, " ").trim();
+      }
     }
   }
+  
   return "";
 }
 
@@ -629,374 +705,284 @@ function getDescricaoServico(text) {
     // Process single file
     async function processFile(file) {
       try {
-        let extractedText = '';
+        let text = '';
         
         if (file.type === 'application/pdf') {
-          extractedText = await processPDF(file);
+          text = await extractTextFromPDF(file);
         } else if (file.type.startsWith('image/')) {
-          extractedText = await processImage(file);
+          text = await extractTextFromImage(file);
         } else {
-          throw new Error('Tipo de arquivo não suportado');
+          console.warn('Tipo de arquivo não suportado:', file.type);
+          return;
         }
         
-        const data = extractDataFromText(extractedText, file.name);
+        // Extract data from text
+        const data = extractDataFromText(text, file.name);
+        
         if (data) {
           extractedData.push(data);
         }
         
+        processedFiles++;
+        updateProgress();
+        
       } catch (error) {
-        console.error(`Erro ao processar ${file.name}:`, error);
-        // Add error row
-        extractedData.push({
-          filename: file.name,
-          cnpj: 'ERRO',
-          nome: 'Erro no processamento',
-          data: '',
-          documento: '',
-          valor: '',
-          descricao: error.message,
-          hasError: true
-        });
-      } finally {
+        console.error('Erro ao processar arquivo:', file.name, error);
         processedFiles++;
         updateProgress();
       }
     }
     
-    // Process PDF file with improved error handling
-    async function processPDF(file) {
-      if (typeof pdfjsLib === 'undefined') {
-        throw new Error('PDF.js não está disponível. Verifique sua conexão com a internet.');
-      }
-      
-      try {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-        let fullText = '';
-        
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          const pageText = textContent.items.map(item => item.str).join(' ');
-          fullText += pageText + '\n';
-        }
-        
-        return fullText;
-      } catch (error) {
-        console.error('Erro ao processar PDF:', error);
-        throw new Error(`Erro ao processar PDF: ${error.message}`);
-      }
-    }
-    
-    // Process image file with OCR and improved error handling
-    async function processImage(file) {
-      if (typeof Tesseract === 'undefined') {
-        throw new Error('Tesseract.js não está disponível. Verifique sua conexão com a internet.');
-      }
-      
-      // Preprocess image for better OCR
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      
-      return new Promise((resolve, reject) => {
-        img.onload = async function() {
-          try {
-            canvas.width = img.width;
-            canvas.height = img.height;
-            
-            // Draw image and convert to grayscale
-            ctx.drawImage(img, 0, 0);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imageData.data;
-            
-            // Simple grayscale conversion
-            for (let i = 0; i < data.length; i += 4) {
-              const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-              data[i] = gray;     // Red
-              data[i + 1] = gray; // Green
-              data[i + 2] = gray; // Blue
-            }
-            
-            ctx.putImageData(imageData, 0, 0);
-            
-            const result = await Tesseract.recognize(canvas, 'por+eng', {
-              logger: m => console.log(m)
-            });
-            resolve(result.data.text);
-          } catch (error) {
-            console.error('Erro no OCR:', error);
-            reject(new Error(`Erro no OCR: ${error.message}`));
+    // Extract text from PDF
+    async function extractTextFromPDF(file) {
+      return new Promise(async (resolve, reject) => {
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          
+          let fullText = '';
+          
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items.map(item => item.str).join(' ');
+            fullText += pageText + '\n';
           }
-        };
-        
-        img.onerror = () => reject(new Error('Erro ao carregar imagem'));
-        img.src = URL.createObjectURL(file);
+          
+          resolve(fullText);
+        } catch (error) {
+          console.error('Erro ao extrair texto do PDF:', error);
+          reject(error);
+        }
       });
     }
     
-    // Extract data from text using heuristics
+    // Extract text from image
+    async function extractTextFromImage(file) {
+      return new Promise(async (resolve, reject) => {
+        try {
+          const worker = await Tesseract.createWorker('por');
+          
+          const imageUrl = URL.createObjectURL(file);
+          const result = await worker.recognize(imageUrl);
+          
+          await worker.terminate();
+          URL.revokeObjectURL(imageUrl);
+          
+          resolve(result.data.text);
+        } catch (error) {
+          console.error('Erro ao extrair texto da imagem:', error);
+          reject(error);
+        }
+      });
+    }
+    
+    // Extract structured data from text
     function extractDataFromText(text, filename) {
-      const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+      // Skip if text is too short
+      if (text.length < 50) {
+        console.warn('Texto muito curto para extração:', filename);
+        return null;
+      }
       
-      // Extract CNPJ (excluding company CNPJ)
-      const cnpjMatches = text.match(regexes.cnpj) || [];
-      const validCnpjs = cnpjMatches.filter(cnpj => 
-        !cnpj.replace(/[^\d]/g, '').includes(COMPANY_CNPJ.replace(/[^\d]/g, ''))
-      );
-      const cnpj = validCnpjs[0] || '';
+      // Find all CNPJs
+      const cnpjs = [...text.matchAll(regexes.cnpj)].map(match => match[0]);
       
-      // Extract company name (look for line before CNPJ)
-      let nome = getEmitenteName(text, cnpj);
-      // Extract date
-      const dateMatches = text.match(regexes.date) || text.match(regexes.dateISO) || [];
-      const data = dateMatches[0] || '';
+      // Skip company CNPJ (tomador)
+      const emitenteCNPJ = cnpjs.find(cnpj => {
+        const digits = cnpj.replace(/[^\d]/g, '');
+        return digits !== COMPANY_CNPJ.replace(/[^\d]/g, '');
+      });
       
-      // Extract document number
+      if (!emitenteCNPJ) {
+        console.warn('CNPJ do emitente não encontrado:', filename);
+        return null;
+      }
+      
+      // Extract other data
+      const emitenteNome = getEmitenteName(text, emitenteCNPJ);
+      
+      // Find dates
+      const dates = [...text.matchAll(regexes.date)].map(match => match[0]);
+      const datesISO = [...text.matchAll(regexes.dateISO)].map(match => match[0]);
+      
+      let dataEmissao = '';
+      if (dates.length > 0) {
+        dataEmissao = dates[0];
+      } else if (datesISO.length > 0) {
+        const parts = datesISO[0].split('-');
+        dataEmissao = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      
+      // Find document number
+      let numeroDocumento = '';
       const docMatch = text.match(regexes.docNumber);
-      let documento = docMatch ? docMatch[1] : '';
-      
-      // If no document number found, look for large numeric sequences
-      if (!documento) {
-        const numberMatches = text.match(/\b\d{3,10}\b/g) || [];
-        documento = numberMatches.find(num => num.length >= 6) || '';
+      if (docMatch && docMatch[1]) {
+        numeroDocumento = docMatch[1];
+      } else {
+        // Try to find any number that looks like a document number
+        const numberMatches = text.match(/\b\d{4,9}\b/g);
+        if (numberMatches && numberMatches.length > 0) {
+          numeroDocumento = numberMatches[0];
+        }
       }
       
-      // Extract total value
-      const moneyMatches = text.match(regexes.money) || [];
-      const valor = moneyMatches.length > 0 ? 
-        Math.max(...moneyMatches.map(m => parseFloat(m.replace(/\./g, '').replace(',', '.')))) : '';
-      
-      // Extract description
-      let descricao = getDescricaoServico(text);
-      
-      // Validate required fields
-      if (!cnpj && !nome && !data) {
-        return null; // Skip if no essential data found
+      // Find monetary values
+      const valores = [...text.matchAll(regexes.money)].map(match => match[0]);
+      let valorTotal = '';
+      if (valores.length > 0) {
+        // Try to find the largest value, which is likely the total
+        const numericValues = valores.map(v => parseFloat(v.replace(/\./g, '').replace(',', '.')));
+        const maxIndex = numericValues.indexOf(Math.max(...numericValues));
+        valorTotal = valores[maxIndex];
       }
+      
+      // Get service description
+      const descricao = getDescricaoServico(text);
       
       return {
-        filename,
-        cnpj: formatCNPJ(cnpj),
-        nome: cleanName(nome),
-        data: formatDate(data),
-        documento,
-        valor: formatMoney(valor),
-        descricao,
-        hasError: !cnpj || !nome || !data
+        cnpj: emitenteCNPJ,
+        nome: emitenteNome,
+        data: dataEmissao,
+        documento: numeroDocumento,
+        valor: valorTotal,
+        descricao: descricao,
+        filename: filename
       };
     }
     
-    // Extract and format description
-    function extractDescription(text) {
-      const lines = text.split('\n').map(line => line.trim()).filter(line => line);
-      
-      // Look for description blocks
-      const descriptionStarts = [
-        'Descrição do Serviço',
-        'DISCRIMINAÇÃO DOS SERVIÇOS',
-        'DISCRIMINAÇÃO',
-        'Descrição dos Serviços'
-      ];
-      
-      let description = '';
-      let startIndex = -1;
-      
-      // Find description start
-      for (const start of descriptionStarts) {
-        startIndex = lines.findIndex(line => 
-          line.toLowerCase().includes(start.toLowerCase())
-        );
-        if (startIndex >= 0) break;
-      }
-      
-      if (startIndex >= 0) {
-        // Get next few lines after description label
-        const descLines = lines.slice(startIndex + 1, startIndex + 5);
-        description = descLines.join(' ').trim();
-      } else {
-        // Fallback: look for lines with meaningful content
-        const meaningfulLines = lines.filter(line => 
-          line.length > 20 && 
-          !line.includes('CNPJ') && 
-          !line.includes('Valor') &&
-          !line.includes('Total')
-        );
-        description = meaningfulLines[0] || '';
-      }
-      
-      // Look for license plate
-      const placaMatch = description.match(regexes.placa);
-      if (placaMatch) {
-        const placa = placaMatch[0].replace(/[-\s]/g, '');
-        const cleanDesc = description.replace(/placa[:\s=]*[A-Z0-9\s-]+/gi, '').trim();
-        description = `${placa} – ${cleanDesc}`;
-      }
-      
-      // Clean and limit description
-      description = description
-        .replace(/\s+/g, ' ')
-        .replace(/VOCÊ PAGOU APROXIMADAMENTE.*/i, '')
-        .trim()
-        .substring(0, 120);
-      
-      return description.toLowerCase();
-    }
-    
-    // Utility functions
-    function formatCNPJ(cnpj) {
-      if (!cnpj) return '';
-      const numbers = cnpj.replace(/[^\d]/g, '');
-      return numbers.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
-    }
-    
-    function cleanName(nome) {
-      return nome.replace(/\s+/g, ' ').trim();
-    }
-    
-    function formatDate(date) {
-      if (!date) return '';
-      // Keep DD/MM/YYYY format or convert YYYY-MM-DD to DD/MM/YYYY
-      if (date.includes('-')) {
-        const [year, month, day] = date.split('-');
-        return `${day}/${month}/${year}`;
-      }
-      return date;
-    }
-    
-    function formatMoney(value) {
-      if (!value) return '';
-      if (typeof value === 'number') {
-        return value.toLocaleString('pt-BR', {
-          style: 'currency',
-          currency: 'BRL'
-        }).replace('R$', '').trim();
-      }
-      return value;
-    }
-    
-    // Progress functions
-    function showProgress() {
-      document.getElementById('progressSection').style.display = 'block';
-    }
-    
-    function hideProgress() {
-      document.getElementById('progressSection').style.display = 'none';
-    }
-    
+    // Update progress bar and text
     function updateProgress() {
-      const percentage = totalFiles > 0 ? (processedFiles / totalFiles) * 100 : 0;
-      document.getElementById('progressFill').style.width = percentage + '%';
-      document.getElementById('progressText').textContent = 
-        `Processando arquivos... ${processedFiles}/${totalFiles}`;
-    }
-    
-    // Results table functions
-    function updateResultsTable() {
-      const tbody = document.querySelector('#resultsTable tbody');
-      tbody.innerHTML = '';
+      const progressFill = document.getElementById('progressFill');
+      const progressText = document.getElementById('progressText');
       
-      extractedData.forEach((data, index) => {
-        const row = document.createElement('tr');
-        if (data.hasError) {
-          row.classList.add('error-row');
-        }
-        
-        row.innerHTML = `
-          <td contenteditable="true">${data.cnpj || ''}</td>
-          <td contenteditable="true">${data.nome || ''}</td>
-          <td contenteditable="true">${data.data || ''}</td>
-          <td contenteditable="true">${data.documento || ''}</td>
-          <td contenteditable="true">${data.valor || ''}</td>
-          <td contenteditable="true">${data.descricao || ''}</td>
-          <td>
-            <button class="delete-btn" onclick="deleteRow(${index})">
-              <i class="fas fa-trash"></i>
-            </button>
-          </td>
-        `;
-        
-        tbody.appendChild(row);
-      });
+      const percentage = Math.round((processedFiles / totalFiles) * 100);
+      progressFill.style.width = `${percentage}%`;
+      progressText.textContent = `Processando arquivos... ${processedFiles}/${totalFiles} (${percentage}%)`;
       
-      enableExportIfAny();
-    }
-    
-    function deleteRow(index) {
-      extractedData.splice(index, 1);
-      updateResultsTable();
-    }
-    
-    function showResults() {
-      document.getElementById('resultsSection').style.display = 'block';
-    }
-    
-    function enableExportIfAny() {
+      // Enable export button if data is available
       const exportBtn = document.getElementById('exportBtn');
       exportBtn.disabled = extractedData.length === 0;
     }
     
-    // Export to Excel function
-    function exportToExcel() {
-      if (typeof XLSX === 'undefined') {
-        alert('Biblioteca de exportação não está disponível. Recarregue a página e tente novamente.');
-        return;
-      }
+    // Show progress section
+    function showProgress() {
+      const progressSection = document.getElementById('progressSection');
+      progressSection.style.display = 'block';
+    }
+    
+    // Hide progress section
+    function hideProgress() {
+      const progressSection = document.getElementById('progressSection');
+      progressSection.style.display = 'none';
+    }
+    
+    // Show results section
+    function showResults() {
+      const resultsSection = document.getElementById('resultsSection');
+      resultsSection.style.display = 'block';
+    }
+    
+    // Update results table
+    function updateResultsTable() {
+      const tableBody = document.querySelector('#resultsTable tbody');
+      tableBody.innerHTML = '';
       
       if (extractedData.length === 0) {
-        alert('Nenhum dado para exportar');
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 7;
+        cell.textContent = 'Nenhum dado extraído.';
+        cell.style.textAlign = 'center';
+        row.appendChild(cell);
+        tableBody.appendChild(row);
         return;
       }
       
-      // Get current table data (including user edits)
-      const table = document.getElementById('resultsTable');
-      const rows = table.querySelectorAll('tbody tr');
-      const exportData = [];
-      
-      rows.forEach((row, index) => {
-        const cells = row.querySelectorAll('td[contenteditable="true"]');
-        if (cells.length >= 6) {
-          exportData.push({
-            'CNPJ Emitente': cells[0].textContent.trim(),
-            'Nome Emitente': cells[1].textContent.trim(),
-            'Data Emissão': cells[2].textContent.trim(),
-            'Nº Documento': cells[3].textContent.trim(),
-            'Valor Total': cells[4].textContent.trim(),
-            'Descrição': cells[5].textContent.trim(),
-            'Arquivo Origem': extractedData[index]?.filename || ''
-          });
-        }
+      extractedData.forEach((data, index) => {
+        const row = document.createElement('tr');
+        
+        // CNPJ Emitente
+        const cnpjCell = document.createElement('td');
+        cnpjCell.textContent = data.cnpj || '';
+        cnpjCell.contentEditable = 'true';
+        row.appendChild(cnpjCell);
+        
+        // Nome Emitente
+        const nomeCell = document.createElement('td');
+        nomeCell.textContent = data.nome || '';
+        nomeCell.contentEditable = 'true';
+        row.appendChild(nomeCell);
+        
+        // Data Emissão
+        const dataCell = document.createElement('td');
+        dataCell.textContent = data.data || '';
+        dataCell.contentEditable = 'true';
+        row.appendChild(dataCell);
+        
+        // Nº Documento
+        const docCell = document.createElement('td');
+        docCell.textContent = data.documento || '';
+        docCell.contentEditable = 'true';
+        row.appendChild(docCell);
+        
+        // Valor Total
+        const valorCell = document.createElement('td');
+        valorCell.textContent = data.valor || '';
+        valorCell.contentEditable = 'true';
+        row.appendChild(valorCell);
+        
+        // Descrição
+        const descCell = document.createElement('td');
+        descCell.textContent = data.descricao || '';
+        descCell.contentEditable = 'true';
+        row.appendChild(descCell);
+        
+        // Ações
+        const actionsCell = document.createElement('td');
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+        deleteBtn.addEventListener('click', () => {
+          extractedData.splice(index, 1);
+          updateResultsTable();
+        });
+        actionsCell.appendChild(deleteBtn);
+        row.appendChild(actionsCell);
+        
+        tableBody.appendChild(row);
       });
-      
-      try {
-        // Create workbook
-        const ws = XLSX.utils.json_to_sheet(exportData);
-        const wb = XLSX.utils.book_new();
-        
-        // Set column widths
-        ws['!cols'] = [
-          { wch: 18 }, // CNPJ
-          { wch: 35 }, // Nome
-          { wch: 12 }, // Data
-          { wch: 15 }, // Documento
-          { wch: 15 }, // Valor
-          { wch: 50 }, // Descrição
-          { wch: 25 }  // Arquivo
-        ];
-        
-        XLSX.utils.book_append_sheet(wb, ws, "Notas Fiscais");
-        
-        // Generate filename with current date
-        const now = new Date();
-        const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
-        const filename = `notas_fiscais_santome_${dateStr}.xlsx`;
-        
-        // Save file
-        XLSX.writeFile(wb, filename);
-      } catch (error) {
-        console.error('Erro ao exportar:', error);
-        alert('Erro ao exportar arquivo Excel. Tente novamente.');
+    }
+    
+    // Export to Excel
+    function exportToExcel() {
+      if (extractedData.length === 0) {
+        alert('Não há dados para exportar.');
+        return;
       }
+      
+      // Create worksheet
+      const ws = XLSX.utils.json_to_sheet(extractedData.map(data => ({
+        'CNPJ': data.cnpj || '',
+        'Nome Emitente': data.nome || '',
+        'Data Emissão': data.data || '',
+        'Nº Documento': data.documento || '',
+        'Valor Total': data.valor || '',
+        'Descrição': data.descricao || '',
+        'Arquivo': data.filename || ''
+      })));
+      
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Notas Fiscais');
+      
+      // Generate filename with date
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const filename = `notas_fiscais_${dateStr}.xlsx`;
+      
+      // Save file
+      XLSX.writeFile(wb, filename);
     }
     
     // Add event listeners for table editing
