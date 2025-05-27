@@ -508,48 +508,7 @@ function getEmitenteName(text, cnpj){
   const isValid = nome=>{
       if(!nome) return false;
       if(/^\d{2}\/\d{2}\/\d{4}$/.test(nome)) return false; // data pura
-      const bad = /(CPF|CNPJ|TOMADOR|CONSUMIDOR|SERVI[ÇC]OS?\s*CPF|NOTA|N[ÚU]MERO)/i;
-      if(bad.test(nome)) return false;
-      const letters = (nome.match(/[A-Z]/gi)||[]).length;
-      return letters >= 5;   // ao menos 5 letras
-  };
-
-  // 1) rotulo semântico
-  const aux = text.match(/(?:Prestador(?: de Serviços)?|Emitente|Raz[aã]o Social|Fornecedor|Nome Fantasia)[^:\n]*:\s*([^\n]{5,})/i);
-  if(aux && isValid(aux[1])) return aux[1].replace(/\s+/g," ").trim();
-
-  // 2) linhas em volta do CNPJ
-  const lines = text.split(/[\r\n]+/).map(l=>l.trim()).filter(Boolean);
-  const idx = lines.findIndex(l=>l.replace(/\D/g,"").includes(digits));
-  const compKey = /(LTDA|EPP|MEI|EIRELI|S\.?A|SERVI[ÇC]OS|COM[EÉ]RCIO|IND[ÚU]STRIA)/i;
-  if(idx !== -1){
-     for(const offset of [-1,-2,-3,1,2,3]){
-        const i = idx + offset;
-        if(i>=0 && i<lines.length){
-            const ln = lines[i];
-            if((compKey.test(ln) || isValid(ln)) && isValid(ln)) return ln.replace(/\s+/g," ").trim();
-        }
-     }
-  }
-
-  // 3) heurística slice
-  const p = text.indexOf(digits);
-  if(p!==-1){
-     const slice = text.slice(Math.max(0,p-250), p+120);
-     const m = slice.match(/([^\n\r]{8,?}(?:LTDA\.?|EPP|MEI|EIRELI|S\.?A|SERVI[ÇC]OS|COM[EÉ]RCIO))/i);
-     if(m && isValid(m[1])) return m[1].replace(/\s+/g," ").trim();
-  }
-
-  return "";
-}
-)/i;
-  const r = text.match(rRe);
-  if(r && r[1]) return r[1].replace(/\s+/g," ").trim();
-
-  // 2) Linhas em volta do CNPJ
-  const lines = text.split(/[\r\n]+/).map(l=>l.trim()).filter(Boolean);
-  const idx = lines.findIndex(l=>l.replace(/\D/g,"").includes(digits));
-  const compKey = /(LTDA|EPP|MEI|EIRELI|S\.?A|SERVI[ÇC]OS|COM[EÉ]RCIO|IND[ÚU]STRIA)/i;
+      const bad = /(CPF|CNPJ|TOMADOR|CONSUMIDOR|SERVI[ÇC]OS?\s*CPF|NOTA|N[ÚU]MEROconst compKey = /(LTDA|EPP|MEI|EIRELI|S\.?A|SERVI[ÇC]OS|COM[EÉ]RCIO|IND[ÚU]STRIAconst compKey = /(LTDA|EPP|MEI|EIRELI|S\.?A|SERVI[ÇC]OS|COM[EÉ]RCIO|IND[ÚU]STRIA)/i;
   if(idx !== -1){
       for(let off of [-1,-2,-3,1,2]){
           const i = idx+off;
@@ -1077,12 +1036,7 @@ async function fillEmitenteViaAPI(cnpj, rowEl){
   const idx = Array.from(rowEl.parentElement.children).indexOf(rowEl);
   if(extractedData[idx]) extractedData[idx].nome = nome;
 }
-/* stray catch removed */
-//
-    console.error('Falha ao buscar nome via API:', e);
-  }
-}
-
+/* tudo ok */
 </script>
 </body>
 </html>
