@@ -16,11 +16,11 @@
   const { createWorker } = Tesseract;
   window.Tesseract = { ...Tesseract, createWorker };
 // ===== Cache helpers =====
-function cacheEmitenteName(cnpj, nome){
+window.cacheEmitenteName = function cacheEmitenteName(cnpj, nome){
   const digits = (cnpj||'').replace(/\D/g,'');
   if(digits.length===14 && nome) localStorage.setItem('nm_'+digits, nome);
 }
-function getCachedEmitenteName(cnpj){
+window.getCachedEmitenteName = function getCachedEmitenteName(cnpj){
   const digits = (cnpj||'').replace(/\D/g,'');
   if(digits.length===14){
     return localStorage.getItem('nm_'+digits) || '';
@@ -483,6 +483,19 @@ function getCachedEmitenteName(cnpj){
 
   <script>
     // Global variables
+// ===== Cache helpers (global) =====
+function cacheEmitenteName(cnpj, nome){
+  const digits = (cnpj||'').replace(/\D/g,'');
+  if(digits.length===14 && nome) localStorage.setItem('nm_'+digits, nome);
+}
+function getCachedEmitenteName(cnpj){
+  const digits = (cnpj||'').replace(/\D/g,'');
+  if(digits.length===14){
+    return localStorage.getItem('nm_'+digits) || '';
+  }
+  return '';
+}
+
     let processedFiles = 0;
     let totalFiles = 0;
     let extractedData = [];
