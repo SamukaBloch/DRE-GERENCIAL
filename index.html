@@ -745,7 +745,7 @@ function getDescricaoServico(text) {
           for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
             const textContent = await page.getTextContent();
-            const pageText = textContent.items.map(item => item.str).join(' ');
+            const pageText = textContent.items.map(item => item.str).join('\n');
             fullText += pageText + '\n';
           }
           
@@ -913,6 +913,9 @@ function getDescricaoServico(text) {
         nomeCell.textContent = data.nome || '';
         nomeCell.contentEditable = 'true';
         row.appendChild(nomeCell);
+        // se nome vazio, consulta API pública
+        if (!data.nome) fillEmitenteViaAPI(data.cnpj, row);
+
         
         // Data Emissão
         const dataCell = document.createElement('td');
@@ -1028,19 +1031,29 @@ function getDescricaoServico(text) {
   })();
 
 /** Consulta nome da empresa via API pública se nome extraído estiver vazio */
-async function fillEmitenteViaAPI(cnpj, rowEl) {
-  const digits = cnpj.replace(/[^\d]/g,"");
+
+async function fillEmitenteViaAPI(cnpj, rowEl){
+  const digits = cnpj.replace(/[^0-9]/g,'');
   if(digits.length!==14) return;
   try{
     const resp = await fetch('https://publica.cnpj.ws/cnpj/'+digits);
     if(!resp.ok) return;
-    const data = await resp.json();
-    const nome = (data.razao_social || data.nome_fantasia || "").trim();
-    if(nome){
-      // primeira célula depois do CNPJ é Nome emitente
-      const td = rowEl.querySelector('td:nth-child(2)');
-      if(td && !td.textContent.trim()) td.textContent = nome;
-    }
+    const info = await resp.json();
+    const nome = (info.razao_social || info.nome_fantasia || '').trim();
+    if(!nome) return;
+
+    // Atualiza a célula "Nome Emitente"
+    const td = rowEl.querySelector('td:nth-child(2)');
+    if(td) td.textContent = nome;
+
+    // Mantém array de dados sincronizado
+    const idx = Array.from(rowEl.parentElement.children).indexOf(rowEl);
+    if(extractedData[idx]) extractedData[idx].nome = nome;
+  }catch(e){
+    console.error('Falha ao buscar nome via API:', e);
+  }
+}
+
   }catch(e){}
 }
 
