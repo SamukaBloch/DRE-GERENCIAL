@@ -566,44 +566,6 @@ function getEmitenteName(text, cnpj){
   }
   return "";
 }
-\/\d{2}\/\d{4}$/.test(nome)) return false;
-      // descarta palavras que indicam rótulos, não nomes
-      const bad = /(CPF|CNPJ|TOMADOR|CONSUMIDOR|SERVI[ÇC]OS?\s*CPF|NOTA|N[ÚU]MERO)/i;
-      if(bad.test(nome)) return false;
-      // deve ter pelo menos 5 letras
-      return (nome.match(/[A-Z]/gi)||[]).length >= 5;
-  };
-
-  // 1) rótulo semântico
-  const rot = text.match(/(?:Prestador(?: de Serviços)?|Emitente|Raz[aã]o Social|Fornecedor|Nome Fantasia)[^:\n]*:\s*([^\n]{5,})/i);
-  if(rot && isValid(rot[1])) return rot[1].replace(/\s+/g," ").trim();
-
-  // 2) linhas em volta do CNPJ
-  const lines = text.split(/[\r\n]+/).map(l=>l.trim()).filter(Boolean);
-  const idx = lines.findIndex(l=>l.replace(/\D/g,"").includes(digits));
-  const compKey = /(LTDA|EPP|MEI|EIRELI|S\.?A|SERVI[ÇC]OS|COM[EÉ]RCIO|IND[ÚU]STRIA)/i;
-  if(idx !== -1){
-      for(const off of [-1,-2,-3,1,2,3]){
-          const i = idx + off;
-          if(i>=0 && i<lines.length){
-              const ln = lines[i];
-              if((compKey.test(ln) || isValid(ln)) && isValid(ln))
-                  return ln.replace(/\s+/g," ").trim();
-          }
-      }
-  }
-
-  // 3) fatia heurística
-  const p = text.indexOf(digits);
-  if(p !== -1){
-      const slice = text.slice(Math.max(0, p-250), p+120);
-      const m = slice.match(/([^\n\r]{8,}? (?:LTDA\.?|EPP|MEI|EIRELI|S\.?A|SERVI[ÇC]OS|COM[EÉ]RCIO))/i);
-      if(m && isValid(m[1])) return m[1].replace(/\s+/g," ").trim();
-  }
-
-  return "";
-}
-
 function getDescricaoServico(text){
   const discriPart = text.split(/DISCRIMINA[ÇC]ÃO[^:\n]*:/i)[1];
   if(discriPart){
@@ -624,16 +586,7 @@ function getDescricaoServico(text){
   }
   return "";
 }
-)/i;
-  const m = text.match(blocoRegex);
-  if (!m) return "";
-  let desc = m[2].split(/\r?\n/)[0].trim();
-  const placaRe = /\b([A-Z]{3}[-\s]?[0-9][A-Z0-9][0-9]{2}|[A-Z]{3}-?[0-9]{4})\b/;
-  const placa = desc.match(placaRe);
-  desc = desc.replace(/\s+/g, " ").replace(/[^\w\s\-.,]/g, "").toLowerCase().slice(0,120).trim();
-  if (placa) return placa[1].toUpperCase() + " – " + desc;
-  return desc;
-}
+
 // ======== FIM HELPERS NOVOS ========
 
     
