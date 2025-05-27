@@ -535,78 +535,6 @@ function getEmitenteName(text, cnpj){
 }
 
   
-  // Busca por linhas que contenham o CNPJ
-  const cnpjLineRegex = new RegExp(`([^\\n]+)[^\\n]*(?:CNPJ|CPF)[^\\n]*${digits}`, 'i');
-  const cnpjLineMatch = text.match(cnpjLineRegex);
-  if (cnpjLineMatch && cnpjLineMatch[1] && cnpjLineMatch[1].length > 5) {
-    return cnpjLineMatch[1].replace(/\s+/g, " ").trim();
-  }
-  
-  // Busca por linhas próximas ao CNPJ
-  const idxDigits = text.indexOf(digits);
-  if (idxDigits === -1) {
-    const idxFormatted = text.indexOf(cnpj);
-    if (idxFormatted === -1) return "";
-    
-    // Fatia de até 300 caracteres ao redor do CNPJ
-    const sliceStart = Math.max(0, idxFormatted - 200);
-    const sliceEnd = Math.min(text.length, idxFormatted + 100);
-    const textSlice = text.slice(sliceStart, sliceEnd);
-    
-    // Quebra em linhas, remove vazias
-    const lines = textSlice.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
-    
-    // Palavras-chave de empresa
-    const companyRe = /(LTDA|EPP|MEI|S\.?A|LTDA\.|S\/A|EIRELI|SOCIEDADE|COMÉRCIO|INDÚSTRIA|TECNOLOGIA|MARKETING|SERVIÇOS|PEÇAS)/i;
-    
-    // Procura por linhas que contenham palavras-chave de empresa
-    for (let i = 0; i < lines.length; i++) {
-      const ln = lines[i];
-      if (/CNPJ|CPF|TOMADOR|PRESTADOR/i.test(ln) && !companyRe.test(ln)) continue;
-      if (companyRe.test(ln) && ln.length > 5 && ln.split(/\s+/).length >= 2) {
-        return ln.replace(/\s+/g, " ").trim();
-      }
-    }
-    
-    // Se não encontrou com palavras-chave, tenta as primeiras linhas não-vazias
-    for (let i = 0; i < lines.length && i < 5; i++) {
-      const ln = lines[i];
-      if (ln.length > 10 && ln.split(/\s+/).length >= 2 && !/CNPJ|CPF|CEP|Telefone|Email|Endereço|Município/i.test(ln)) {
-        return ln.replace(/\s+/g, " ").trim();
-      }
-    }
-  } else {
-    // Fatia de até 300 caracteres ao redor do CNPJ
-    const sliceStart = Math.max(0, idxDigits - 200);
-    const sliceEnd = Math.min(text.length, idxDigits + 100);
-    const textSlice = text.slice(sliceStart, sliceEnd);
-    
-    // Quebra em linhas, remove vazias
-    const lines = textSlice.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
-    
-    // Palavras-chave de empresa
-    const companyRe = /(LTDA|EPP|MEI|S\.?A|LTDA\.|S\/A|EIRELI|SOCIEDADE|COMÉRCIO|INDÚSTRIA|TECNOLOGIA|MARKETING|SERVIÇOS|PEÇAS)/i;
-    
-    // Procura por linhas que contenham palavras-chave de empresa
-    for (let i = 0; i < lines.length; i++) {
-      const ln = lines[i];
-      if (/CNPJ|CPF|TOMADOR|PRESTADOR/i.test(ln) && !companyRe.test(ln)) continue;
-      if (companyRe.test(ln) && ln.length > 5 && ln.split(/\s+/).length >= 2) {
-        return ln.replace(/\s+/g, " ").trim();
-      }
-    }
-    
-    // Se não encontrou com palavras-chave, tenta as primeiras linhas não-vazias
-    for (let i = 0; i < lines.length && i < 5; i++) {
-      const ln = lines[i];
-      if (ln.length > 10 && ln.split(/\s+/).length >= 2 && !/CNPJ|CPF|CEP|Telefone|Email|Endereço|Município/i.test(ln)) {
-        return ln.replace(/\s+/g, " ").trim();
-      }
-    }
-  }
-  
-  return "";
-}
 
 
 
@@ -1093,9 +1021,6 @@ async function fillEmitenteViaAPI(cnpj, rowEl){
   }catch(e){
     console.error('Falha ao buscar nome via API:', e);
   }
-}
-
-  }catch(e){}
 }
 
 </script>
