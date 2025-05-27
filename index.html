@@ -547,34 +547,6 @@ function getEmitenteName(text, cnpj){
 
   return "";
 }
-\/\d{2}\/\d{4}$/.test(nome)) return false; // data pura
-      const bad = /(CPF|CNPJ|TOMADOR|CONSUMIDOR|SERVI[ÇC]OS?\s*CPF|NOTA|N[ÚU]MEROconst compKey = /(LTDA|EPP|MEI|EIRELI|S\.?A|SERVI[ÇC]OS|COM[EÉ]RCIO|IND[ÚU]STRIAconst compKey = /(LTDA|EPP|MEI|EIRELI|S\.?A|SERVI[ÇC]OS|COM[EÉ]RCIO|IND[ÚU]STRIA)/i;
-  if(idx !== -1){
-      for(let off of [-1,-2,-3,1,2]){
-          const i = idx+off;
-          if(i>=0 && i<lines.length){
-              const ln = lines[i];
-              if(compKey.test(ln) && ln.length>5) return ln.replace(/\s+/g," ").trim();
-          }
-      }
-  }
-
-  // 3) Fatia heurística
-  const idxDigits = text.indexOf(digits);
-  if(idxDigits!==-1){
-     const slice = text.slice(Math.max(0, idxDigits-250), idxDigits+120);
-     const m = slice.match(/([^\n\r]{8,?}(?:LTDA\.?|EPP|MEI|EIRELI|S\.?A|SERVI[ÇC]OS|COM[EÉ]RCIO))/i);
-     if(m) return m[1].replace(/\s+/g," ").trim();
-  }
-
-  return "";
-}
-
-  
-
-
-
-/** Extrai descrição do serviço + placa se existir */
 function getDescricaoServico(text) {
   const blocoRegex = /(Descrição do Serviço|DISCRIMINAÇÃO[^:\n]*):?\s*([\s\S]{0,500})/i;
   const m = text.match(blocoRegex);
