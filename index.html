@@ -15,6 +15,19 @@
   import Tesseract from './libs/tesseract.esm.min.js';   /* export default */
   const { createWorker } = Tesseract;
   window.Tesseract = { ...Tesseract, createWorker };
+// ===== Cache helpers =====
+function cacheEmitenteName(cnpj, nome){
+  const digits = (cnpj||'').replace(/\D/g,'');
+  if(digits.length===14 && nome) localStorage.setItem('nm_'+digits, nome);
+}
+function getCachedEmitenteName(cnpj){
+  const digits = (cnpj||'').replace(/\D/g,'');
+  if(digits.length===14){
+    return localStorage.getItem('nm_'+digits) || '';
+  }
+  return '';
+}
+
 
   /* ---------- SheetJS ---------- */
   import * as XLSX from './libs/xlsx.mjs';               /* build ESM */
@@ -502,15 +515,58 @@ const normalize = s => s.normalize("NFD").replace(/[̀-\u036f]/g, "");
 
 
 
+
 function getEmitenteName(text, cnpj){
   if(!cnpj) return "";
   const digits = cnpj.replace(/\D/g,"");
 
-  // Helper to validate candidate string
+  const cached = getCachedEmitenteName(cnpj);
+  if(cached) return cached;
+
   const isValid = nome=>{
       if(!nome) return false;
-      // descarta datas puras
       if(/^\d{2}\/\d{2}\/\d{4}$/.test(nome)) return false;
+      const bad = /(CPF|CNPJ|TOMADOR|CONSUMIDOR|SERVI[ÇC]OS?\s*CPF|NOTA|N[ÚU]MERO)/i;
+      if(bad.test(nome)) return false;
+      return (nome.match(/[A-Z]/gi)||[]).length >= 5;
+  };
+
+  const blocoPrest = text.match(/PRESTADOR(?: DE)? SERVI[ÇC]OS([\s\S]{0,200})TOMADOR/i);
+  if(blocoPrest){
+      const cand = blocoPrest[1].split(/[\r\n]+/).map(l=>l.trim()).filter(l=>l);
+      const melhor = cand.find(l=>/Raz[aã]o/i.test(l)) || cand.find(l=>/fantasia/i.test(l)) || cand[0];
+      if(isValid(melhor)) return melhor.replace(/\s+/g," ").trim();
+  }
+
+  const rot = text.match(/(?:Raz[aã]o Social|Nome\/Raz[aã]o social|Nome fantasia|Emitente)[^:\n]*:\s*([^\n]{5,})/i);
+  if(rot && isValid(rot[1])) return rot[1].replace(/\s+/g," ").trim();
+
+  const lines = text.split(/[\r\n]+/).map(l=>l.trim()).filter(Boolean);
+  const idx = lines.findIndex(l=>l.replace(/\D/g,"").includes(digits));
+  const compKey = /(LTDA|EPP|MEI|EIRELI|S\.?A|SERVI[ÇC]OS|COM[EÉ]RCIO|IND[ÚU]STRIA)/i;
+  if(idx!==-1){
+      let candidates=[];
+      for(const off of [-3,-2,-1,1,2,3]){
+          const i=idx+off;
+          if(i>=0 && i<lines.length){
+              const ln=lines[i];
+              if(isValid(ln)) candidates.push(ln);
+          }
+      }
+      let best = candidates.find(l=>compKey.test(l));
+      if(!best) best = candidates.sort((a,b)=>b.length-a.length)[0];
+      if(best) return best.replace(/\s+/g," ").trim();
+  }
+
+  const p = text.indexOf(digits);
+  if(p!==-1){
+     const slice=text.slice(Math.max(0,p-250),p+120);
+     const m=slice.match(/([^\n\r]{8,}?(?:LTDA\.?|EPP|MEI|EIRELI|S\.?A|SERVI[ÇC]OS|COM[EÉ]RCIO))/i);
+     if(m && isValid(m[1])) return m[1].replace(/\s+/g," ").trim();
+  }
+  return "";
+}
+\/\d{2}\/\d{4}$/.test(nome)) return false;
       // descarta palavras que indicam rótulos, não nomes
       const bad = /(CPF|CNPJ|TOMADOR|CONSUMIDOR|SERVI[ÇC]OS?\s*CPF|NOTA|N[ÚU]MERO)/i;
       if(bad.test(nome)) return false;
@@ -547,8 +603,28 @@ function getEmitenteName(text, cnpj){
 
   return "";
 }
-function getDescricaoServico(text) {
-  const blocoRegex = /(Descrição do Serviço|DISCRIMINAÇÃO[^:\n]*):?\s*([\s\S]{0,500})/i;
+
+function getDescricaoServico(text){
+  const discriPart = text.split(/DISCRIMINA[ÇC]ÃO[^:\n]*:/i)[1];
+  if(discriPart){
+     const linha = discriPart.split(/[\r\n]+/).map(l=>l.trim()).find(l=>l && !/valor unit/i.test(l));
+     if(linha){
+        let desc = linha.replace(/valor.*$/i,'').trim();
+        const placaMatch = desc.match(/\b([A-Z]{3}[-\s]?[0-9][A-Z0-9][0-9]{2}|[A-Z]{3}-?[0-9]{4})\b/i);
+        desc = desc.replace(/\s+/g,' ').replace(/[^\w\s\-.,]/g,'').toLowerCase();
+        if(placaMatch){
+           return placaMatch[0].toUpperCase()+' – '+desc;
+        }
+        return desc;
+     }
+  }
+  const fallback = text.match(/(SERVIÇOS? PRESTADOS?|Descrição[^:\n]*):?\s*([\s\S]{0,400})/i);
+  if(fallback){
+      return fallback[2].split(/[\r\n]+/)[0].trim();
+  }
+  return "";
+}
+)/i;
   const m = text.match(blocoRegex);
   if (!m) return "";
   let desc = m[2].split(/\r?\n/)[0].trim();
@@ -778,6 +854,7 @@ function getDescricaoServico(text) {
       
       // Extract other data
       const emitenteNome = getEmitenteName(text, emitenteCNPJ);
+  if(emitenteNome) cacheEmitenteName(emitenteCNPJ, emitenteNome);
       
       // Find dates
       const dates = [...text.matchAll(regexes.date)].map(match => match[0]);
@@ -983,7 +1060,21 @@ function getDescricaoServico(text) {
       }
     });
     
-    // Utility function to clean text
+    
+// Salva correção manual no cache
+document.addEventListener('blur', function(e){
+  if(e.target && e.target.tagName==='TD' && e.target.parentElement){
+     const headerCells = e.target.parentElement.parentElement.parentElement.querySelectorAll('th');
+     const colIndex = Array.from(e.target.parentElement.children).indexOf(e.target);
+     if(headerCells[colIndex] && /Nome Emitente/i.test(headerCells[colIndex].textContent)){
+        const cnpj = e.target.parentElement.querySelector('td').textContent.trim();
+        const nome = e.target.textContent.trim();
+        if(nome) cacheEmitenteName(cnpj, nome);
+     }
+  }
+}, true);
+
+// Utility function to clean text
     function cleanText(text) {
       return text
         .replace(/\s+/g, ' ')
@@ -1047,6 +1138,7 @@ async function fillEmitenteViaAPI(cnpj, rowEl){
   // Sincroniza array interno
   const idx = Array.from(rowEl.parentElement.children).indexOf(rowEl);
   if(extractedData[idx]) extractedData[idx].nome = nome;
+  cacheEmitenteName(cnpj, nome);
 }
 /* tudo ok */
 </script>
