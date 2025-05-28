@@ -1150,7 +1150,8 @@ async function fillEmitenteViaAPI(cnpj, rowEl){
 /* ---------- Nº DOCUMENTO robusto ---------- */
 function detectNumeroDocumento(text){
   const etiquetas = [
-    /Número da (?:NFS.?e|Nota)[^\d]{0,15}(\d{3,})/i,
+    /Número\s*da\s*NFS.?e[\s\r\n]*?(\d{3,})/i,
+    /Número\s*da\s*Nota[\s\r\n]*?(\d{3,})/i,
     /Nº\s?(?:NF|Documento|RPS)[^\d]{0,10}(\d{3,})/i,
     /RPS\s*[:#-]?\s*(\d{3,})/i
   ];
@@ -1170,7 +1171,8 @@ function detectDescricao(text){
   if(i !== -1){
     let linha = text.slice(i).split(/\n/).slice(1,6)
                  .map(l=>l.trim())
-                 .find(l => l && !/valor (unit|serviço)/i.test(l));
+                 .find(l => l && !/valor\s+unit/i.test(l));   // só descarta cabeçalho numérico
+
     if(linha){
       linha = linha.replace(/valor.*$/i,'')
                    .replace(/\s{2,}/g,' ')
