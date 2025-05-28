@@ -24,13 +24,8 @@
   /* ---------- SheetJS ---------- */
   import * as XLSX from './libs/xlsx.mjs';
   window.XLSX = XLSX;
-  // Função para checar carregamento
 
   // Executar verificação após carregamento
-  document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(checkLibraries, 500);
-  });
-  // Chama checkLibraries após definições
   </script>
 
 <!-- Font Awesome -->
@@ -1277,17 +1272,6 @@ function parseEmitenteName(text) {
     }
     
     // ===== EVENT LISTENERS =====
-    document.addEventListener('DOMContentLoaded', function() {
-      // Upload de arquivos
-      const fileInput = document.getElementById('fileInput');
-      const uploadSection = document.getElementById('uploadSection');
-      const exportBtn = document.getElementById('exportBtn');
-      
-      fileInput.addEventListener('change', function(e) {
-        if (e.target.files.length > 0) {
-          handleFiles(Array.from(e.target.files));
-        }
-      });
       
       // Drag and drop
       uploadSection.addEventListener('dragover', function(e) {
