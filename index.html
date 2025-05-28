@@ -7,6 +7,8 @@
 
 <!-- Bibliotecas locais (PDF.js, Tesseract.js, SheetJS) -->
 <script type="module">
+  let librariesLoaded = false;
+
   /* ---------- PDF.js ---------- */
   import * as pdfjsLib from './libs/pdf.min.mjs';
   pdfjsLib.GlobalWorkerOptions.workerSrc = './libs/pdf.worker.min.mjs';
@@ -20,11 +22,19 @@
   /* ---------- SheetJS ---------- */
   import * as XLSX from './libs/xlsx.mjs';
   window.XLSX = XLSX;
+  // Função para checar carregamento
+  function checkLibraries() {
+    console.log('Bibliotecas carregadas com sucesso');
+    librariesLoaded = true;
+  }
+
 
   // Executar verificação após carregamento
   document.addEventListener('DOMContentLoaded', () => {
     setTimeout(checkLibraries, 500);
   });
+  // Chama checkLibraries após definições
+  checkLibraries();
 </script>
 
 <!-- Font Awesome -->
