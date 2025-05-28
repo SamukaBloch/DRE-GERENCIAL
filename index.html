@@ -5,7 +5,7 @@
   <title>Automatizador de Notas – Santomé</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
 
-<!-- Bibliotecas locais (PDF.js, Tesseract.js, SheetJS) -->
+
 <script type="module">
   // Marcar bibliotecas como carregadas imediatamente
   let librariesLoaded = true;
@@ -24,11 +24,12 @@
   /* ---------- SheetJS ---------- */
   import * as XLSX from './libs/xlsx.mjs';
   window.XLSX = XLSX;
+</script>
 
   // Executar verificação após carregamento
   
 
-<!-- Font Awesome -->
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <style>
@@ -464,7 +465,7 @@ footer a:hover {
   </header>
 
   <main>
-    <!-- Status section -->
+    
     <section class="status-section" id="statusSection">
       <div id="statusMessage">Carregando bibliotecas...</div>
     </section>
@@ -514,7 +515,7 @@ footer a:hover {
       </div>
     </section>
 
-    <!-- Debug section -->
+    
     <section class="debug-section" id="debugSection">
       <h3>Debug - Texto Extraído</h3>
       <div class="debug-text" id="debugText"></div>
