@@ -38,6 +38,7 @@
   --border-color: #d9d9d9;
   --success-color: #00c853;
   --error-color: #d32f2f;
+  --warning-color: #ff9800;
   --light-text: #666;
   --bg-color: #f8f9fa;
   --card-bg: #ffffff;
@@ -313,6 +314,28 @@ td[contenteditable="true"]:focus {
   background-color: white;
 }
 
+/* Confidence indicator */
+.confidence-indicator {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-left: 5px;
+  cursor: help;
+}
+
+.confidence-high {
+  background-color: var(--success-color);
+}
+
+.confidence-medium {
+  background-color: var(--warning-color);
+}
+
+.confidence-low {
+  background-color: var(--error-color);
+}
+
 .error-row {
   background-color: #ffebee;
 }
@@ -335,6 +358,26 @@ td[contenteditable="true"]:focus {
 .delete-btn:hover {
   background: #c62828;
   transform: scale(1.1);
+}
+
+/* Processing info section */
+.processing-info {
+  background: #e3f2fd;
+  border-left: 4px solid var(--primary-color);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+  display: none;
+}
+
+.processing-info h3 {
+  color: var(--primary-color);
+  margin-bottom: 0.5rem;
+}
+
+.processing-details {
+  font-size: 0.9rem;
+  color: #555;
 }
 
 /* Debug section */
@@ -459,7 +502,7 @@ footer a:hover {
 <body>
   <header>
     <h1><i class="fas fa-file-invoice"></i> Automatizador de Notas</h1>
-    <p>Extração automática de dados de NFS-e para COMERCIO DE BANANAS SANTOMÉ LTDA</p>
+    <p>Extração inteligente com validação cruzada para COMERCIO DE BANANAS SANTOMÉ LTDA</p>
   </header>
 
   <main>
@@ -473,10 +516,10 @@ footer a:hover {
         <div class="upload-icon">
           <i class="fas fa-cloud-upload-alt"></i>
         </div>
-        <div class="upload-text">Solte aqui PDFs ou imagens</div>
+        <div class="upload-text">Solte aqui PDFs, XMLs ou imagens</div>
         <div class="upload-hint">ou clique para selecionar arquivos</div>
       </div>
-      <input type="file" id="fileInput" multiple accept=".pdf,image/*">
+      <input type="file" id="fileInput" multiple accept=".pdf,.xml,image/*">
       
       <div class="progress-section" id="progressSection">
         <div class="progress-bar">
@@ -484,6 +527,12 @@ footer a:hover {
         </div>
         <div class="progress-text" id="progressText">Processando arquivos...</div>
       </div>
+    </section>
+
+    <!-- Processing info -->
+    <section class="processing-info" id="processingInfo">
+      <h3><i class="fas fa-info-circle"></i> Validação Inteligente</h3>
+      <div class="processing-details" id="processingDetails"></div>
     </section>
 
     <section class="results-section" id="resultsSection">
@@ -505,6 +554,7 @@ footer a:hover {
               <th>Nº Documento</th>
               <th>Valor Total</th>
               <th>Descrição</th>
+              <th>Confiança</th>
               <th>Ações</th>
             </tr>
           </thead>
@@ -515,7 +565,7 @@ footer a:hover {
 
     <!-- Debug section -->
     <section class="debug-section" id="debugSection">
-      <h3>Debug - Texto Extraído</h3>
+      <h3>Debug - Dados Extraídos</h3>
       <div class="debug-text" id="debugText"></div>
     </section>
   </main>
@@ -532,27 +582,170 @@ footer a:hover {
     let extractedData = [];
     let debugMode = false;
     let librariesLoaded = false;
+    let tesseractWorker = null;
     
     // CNPJ da empresa (tomador) - ignorar
     const COMPANY_CNPJ = '07.925.317/0001-88';
     
-    // ===== CACHE FUNCTIONS =====
-    function cacheEmitenteName(cnpj, nome) {
-      const digits = (cnpj || '').replace(/\D/g, '');
-      if (digits.length === 14 && nome) {
-        localStorage.setItem('nm_' + digits, nome);
+    // ===== SISTEMA DE CACHE MELHORADO =====
+    const DataCache = {
+      emitentes: new Map(),
+      
+      setEmitente(cnpj, data) {
+        const key = cnpj.replace(/\D/g, '');
+        this.emitentes.set(key, data);
+        localStorage.setItem('cache_emitente_' + key, JSON.stringify(data));
+      },
+      
+      getEmitente(cnpj) {
+        const key = cnpj.replace(/\D/g, '');
+        if (this.emitentes.has(key)) {
+          return this.emitentes.get(key);
+        }
+        
+        const cached = localStorage.getItem('cache_emitente_' + key);
+        if (cached) {
+          const data = JSON.parse(cached);
+          this.emitentes.set(key, data);
+          return data;
+        }
+        
+        return null;
+      }
+    };
+    
+    // ===== SISTEMA DE VALIDAÇÃO E CONFIANÇA =====
+    class DataValidator {
+      static calculateConfidence(extractedData, source) {
+        let totalScore = 0;
+        let fieldCount = 0;
+        
+        // Scores por campo
+        const fieldScores = {};
+        
+        // CNPJ
+        if (extractedData.cnpj_emitente) {
+          const cnpjScore = this.validateCNPJ(extractedData.cnpj_emitente) ? 100 : 50;
+          fieldScores.cnpj = cnpjScore;
+          totalScore += cnpjScore;
+          fieldCount++;
+        }
+        
+        // Nome
+        if (extractedData.nome_emitente) {
+          const nameScore = extractedData.nome_emitente.length > 5 ? 100 : 50;
+          fieldScores.nome = nameScore;
+          totalScore += nameScore;
+          fieldCount++;
+        }
+        
+        // Data
+        if (extractedData.data_emissao) {
+          const dateScore = this.isValidDate(extractedData.data_emissao) ? 100 : 50;
+          fieldScores.data = dateScore;
+          totalScore += dateScore;
+          fieldCount++;
+        }
+        
+        // Valor
+        if (extractedData.valor_total) {
+          const valueScore = this.isValidMonetaryValue(extractedData.valor_total) ? 100 : 50;
+          fieldScores.valor = valueScore;
+          totalScore += valueScore;
+          fieldCount++;
+        }
+        
+        // Número do documento
+        if (extractedData.numero_documento) {
+          const docScore = extractedData.numero_documento.match(/^\d{3,10}$/) ? 100 : 70;
+          fieldScores.documento = docScore;
+          totalScore += docScore;
+          fieldCount++;
+        }
+        
+        // Bonus por fonte
+        if (source === 'xml') {
+          totalScore += 50;
+        } else if (source === 'combined') {
+          totalScore += 30;
+        }
+        
+        const averageScore = fieldCount > 0 ? totalScore / fieldCount : 0;
+        
+        return {
+          overall: Math.min(100, averageScore),
+          fields: fieldScores,
+          level: averageScore >= 80 ? 'high' : averageScore >= 60 ? 'medium' : 'low'
+        };
+      }
+      
+      static validateCNPJ(cnpj) {
+        const cleaned = cnpj.replace(/\D/g, '');
+        if (cleaned.length !== 14) return false;
+        
+        // Validação completa de CNPJ
+        let sum = 0;
+        let pos = 5;
+        for (let i = 0; i < 12; i++) {
+          sum += cleaned[i] * pos--;
+          if (pos < 2) pos = 9;
+        }
+        let result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+        if (result != cleaned[12]) return false;
+        
+        sum = 0;
+        pos = 6;
+        for (let i = 0; i < 13; i++) {
+          sum += cleaned[i] * pos--;
+          if (pos < 2) pos = 9;
+        }
+        result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+        
+        return result == cleaned[13];
+      }
+      
+      static isValidDate(dateStr) {
+        const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+        if (!dateRegex.test(dateStr)) return false;
+        
+        const parts = dateStr.split('/');
+        const day = parseInt(parts[0]);
+        const month = parseInt(parts[1]);
+        const year = parseInt(parts[2]);
+        
+        if (year < 2000 || year > 2030) return false;
+        if (month < 1 || month > 12) return false;
+        if (day < 1 || day > 31) return false;
+        
+        return true;
+      }
+      
+      static isValidMonetaryValue(value) {
+        const valueRegex = /^\d{1,3}(\.\d{3})*,\d{2}$/;
+        return valueRegex.test(value);
+      }
+      
+      static mergeData(xmlData, ocrData) {
+        const merged = {};
+        
+        // Para cada campo, escolhe o mais confiável
+        const fields = ['cnpj_emitente', 'nome_emitente', 'data_emissao', 'numero_documento', 'valor_total', 'descricao'];
+        
+        fields.forEach(field => {
+          if (xmlData[field] && xmlData[field].trim()) {
+            merged[field] = xmlData[field];
+          } else if (ocrData[field] && ocrData[field].trim()) {
+            merged[field] = ocrData[field];
+          } else {
+            merged[field] = '';
+          }
+        });
+        
+        return merged;
       }
     }
     
-    function getCachedEmitenteName(cnpj) {
-      const digits = (cnpj || '').replace(/\D/g, '');
-      if (digits.length === 14) {
-        return localStorage.getItem('nm_' + digits) || '';
-      }
-      return '';
-    }
-    
-    // ===== SUPER REGEX PATTERNS - ULTRA ROBUSTAS =====
+    // ===== PATTERNS MELHORADOS =====
     const PATTERNS = {
       // CNPJs - captura todos os formatos
       cnpj: /\b\d{2}[\.\s]?\d{3}[\.\s]?\d{3}[\s\/]?\d{4}[\s\-]?\d{2}\b/g,
@@ -564,333 +757,294 @@ footer a:hover {
         /\b(\d{2}-\d{2}-\d{4})\b/g
       ],
       
-      // Valores monetários - ultra específico
+      // Valores monetários
       money: /\b\d{1,3}(?:\.\d{3})*,\d{2}\b/g,
       
-      // Placas de veículos - ULTRA ROBUSTA - múltiplos padrões
+      // Placas de veículos
       placa: [
-        // Padrão novo: ABC1D23
         /\b([A-Z]{3}\d[A-Z]\d{2})\b/gi,
-        // Padrão antigo: ABC-1234 ou ABC 1234
         /\b([A-Z]{3}[-\s]?\d{4})\b/gi,
-        // Variações específicas encontradas em NFS-e
         /PLACA[:\s]*([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2})/gi,
-        /PLACA[:\s]*([A-Z]{3}[-\s]?\d{4})/gi,
-        /placa\s*[=:]\s*([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2})/gi,
-        /placa\s*[=:]\s*([A-Z]{3}[-\s]?\d{4})/gi,
-        // Padrões sem prefixo "PLACA"
-        /\b([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2})\b/gi,
-        /\b([A-Z]{3}[-\s]?\d{4})\b/gi,
-        // Variações específicas do documento exemplo
-        /VEICULO[:\s]*CAMINH[AÃ]O\s+PLACA[:\s]*([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2})/gi,
-        /CAMINH[AÃ]O\s+PLACA[:\s]*([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2})/gi
+        /PLACA[:\s]*([A-Z]{3}[-\s]?\d{4})/gi
       ],
       
-      // Número de documento - super específico
+      // Número de documento
       docNumber: [
         /N[úu]mero\s+da\s+NFS?-?[eE]\s*[:\-]?\s*(\d{3,10})/gi,
         /N[úu]mero\s+da\s+Nota\s*[:\-]?\s*(\d{3,10})/gi,
         /N[°º]\s*NFS?-?[eE]\s*[:\-]?\s*(\d{3,10})/gi,
-        /RPS\s*[n°º]?\s*[:\-]?\s*(\d{3,10})/gi,
-        /Documento\s*[n°º]?\s*[:\-]?\s*(\d{3,10})/gi
-      ]
+        /N[úu]mero\s+do\s+RPS\s*[:\-]?\s*(\d{3,10})/gi
+      ],
+      
+      // Campos específicos para diferentes tipos de nota
+      fields: {
+        prestador: /(?:PRESTADOR|EMITENTE|FORNECEDOR)[\s\S]*?(?=TOMADOR|CLIENTE|DESTINAT[ÁA]RIO|$)/i,
+        razaoSocial: /(?:Raz[aã]o\s+Social|Nome\/Raz[aã]o\s+Social|Empresa)\s*[:\-]\s*([^\n\r]{3,100})/i,
+        nomeFantasia: /(?:Nome\s+Fantasia)\s*[:\-]\s*([^\n\r]{3,100})/i,
+        servico: /(?:DESCRI[ÇC][ÃA]O\s+DOS?\s+SERVI[ÇC]OS?|DISCRIMINA[ÇC][ÃA]O)\s*[:\-]?\s*([\s\S]{10,500}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|Base|$)/gi
+      }
     };
     
-    // ===== ULTRA EXTRAÇÃO DE PLACA - FUNÇÃO ESPECÍFICA =====
-    function extractPlacaFromText(text) {
-      console.log('Buscando placa no texto...');
-      
-      // Busca por todos os padrões de placa
-      for (const pattern of PATTERNS.placa) {
-        const matches = [...text.matchAll(pattern)];
-        for (const match of matches) {
-          let placa = match[1] || match[0];
-          
-          // Limpa e normaliza a placa
-          placa = placa.toUpperCase()
-                      .replace(/[-\s]/g, '')
-                      .trim();
-          
-          // Valida se é uma placa válida
-          if (isValidPlaca(placa)) {
-            console.log('Placa encontrada:', placa);
-            return placa;
-          }
-        }
+    // ===== INICIALIZAÇÃO DO TESSERACT =====
+    async function initTesseract() {
+      if (!tesseractWorker) {
+        tesseractWorker = await Tesseract.createWorker();
+        await tesseractWorker.loadLanguage('por+eng');
+        await tesseractWorker.initialize('por+eng');
+        await tesseractWorker.setParameters({
+          tessedit_ocr_engine_mode: '2',
+          tessedit_pageseg_mode: '1',
+          preserve_interword_spaces: '1'
+        });
       }
-      
-      // Busca adicional por padrões específicos no contexto
-      const contextPatterns = [
-        /VEICULO[^:\n]*([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2})/gi,
-        /CAMINH[AÃ]O[^:\n]*([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2})/gi,
-        /FONTE[^:\n]*([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2})/gi
-      ];
-      
-      for (const pattern of contextPatterns) {
-        const matches = [...text.matchAll(pattern)];
-        for (const match of matches) {
-          let placa = match[1];
-          placa = placa.toUpperCase().replace(/[-\s]/g, '').trim();
-          
-          if (isValidPlaca(placa)) {
-            console.log('Placa encontrada por contexto:', placa);
-            return placa;
-          }
-        }
-      }
-      
-      console.log('Nenhuma placa encontrada');
-      return '';
+      return tesseractWorker;
     }
     
-    // ===== VALIDADOR DE PLACA =====
-    function isValidPlaca(placa) {
-      if (!placa || placa.length < 7) return false;
+    // ===== PROCESSAMENTO DE XML =====
+    async function processXML(file) {
+      const text = await file.text();
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(text, "text/xml");
       
-      // Padrão novo: ABC1D23
-      if (/^[A-Z]{3}\d[A-Z]\d{2}$/.test(placa)) return true;
-      
-      // Padrão antigo: ABC1234
-      if (/^[A-Z]{3}\d{4}$/.test(placa)) return true;
-      
-      return false;
-    }
-    
-    // ===== ULTRA EXTRAÇÃO DE NOME DO EMITENTE =====
-    function extractEmitenteNameUltra(text, cnpj) {
-      if (!cnpj) return '';
-      
-      // Verifica cache primeiro
-      const cached = getCachedEmitenteName(cnpj);
-      if (cached) return cached;
-      
-      const cnpjClean = cnpj.replace(/\D/g, '');
-      
-      // Validador de nome ultra rigoroso
-      const isValidName = (name) => {
-        if (!name || name.length < 5) return false;
-        if (/^\d+$/.test(name)) return false; // só números
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(name)) return false; // data
-        if (/(CPF|CNPJ|TOMADOR|CONSUMIDOR|NOTA|DATA|VALOR|TELEFONE|EMAIL|CEP|ENDERE[ÇC]O)/i.test(name)) return false;
-        if (/^[^A-Za-z]*$/.test(name)) return false; // sem letras
-        return true;
+      const extractedData = {
+        cnpj_emitente: '',
+        nome_emitente: '',
+        data_emissao: '',
+        numero_documento: '',
+        valor_total: '',
+        descricao: ''
       };
       
-      // ESTRATÉGIA 1: Busca estruturada por seções
-      const prestadorSection = text.match(/(?:PRESTADOR|EMITENTE|FORNECEDOR)[\s\S]*?(?=TOMADOR|CLIENTE|DESTINAT[ÁA]RIO|$)/i);
-      if (prestadorSection) {
-        const section = prestadorSection[0];
+      // Extração específica para NFSe XML
+      const prestador = xmlDoc.querySelector('Prestador, PrestadorServico, DadosPrestador');
+      if (prestador) {
+        const cnpj = prestador.querySelector('Cnpj, CpfCnpj Cnpj, IdentificacaoPrestador Cnpj');
+        if (cnpj) extractedData.cnpj_emitente = formatCNPJ(cnpj.textContent);
         
-        // Busca por campos rotulados
-        const labeledPatterns = [
-          /(?:Raz[aã]o\s+Social|Nome\/Raz[aã]o\s+Social|Empresa)\s*[:\-]\s*([^\n\r]{8,100})/i,
-          /(?:Nome\s+Fantasia)\s*[:\-]\s*([^\n\r]{8,100})/i,
-          /(?:Nome)\s*[:\-]\s*([^\n\r]{8,100})/i
-        ];
-        
-        for (const pattern of labeledPatterns) {
-          const match = section.match(pattern);
-          if (match && isValidName(match[1].trim())) {
-            const name = match[1].trim().replace(/\s+/g, ' ');
-            cacheEmitenteName(cnpj, name);
-            return name;
-          }
+        const razao = prestador.querySelector('RazaoSocial, NomeRazaoSocial');
+        if (razao) extractedData.nome_emitente = razao.textContent;
+      }
+      
+      // Data de emissão
+      const dataEmissao = xmlDoc.querySelector('DataEmissao, DataEmissaoNfse, DtEmissao');
+      if (dataEmissao) {
+        const date = new Date(dataEmissao.textContent);
+        if (!isNaN(date)) {
+          extractedData.data_emissao = date.toLocaleDateString('pt-BR');
         }
       }
       
-      // ESTRATÉGIA 2: Busca por proximidade ao CNPJ
-      const cnpjIndex = text.indexOf(cnpjClean);
-      if (cnpjIndex !== -1) {
-        const beforeCnpj = text.substring(Math.max(0, cnpjIndex - 400), cnpjIndex);
-        const afterCnpj = text.substring(cnpjIndex, cnpjIndex + 200);
-        
-        const contextText = beforeCnpj + ' ' + afterCnpj;
-        const lines = contextText.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
-        
-        // Busca linhas com indicadores de empresa
-        const businessIndicators = /(LTDA\.?|EPP|MEI|EIRELI|S\.?A\.?|SERVI[ÇC]OS|COM[EÉ]RCIO|IND[ÚU]STRIA|FUNILARIA|LANTERNAGEM|OFICINA|MECA?NICA)/i;
-        
-        for (const line of lines) {
-          if (isValidName(line) && businessIndicators.test(line) && line.length > 10 && line.length < 100) {
-            const cleanName = line.replace(/^\W+|\W+$/g, '').replace(/\s+/g, ' ');
-            if (cleanName) {
-              cacheEmitenteName(cnpj, cleanName);
-              return cleanName;
-            }
-          }
-        }
-        
-        // Busca qualquer nome válido próximo
-        for (const line of lines) {
-          if (isValidName(line) && line.length > 8 && line.length < 80) {
-            const cleanName = line.replace(/^\W+|\W+$/g, '').replace(/\s+/g, ' ');
-            if (cleanName && /[A-Za-z]/.test(cleanName)) {
-              cacheEmitenteName(cnpj, cleanName);
-              return cleanName;
-            }
-          }
+      // Número
+      const numero = xmlDoc.querySelector('Numero, NumeroNfse, NumeroNota');
+      if (numero) extractedData.numero_documento = numero.textContent;
+      
+      // Valor
+      const valor = xmlDoc.querySelector('ValorServicos, ValorTotalServicos, ValorTotal, ValorNfse');
+      if (valor) {
+        const valorNum = parseFloat(valor.textContent);
+        if (!isNaN(valorNum)) {
+          extractedData.valor_total = valorNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
       }
       
-      return '';
+      // Descrição
+      const descricao = xmlDoc.querySelector('Discriminacao, DiscriminacaoServico, ItemListaServico, Servico');
+      if (descricao) extractedData.descricao = descricao.textContent.substring(0, 120);
+      
+      return extractedData;
     }
     
-    // ===== ULTRA EXTRAÇÃO DE NÚMERO DO DOCUMENTO =====
-    function extractDocumentNumberUltra(text) {
-      // Busca por padrões específicos com labels
-      for (const pattern of PATTERNS.docNumber) {
-        const matches = [...text.matchAll(pattern)];
-        for (const match of matches) {
-          const number = match[1];
-          if (number && number.length >= 3 && number.length <= 10) {
-            return number;
-          }
-        }
-      }
-      
-      // Busca por números no cabeçalho do documento
-      const topSection = text.substring(0, Math.floor(text.length * 0.3));
-      const numberMatches = [...topSection.matchAll(/\b(\d{3,8})\b/g)];
-      
-      if (numberMatches.length > 0) {
-        // Filtra números que não são anos ou outros dados
-        const filtered = numberMatches
-          .map(m => m[1])
-          .filter(num => {
-            const n = parseInt(num);
-            return n > 100 && n < 999999999 && 
-                   !['2023', '2024', '2025', '2026'].includes(num) &&
-                   num.length >= 3;
-          });
+    // ===== PRÉ-PROCESSAMENTO AVANÇADO DE IMAGEM =====
+    async function preprocessImageAdvanced(file) {
+      return new Promise((resolve) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
         
-        if (filtered.length > 0) {
-          return filtered[0];
-        }
-      }
-      
-      return '';
+        img.onload = () => {
+          // Aumenta a resolução se necessário
+          const scale = Math.max(1, 2000 / Math.max(img.width, img.height));
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          
+          // Desenha a imagem escalada
+          ctx.scale(scale, scale);
+          ctx.drawImage(img, 0, 0);
+          
+          // Aplica filtros para melhorar OCR
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imageData.data;
+          
+          // Conversão para grayscale com pesos otimizados
+          for (let i = 0; i < data.length; i += 4) {
+            const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+            data[i] = gray;
+            data[i + 1] = gray;
+            data[i + 2] = gray;
+          }
+          
+          // Aplicar threshold adaptativo (binarização)
+          const threshold = calculateAdaptiveThreshold(data, canvas.width, canvas.height);
+          for (let i = 0; i < data.length; i += 4) {
+            const value = data[i] > threshold ? 255 : 0;
+            data[i] = value;
+            data[i + 1] = value;
+            data[i + 2] = value;
+          }
+          
+          // Aplicar sharpening suave
+          applySharpening(imageData, canvas.width, canvas.height);
+          
+          ctx.putImageData(imageData, 0, 0);
+          resolve(canvas);
+        };
+        
+        img.src = URL.createObjectURL(file);
+      });
     }
     
-    // ===== ULTRA EXTRAÇÃO DE DESCRIÇÃO COM PLACA =====
-    function extractDescriptionUltra(text) {
-      console.log('Iniciando extração de descrição...');
+    function calculateAdaptiveThreshold(data, width, height) {
+      let sum = 0;
+      let count = 0;
       
-      // Primeiro, busca a placa em todo o documento
-      const placa = extractPlacaFromText(text);
-      console.log('Placa encontrada:', placa);
+      for (let i = 0; i < data.length; i += 4) {
+        sum += data[i];
+        count++;
+      }
       
-      // Padrões específicos para descrição
-      const descriptionPatterns = [
-        /DESCRI[ÇC][ÃA]O\s+DOS?\s+SERVI[ÇC]OS?\s+PRESTADOS?[^:\n]*:?\s*([\s\S]{10,400}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|Base|Al[ií]quota|TOTAL|$)/gi,
-        /Descri[çc][ãa]o\s+do\s+Servi[çc]o[^:\n]*:?\s*([\s\S]{10,300}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi,
-        /DISCRIMINA[ÇC][ÃA]O[^:\n]*:?\s*([\s\S]{10,300}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi,
-        /Servi[çc]o\s+Prestado[^:\n]*:?\s*([\s\S]{10,300}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi
+      return (sum / count) * 0.85; // 85% da média
+    }
+    
+    function applySharpening(imageData, width, height) {
+      const data = imageData.data;
+      const output = new Uint8ClampedArray(data);
+      
+      const kernel = [
+        0, -1, 0,
+        -1, 5, -1,
+        0, -1, 0
       ];
       
-      let description = '';
-      
-      for (const pattern of descriptionPatterns) {
-        const matches = [...text.matchAll(pattern)];
-        for (const match of matches) {
-          let desc = match[1].trim();
-          
-          // Limpa a descrição
-          desc = desc
-            .replace(/\n+/g, ' ')
-            .replace(/\s+/g, ' ')
-            .replace(/^[:\-\s]+|[:\-\s]+$/g, '')
-            .replace(/valor.*$/i, '')
-            .replace(/quantidade.*$/i, '')
-            .replace(/al[ií]quota.*$/i, '')
-            .replace(/você\s+pagou\s+aproximadamente.*$/i, '')
-            .replace(/fonte[:\s]*ibpt.*$/i, '')
-            .trim();
-          
-          if (desc && desc.length > 5) {
-            description = desc;
-            break;
-          }
-        }
-      }
-      
-      // Se não encontrou descrição, tenta buscar por contexto de veículo
-      if (!description) {
-        const vehiclePatterns = [
-          /(?:VEICULO|CAMINH[AÃ]O|FONTE|VEICULOS?)[^:\n]*:?\s*([\s\S]{10,200}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi,
-          /(?:MANUTENC[AÃ]O|REPARO|CONSERTO|PINTURA|SERVICO)[^:\n]*:?\s*([\s\S]{10,200}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi
-        ];
-        
-        for (const pattern of vehiclePatterns) {
-          const matches = [...text.matchAll(pattern)];
-          for (const match of matches) {
-            let desc = match[1].trim()
-              .replace(/\n+/g, ' ')
-              .replace(/\s+/g, ' ')
-              .trim();
-            
-            if (desc && desc.length > 5) {
-              description = desc;
-              break;
+      for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+          for (let c = 0; c < 3; c++) {
+            let sum = 0;
+            for (let ky = -1; ky <= 1; ky++) {
+              for (let kx = -1; kx <= 1; kx++) {
+                const idx = ((y + ky) * width + (x + kx)) * 4 + c;
+                sum += data[idx] * kernel[(ky + 1) * 3 + (kx + 1)];
+              }
             }
+            output[(y * width + x) * 4 + c] = Math.max(0, Math.min(255, sum));
           }
-          if (description) break;
         }
       }
       
-      // Formatação final da descrição
-      if (description) {
-        // Limita a 120 caracteres
-        if (description.length > 120) {
-          description = description.substring(0, 117) + '...';
-        }
-        
-        // Se temos placa, formata como "PLACA - descrição"
-        if (placa) {
-          // Remove a placa da descrição se já estiver lá
-          description = description.replace(new RegExp(placa, 'gi'), '').trim();
-          description = description.replace(/^[-\s]+|[-\s]+$/g, '');
-          
-          // Formata final
-          if (description) {
-            description = `${placa} – ${description}`;
-          } else {
-            description = `${placa} – serviços automotivos`;
-          }
-        }
-        
-        // Converte para minúsculas exceto a placa
-        if (placa) {
-          const parts = description.split(' – ');
-          if (parts.length === 2) {
-            description = `${parts[0]} – ${parts[1].toLowerCase()}`;
-          }
-        } else {
-          description = description.toLowerCase();
-        }
-      } else {
-        // Se não encontrou nada, usa a placa se disponível
-        if (placa) {
-          description = `${placa} – serviços não especificados`;
-        } else {
-          description = 'serviços não especificados';
-        }
-      }
-      
-      console.log('Descrição final:', description);
-      return description;
+      imageData.data.set(output);
     }
     
-    // ===== EXTRAÇÃO DE CNPJ DO EMITENTE =====
+    // ===== PROCESSAMENTO DE IMAGEM COM OCR =====
+    async function processImage(file) {
+      showProcessingInfo('Aplicando pré-processamento avançado na imagem...');
+      
+      // Pré-processamento avançado
+      const processedImage = await preprocessImageAdvanced(file);
+      
+      showProcessingInfo('Executando OCR com Tesseract...');
+      
+      // OCR com Tesseract
+      const worker = await initTesseract();
+      const { data } = await worker.recognize(processedImage);
+      
+      return data.text;
+    }
+    
+    // ===== PROCESSAMENTO DE PDF =====
+    async function processPDF(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+      let fullText = '';
+      
+      showProcessingInfo(`Processando PDF com ${pdf.numPages} página(s)...`);
+      
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        
+        // Tenta extrair texto primeiro
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str).join(' ');
+        
+        if (pageText.trim().length > 50) {
+          // Se tem texto suficiente, usa ele
+          fullText += pageText + '\n\n';
+        } else {
+          // Se não tem texto, converte para imagem e faz OCR
+          showProcessingInfo(`Página ${i} sem texto. Aplicando OCR...`);
+          
+          const viewport = page.getViewport({ scale: 2.0 });
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          
+          await page.render({ canvasContext: context, viewport }).promise;
+          
+          const worker = await initTesseract();
+          const { data } = await worker.recognize(canvas);
+          fullText += data.text + '\n\n';
+        }
+      }
+      
+      return fullText;
+    }
+    
+    // ===== EXTRAÇÃO INTELIGENTE DE DADOS =====
+    function extractDataFromText(text, filename) {
+      console.log(`Extraindo dados de ${filename}...`);
+      
+      const data = {
+        filename: filename,
+        cnpj_emitente: extractCNPJEmitente(text),
+        nome_emitente: '',
+        data_emissao: extractDataEmissao(text),
+        numero_documento: extractDocumentNumber(text),
+        valor_total: extractValorTotal(text),
+        descricao: extractDescription(text)
+      };
+      
+      // Extrai nome do emitente com múltiplas estratégias
+      if (data.cnpj_emitente) {
+        data.nome_emitente = extractEmitenteName(text, data.cnpj_emitente);
+      }
+      
+      console.log('Dados extraídos:', data);
+      return data;
+    }
+    
+    // ===== FUNÇÕES DE EXTRAÇÃO ESPECÍFICAS =====
     function extractCNPJEmitente(text) {
       const cnpjMatches = [...text.matchAll(PATTERNS.cnpj)];
       const companyCnpjClean = COMPANY_CNPJ.replace(/\D/g, '');
       
+      // Prioriza CNPJs que aparecem primeiro ou em seções de prestador
+      const prestadorSection = text.match(PATTERNS.fields.prestador);
+      if (prestadorSection) {
+        const cnpjInSection = [...prestadorSection[0].matchAll(PATTERNS.cnpj)];
+        if (cnpjInSection.length > 0) {
+          const cnpj = cnpjInSection[0][0];
+          const cnpjClean = cnpj.replace(/\D/g, '');
+          if (cnpjClean !== companyCnpjClean && DataValidator.validateCNPJ(cnpjClean)) {
+            return formatCNPJ(cnpjClean);
+          }
+        }
+      }
+      
+      // Busca em todo o documento
       for (const match of cnpjMatches) {
         const cnpj = match[0];
         const cnpjClean = cnpj.replace(/\D/g, '');
         
-        // Ignora o CNPJ da empresa
-        if (cnpjClean !== companyCnpjClean) {
+        if (cnpjClean !== companyCnpjClean && DataValidator.validateCNPJ(cnpjClean)) {
           return formatCNPJ(cnpjClean);
         }
       }
@@ -898,41 +1052,205 @@ footer a:hover {
       return '';
     }
     
-    // ===== EXTRAÇÃO DE DATA DE EMISSÃO =====
+    function extractEmitenteName(text, cnpj) {
+      if (!cnpj) return '';
+      
+      // Verifica cache
+      const cached = DataCache.getEmitente(cnpj);
+      if (cached && cached.nome) {
+        return cached.nome;
+      }
+      
+      let bestName = '';
+      let bestScore = 0;
+      
+      // Estratégia 1: Busca por campos rotulados
+      const labeledPatterns = [
+        PATTERNS.fields.razaoSocial,
+        PATTERNS.fields.nomeFantasia
+      ];
+      
+      for (const pattern of labeledPatterns) {
+        const match = text.match(pattern);
+        if (match && match[1]) {
+          const name = cleanName(match[1]);
+          const score = scoreNameQuality(name);
+          if (score > bestScore) {
+            bestName = name;
+            bestScore = score;
+          }
+        }
+      }
+      
+      // Estratégia 2: Busca por proximidade ao CNPJ
+      if (bestScore < 80) {
+        const cnpjIndex = text.indexOf(cnpj.replace(/\D/g, ''));
+        if (cnpjIndex !== -1) {
+          const contextStart = Math.max(0, cnpjIndex - 500);
+          const contextEnd = Math.min(text.length, cnpjIndex + 300);
+          const context = text.substring(contextStart, contextEnd);
+          
+          const lines = context.split(/[\r\n]+/).filter(l => l.trim().length > 5);
+          
+          for (const line of lines) {
+            if (isBusinessName(line)) {
+              const name = cleanName(line);
+              const score = scoreNameQuality(name);
+              if (score > bestScore) {
+                bestName = name;
+                bestScore = score;
+              }
+            }
+          }
+        }
+      }
+      
+      // Cache o resultado
+      if (bestName) {
+        DataCache.setEmitente(cnpj, { nome: bestName });
+      }
+      
+      return bestName;
+    }
+    
     function extractDataEmissao(text) {
+      // Busca por datas com contexto
+      const dateContextPatterns = [
+        /(?:Data\s+de\s+)?Emiss[aã]o\s*[:\-]?\s*(\d{2}\/\d{2}\/\d{4})/gi,
+        /(?:Data\s+do\s+)?[Ff]ato\s+[Gg]erador\s*[:\-]?\s*(\d{2}\/\d{2}\/\d{4})/gi,
+        /(?:Emitida?\s+em|Data)\s*[:\-]?\s*(\d{2}\/\d{2}\/\d{4})/gi
+      ];
+      
+      for (const pattern of dateContextPatterns) {
+        const match = text.match(pattern);
+        if (match && DataValidator.isValidDate(match[1])) {
+          return match[1];
+        }
+      }
+      
+      // Busca geral por datas
       for (const pattern of PATTERNS.dateFormats) {
         const matches = [...text.matchAll(pattern)];
         for (const match of matches) {
           const date = match[1];
-          if (isValidDate(date)) {
+          if (DataValidator.isValidDate(formatDate(date))) {
             return formatDate(date);
           }
         }
       }
+      
       return '';
     }
     
-    // ===== EXTRAÇÃO DE VALOR TOTAL =====
+    function extractDocumentNumber(text) {
+      // Busca por padrões específicos
+      for (const pattern of PATTERNS.docNumber) {
+        const matches = [...text.matchAll(pattern)];
+        if (matches.length > 0) {
+          return matches[0][1];
+        }
+      }
+      
+      // Busca por números em contexto
+      const numberContext = /(?:N[úu]mero|N[°º]|Nota|NFS-?e|RPS)\s*[:\-]?\s*(\d{3,10})/gi;
+      const match = text.match(numberContext);
+      if (match) {
+        return match[1];
+      }
+      
+      return '';
+    }
+    
     function extractValorTotal(text) {
+      // Busca por valores com contexto
+      const valueContextPatterns = [
+        /Valor\s+(?:Total|dos?\s+Servi[çc]os?|L[íi]quido)\s*[:\-]?\s*(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2})/gi,
+        /Total\s+(?:da\s+Nota|NFS-?e|Geral)\s*[:\-]?\s*(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2})/gi
+      ];
+      
+      for (const pattern of valueContextPatterns) {
+        const match = text.match(pattern);
+        if (match) {
+          return match[1];
+        }
+      }
+      
+      // Busca geral - pega o maior valor
       const moneyMatches = [...text.matchAll(PATTERNS.money)];
+      if (moneyMatches.length > 0) {
+        const values = moneyMatches.map(match => ({
+          original: match[0],
+          numeric: parseFloat(match[0].replace(/\./g, '').replace(',', '.'))
+        }));
+        
+        const maxValue = values.reduce((max, current) => 
+          current.numeric > max.numeric ? current : max
+        );
+        
+        return maxValue.original;
+      }
       
-      if (moneyMatches.length === 0) return '';
+      return '';
+    }
+    
+    function extractDescription(text) {
+      let bestDescription = '';
       
-      // Converte todos os valores para número para comparação
-      const values = moneyMatches.map(match => {
-        const valueStr = match[0];
-        return {
-          original: valueStr,
-          numeric: parseFloat(valueStr.replace(/\./g, '').replace(',', '.'))
-        };
-      });
+      // Busca por descrição de serviços
+      const servicePatterns = [
+        PATTERNS.fields.servico,
+        /(?:Servi[çc]os?\s+Prestados?|Discrimina[çc][ãa]o)\s*[:\-]?\s*([\s\S]{10,300}?)(?=\n\s*\n|Valor|Total|$)/gi
+      ];
       
-      // Retorna o maior valor
-      const maxValue = values.reduce((max, current) => 
-        current.numeric > max.numeric ? current : max
-      );
+      for (const pattern of servicePatterns) {
+        const matches = [...text.matchAll(pattern)];
+        if (matches.length > 0) {
+          let desc = matches[0][1]
+            .replace(/\n+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+          
+          // Remove valores e informações desnecessárias
+          desc = desc.replace(/(?:valor|quantidade|al[íi]quota|base).*$/i, '').trim();
+          
+          if (desc.length > 10) {
+            bestDescription = desc;
+            break;
+          }
+        }
+      }
       
-      return maxValue.original;
+      // Busca por placa se for serviço automotivo
+      const placa = extractPlaca(text);
+      if (placa) {
+        if (bestDescription) {
+          bestDescription = `${placa} - ${bestDescription.toLowerCase()}`;
+        } else {
+          bestDescription = `${placa} - serviços automotivos`;
+        }
+      }
+      
+      // Limita o tamanho
+      if (bestDescription.length > 120) {
+        bestDescription = bestDescription.substring(0, 117) + '...';
+      }
+      
+      return bestDescription || 'Serviços';
+    }
+    
+    function extractPlaca(text) {
+      for (const pattern of PATTERNS.placa) {
+        const matches = [...text.matchAll(pattern)];
+        for (const match of matches) {
+          let placa = match[1] || match[0];
+          placa = placa.toUpperCase().replace(/[-\s]/g, '');
+          
+          if (isValidPlaca(placa)) {
+            return formatPlaca(placa);
+          }
+        }
+      }
+      return '';
     }
     
     // ===== FUNÇÕES AUXILIARES =====
@@ -940,30 +1258,171 @@ footer a:hover {
       return cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
     }
     
-    function isValidDate(dateStr) {
-      const formats = [
-        /^\d{2}\/\d{2}\/\d{4}$/,
-        /^\d{4}-\d{2}-\d{2}$/,
-        /^\d{2}-\d{2}-\d{4}$/
-      ];
-      
-      return formats.some(format => format.test(dateStr));
-    }
-    
     function formatDate(dateStr) {
-      // Converte para formato dd/mm/yyyy
       if (dateStr.includes('-')) {
         const parts = dateStr.split('-');
         if (parts[0].length === 4) {
-          // yyyy-mm-dd -> dd/mm/yyyy
           return `${parts[2]}/${parts[1]}/${parts[0]}`;
         } else {
-          // dd-mm-yyyy -> dd/mm/yyyy
           return dateStr.replace(/-/g, '/');
         }
       }
+      return dateStr;
+    }
+    
+    function formatPlaca(placa) {
+      if (placa.length === 7) {
+        if (/^[A-Z]{3}\d[A-Z]\d{2}$/.test(placa)) {
+          // Mercosul
+          return placa.substring(0, 3) + '-' + placa.substring(3);
+        } else {
+          // Antiga
+          return placa.substring(0, 3) + '-' + placa.substring(3);
+        }
+      }
+      return placa;
+    }
+    
+    function isValidPlaca(placa) {
+      return /^[A-Z]{3}\d[A-Z]\d{2}$/.test(placa) || /^[A-Z]{3}\d{4}$/.test(placa);
+    }
+    
+    function cleanName(name) {
+      return name
+        .replace(/^\W+|\W+$/g, '')
+        .replace(/\s+/g, ' ')
+        .replace(/\s*-\s*(?:ME|EPP|LTDA|EIRELI)\s*$/i, '')
+        .trim();
+    }
+    
+    function isBusinessName(text) {
+      const businessIndicators = /(LTDA|EPP|MEI|EIRELI|S\.?A|SERVI[ÇC]OS|COM[ÉE]RCIO|IND[ÚU]STRIA)/i;
+      const invalidIndicators = /(CPF|CNPJ|TOMADOR|CONSUMIDOR|NOTA|DATA|VALOR|TELEFONE|EMAIL|CEP|ENDERE[ÇC]O)/i;
       
-      return dateStr; // já está em dd/mm/yyyy
+      return text.length > 5 && 
+             text.length < 100 && 
+             businessIndicators.test(text) && 
+             !invalidIndicators.test(text) &&
+             !/^\d+$/.test(text) &&
+             /[A-Za-z]/.test(text);
+    }
+    
+    function scoreNameQuality(name) {
+      let score = 50; // Base score
+      
+      if (name.length > 10) score += 10;
+      if (name.length > 20) score += 10;
+      if (/LTDA|EPP|MEI|EIRELI|S\.?A/i.test(name)) score += 20;
+      if (/[A-Z][a-z]/.test(name)) score += 10; // Mixed case
+      
+      return Math.min(100, score);
+    }
+    
+    // ===== INTERFACE E CONTROLES =====
+    function showProcessingInfo(message) {
+      const infoSection = document.getElementById('processingInfo');
+      const details = document.getElementById('processingDetails');
+      
+      infoSection.style.display = 'block';
+      details.textContent = message;
+    }
+    
+    function hideProcessingInfo() {
+      document.getElementById('processingInfo').style.display = 'none';
+    }
+    
+    function showProgress() {
+      document.getElementById('progressSection').style.display = 'block';
+    }
+    
+    function hideProgress() {
+      document.getElementById('progressSection').style.display = 'none';
+    }
+    
+    function updateProgress(current, total, message) {
+      const percentage = Math.round((current / total) * 100);
+      document.getElementById('progressFill').style.width = percentage + '%';
+      document.getElementById('progressText').textContent = `${message} (${current}/${total})`;
+    }
+    
+    function showResults() {
+      document.getElementById('resultsSection').style.display = 'block';
+    }
+    
+    function addRowToTable(data, confidence) {
+      const tbody = document.querySelector('#resultsTable tbody');
+      const row = document.createElement('tr');
+      
+      const confidenceIndicator = `<span class="confidence-indicator confidence-${confidence.level}" 
+        title="Confiança: ${confidence.overall.toFixed(0)}%"></span>`;
+      
+      row.innerHTML = `
+        <td contenteditable="true">${data.cnpj_emitente || ''}</td>
+        <td contenteditable="true">${data.nome_emitente || ''}</td>
+        <td contenteditable="true">${data.data_emissao || ''}</td>
+        <td contenteditable="true">${data.numero_documento || ''}</td>
+        <td contenteditable="true">${data.valor_total || ''}</td>
+        <td contenteditable="true">${data.descricao || ''}</td>
+        <td>${confidenceIndicator}</td>
+        <td>
+          <button class="delete-btn" onclick="deleteRow(this)" title="Excluir linha">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      `;
+      
+      tbody.appendChild(row);
+    }
+    
+    function deleteRow(button) {
+      const row = button.closest('tr');
+      const index = Array.from(row.parentNode.children).indexOf(row);
+      
+      row.remove();
+      extractedData.splice(index, 1);
+      enableExportIfAny();
+    }
+    
+    function enableExportIfAny() {
+      const hasData = document.querySelector('#resultsTable tbody tr');
+      document.getElementById('exportBtn').disabled = !hasData;
+    }
+    
+    function exportToExcel() {
+      const table = document.getElementById('resultsTable');
+      const rows = Array.from(table.querySelectorAll('tbody tr'));
+      
+      const data = rows.map(row => {
+        const cells = Array.from(row.querySelectorAll('td[contenteditable]'));
+        return {
+          'CNPJ Emitente': cells[0].textContent.trim(),
+          'Nome Emitente': cells[1].textContent.trim(),
+          'Data Emissão': cells[2].textContent.trim(),
+          'Nº Documento': cells[3].textContent.trim(),
+          'Valor Total': cells[4].textContent.trim(),
+          'Descrição': cells[5].textContent.trim()
+        };
+      });
+      
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Despesas');
+      
+      const now = new Date();
+      const filename = `despesas_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.xlsx`;
+      
+      XLSX.writeFile(wb, filename);
+    }
+    
+    function toggleDebug() {
+      debugMode = !debugMode;
+      const debugSection = document.getElementById('debugSection');
+      debugSection.style.display = debugMode ? 'block' : 'none';
+    }
+    
+    function updateDebugText(data) {
+      const debugText = JSON.stringify(data, null, 2);
+      document.getElementById('debugText').textContent = debugText;
     }
     
     // ===== VERIFICAÇÃO DE BIBLIOTECAS =====
@@ -995,11 +1454,10 @@ footer a:hover {
       }
       
       if (allLoaded) {
-        statusMessage.innerHTML = '<i class="fas fa-check-circle"></i> Todas as bibliotecas carregadas com sucesso!';
+        statusMessage.innerHTML = '<i class="fas fa-check-circle"></i> Sistema pronto para uso!';
         statusMessage.className = 'status-ok';
         librariesLoaded = true;
         
-        // Oculta o status após 3 segundos
         setTimeout(() => {
           statusSection.style.display = 'none';
         }, 3000);
@@ -1016,7 +1474,7 @@ footer a:hover {
       return allLoaded;
     }
     
-    // ===== PROCESSAMENTO DE ARQUIVOS =====
+    // ===== PROCESSAMENTO PRINCIPAL =====
     async function handleFiles(files) {
       if (!librariesLoaded) {
         alert('Aguarde o carregamento das bibliotecas!');
@@ -1029,245 +1487,109 @@ footer a:hover {
       
       showProgress();
       
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        updateProgress(i, totalFiles, `Processando ${file.name}...`);
+      // Separa arquivos por tipo
+      const xmlFiles = [];
+      const imageFiles = [];
+      const pdfFiles = [];
+      
+      for (const file of files) {
+        if (file.name.toLowerCase().endsWith('.xml')) {
+          xmlFiles.push(file);
+        } else if (file.type.startsWith('image/')) {
+          imageFiles.push(file);
+        } else if (file.type === 'application/pdf') {
+          pdfFiles.push(file);
+        }
+      }
+      
+      // Processa XMLs primeiro (mais confiáveis)
+      for (let i = 0; i < xmlFiles.length; i++) {
+        const file = xmlFiles[i];
+        updateProgress(processedFiles, totalFiles, `Processando XML: ${file.name}...`);
+        
+        try {
+          const xmlData = await processXML(file);
+          if (xmlData.cnpj_emitente || xmlData.numero_documento) {
+            const confidence = DataValidator.calculateConfidence(xmlData, 'xml');
+            extractedData.push({ ...xmlData, confidence, source: 'xml' });
+            addRowToTable(xmlData, confidence);
+            
+            if (debugMode) {
+              updateDebugText(xmlData);
+            }
+          }
+        } catch (error) {
+          console.error(`Erro ao processar XML ${file.name}:`, error);
+        }
+        
+        processedFiles++;
+      }
+      
+      // Processa PDFs e imagens
+      const ocrFiles = [...pdfFiles, ...imageFiles];
+      
+      for (let i = 0; i < ocrFiles.length; i++) {
+        const file = ocrFiles[i];
+        updateProgress(processedFiles, totalFiles, `Processando ${file.name}...`);
         
         try {
           let extractedText = '';
           
           if (file.type === 'application/pdf') {
             extractedText = await processPDF(file);
-          } else if (file.type.startsWith('image/')) {
+          } else {
             extractedText = await processImage(file);
           }
           
           if (extractedText) {
-            const data = extractDataFromText(extractedText, file.name);
-            if (data.cnpj_emitente || data.nome_emitente) {
-              extractedData.push(data);
-              addRowToTable(data);
+            const ocrData = extractDataFromText(extractedText, file.name);
+            
+            // Verifica se já existe dados XML para este documento
+            const existingXmlData = extractedData.find(item => 
+              item.numero_documento === ocrData.numero_documento && 
+              item.source === 'xml'
+            );
+            
+            if (existingXmlData) {
+              // Faz merge dos dados
+              const mergedData = DataValidator.mergeData(existingXmlData, ocrData);
+              const confidence = DataValidator.calculateConfidence(mergedData, 'combined');
+              
+              // Atualiza a linha existente
+              const index = extractedData.indexOf(existingXmlData);
+              extractedData[index] = { ...mergedData, confidence, source: 'combined' };
+              
+              showProcessingInfo('Dados validados com XML e OCR combinados!');
+            } else {
+              // Adiciona apenas dados OCR
+              const confidence = DataValidator.calculateConfidence(ocrData, 'ocr');
+              extractedData.push({ ...ocrData, confidence, source: 'ocr' });
+              addRowToTable(ocrData, confidence);
             }
             
             if (debugMode) {
-              updateDebugText(extractedText);
+              updateDebugText({ text: extractedText.substring(0, 1000), data: ocrData });
             }
           }
         } catch (error) {
           console.error(`Erro ao processar ${file.name}:`, error);
-          const errorData = {
-            filename: file.name,
-            cnpj_emitente: 'ERRO',
-            nome_emitente: 'Erro no processamento',
-            data_emissao: '',
-            numero_documento: '',
-            valor_total: '',
-            descricao: error.message || 'Erro desconhecido'
-          };
-          extractedData.push(errorData);
-          addRowToTable(errorData, true);
         }
         
         processedFiles++;
       }
       
       updateProgress(totalFiles, totalFiles, 'Processamento concluído!');
-      setTimeout(hideProgress, 2000);
+      setTimeout(() => {
+        hideProgress();
+        hideProcessingInfo();
+      }, 2000);
+      
       enableExportIfAny();
       showResults();
     }
     
-    // ===== PROCESSAMENTO DE PDF =====
-    async function processPDF(file) {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-      let fullText = '';
-      
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items.map(item => item.str).join(' ');
-        fullText += pageText + '\n\n';
-      }
-      
-      return fullText;
-    }
-    
-    // ===== PROCESSAMENTO DE IMAGEM =====
-    async function processImage(file) {
-      // Pré-processamento da imagem
-      const processedImage = await preprocessImage(file);
-      
-      // OCR com Tesseract
-      const { data: { text } } = await Tesseract.recognize(
-        processedImage,
-        'por+eng',
-        {
-          logger: m => console.log(m),
-          tessedit_ocr_engine_mode: 2,
-          tessedit_pageseg_mode: 1
-        }
-      );
-      
-      return text;
-    }
-    
-    // ===== PRÉ-PROCESSAMENTO DE IMAGEM =====
-    async function preprocessImage(file) {
-      return new Promise((resolve) => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const img = new Image();
-        
-        img.onload = () => {
-          canvas.width = img.width;
-          canvas.height = img.height;
-          
-          // Desenha a imagem
-          ctx.drawImage(img, 0, 0);
-          
-          // Converte para grayscale
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const data = imageData.data;
-          
-          for (let i = 0; i < data.length; i += 4) {
-            const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-            data[i] = gray;
-            data[i + 1] = gray;
-            data[i + 2] = gray;
-          }
-          
-          ctx.putImageData(imageData, 0, 0);
-          resolve(canvas);
-        };
-        
-        img.src = URL.createObjectURL(file);
-      });
-    }
-    
-    // ===== EXTRAÇÃO DE DADOS DO TEXTO =====
-    function extractDataFromText(text, filename) {
-      console.log(`Extraindo dados de ${filename}...`);
-      
-      const data = {
-        filename: filename,
-        cnpj_emitente: extractCNPJEmitente(text),
-        nome_emitente: '',
-        data_emissao: extractDataEmissao(text),
-        numero_documento: extractDocumentNumberUltra(text),
-        valor_total: extractValorTotal(text),
-        descricao: extractDescriptionUltra(text)
-      };
-      
-      // Extrai nome do emitente baseado no CNPJ
-      if (data.cnpj_emitente) {
-        data.nome_emitente = extractEmitenteNameUltra(text, data.cnpj_emitente);
-      }
-      
-      console.log('Dados extraídos:', data);
-      return data;
-    }
-    
-    // ===== INTERFACE DE PROGRESSO =====
-    function showProgress() {
-      document.getElementById('progressSection').style.display = 'block';
-    }
-    
-    function hideProgress() {
-      document.getElementById('progressSection').style.display = 'none';
-    }
-    
-    function updateProgress(current, total, message) {
-      const percentage = Math.round((current / total) * 100);
-      document.getElementById('progressFill').style.width = percentage + '%';
-      document.getElementById('progressText').textContent = `${message} (${current}/${total})`;
-    }
-    
-    function showResults() {
-      document.getElementById('resultsSection').style.display = 'block';
-    }
-    
-    // ===== TABELA DE RESULTADOS =====
-    function addRowToTable(data, isError = false) {
-      const tbody = document.querySelector('#resultsTable tbody');
-      const row = document.createElement('tr');
-      
-      if (isError) {
-        row.className = 'error-row';
-      }
-      
-      row.innerHTML = `
-        <td contenteditable="true">${data.cnpj_emitente || ''}</td>
-        <td contenteditable="true">${data.nome_emitente || ''}</td>
-        <td contenteditable="true">${data.data_emissao || ''}</td>
-        <td contenteditable="true">${data.numero_documento || ''}</td>
-        <td contenteditable="true">${data.valor_total || ''}</td>
-        <td contenteditable="true">${data.descricao || ''}</td>
-        <td>
-          <button class="delete-btn" onclick="deleteRow(this)" title="Excluir linha">
-            <i class="fas fa-trash"></i>
-          </button>
-        </td>
-      `;
-      
-      tbody.appendChild(row);
-    }
-    
-    function deleteRow(button) {
-      const row = button.closest('tr');
-      const index = Array.from(row.parentNode.children).indexOf(row);
-      
-      row.remove();
-      extractedData.splice(index, 1);
-      enableExportIfAny();
-    }
-    
-    function enableExportIfAny() {
-      const hasData = document.querySelector('#resultsTable tbody tr');
-      document.getElementById('exportBtn').disabled = !hasData;
-    }
-    
-    // ===== EXPORTAÇÃO PARA EXCEL =====
-    function exportToExcel() {
-      const table = document.getElementById('resultsTable');
-      const rows = Array.from(table.querySelectorAll('tbody tr'));
-      
-      const data = rows.map(row => {
-        const cells = Array.from(row.querySelectorAll('td[contenteditable]'));
-        return {
-          'CNPJ Emitente': cells[0].textContent.trim(),
-          'Nome Emitente': cells[1].textContent.trim(),
-          'Data Emissão': cells[2].textContent.trim(),
-          'Nº Documento': cells[3].textContent.trim(),
-          'Valor Total': cells[4].textContent.trim(),
-          'Descrição': cells[5].textContent.trim()
-        };
-      });
-      
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Despesas');
-      
-      const now = new Date();
-      const filename = `despesas_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.xlsx`;
-      
-      XLSX.writeFile(wb, filename);
-    }
-    
-    // ===== DEBUG =====
-    function toggleDebug() {
-      debugMode = !debugMode;
-      const debugSection = document.getElementById('debugSection');
-      debugSection.style.display = debugMode ? 'block' : 'none';
-    }
-    
-    function updateDebugText(text) {
-      document.getElementById('debugText').textContent = text.substring(0, 5000) + (text.length > 5000 ? '\n... (texto truncado)' : '');
-    }
-    
     // ===== EVENT LISTENERS =====
     document.addEventListener('DOMContentLoaded', function() {
-      // Upload de arquivos
       const fileInput = document.getElementById('fileInput');
       const uploadSection = document.getElementById('uploadSection');
       const exportBtn = document.getElementById('exportBtn');
@@ -1294,7 +1616,9 @@ footer a:hover {
         uploadSection.classList.remove('dragover');
         
         const files = Array.from(e.dataTransfer.files).filter(file => 
-          file.type === 'application/pdf' || file.type.startsWith('image/')
+          file.type === 'application/pdf' || 
+          file.type.startsWith('image/') ||
+          file.name.toLowerCase().endsWith('.xml')
         );
         
         if (files.length > 0) {
@@ -1302,8 +1626,14 @@ footer a:hover {
         }
       });
       
-      // Botão de exportar
       exportBtn.addEventListener('click', exportToExcel);
+    });
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', async () => {
+      if (tesseractWorker) {
+        await tesseractWorker.terminate();
+      }
     });
   </script>
 </body>
