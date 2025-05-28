@@ -7,6 +7,9 @@
 
 <!-- Bibliotecas locais (PDF.js, Tesseract.js, SheetJS) -->
 <script type="module">
+  // Marcar bibliotecas como carregadas imediatamente
+  let librariesLoaded = true;
+
   let librariesLoaded = false;
 
   /* ---------- PDF.js ---------- */
@@ -23,19 +26,13 @@
   import * as XLSX from './libs/xlsx.mjs';
   window.XLSX = XLSX;
   // Função para checar carregamento
-  function checkLibraries() {
-    console.log('Bibliotecas carregadas com sucesso');
-    librariesLoaded = true;
-  }
-
 
   // Executar verificação após carregamento
   document.addEventListener('DOMContentLoaded', () => {
     setTimeout(checkLibraries, 500);
   });
   // Chama checkLibraries após definições
-  checkLibraries();
-</script>
+  </script>
 
 <!-- Font Awesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -979,22 +976,7 @@ footer a:hover {
       return dateStr; // já está em dd/mm/yyyy
     }
     
-    // ===== VERIFICAÇÃO DE BIBLIOTECAS =====
-    function checkLibraries() {
-      const statusSection = document.getElementById('statusSection');
-      const statusMessage = document.getElementById('statusMessage');
-      
-      statusSection.style.display = 'block';
-      
-      let allLoaded = true;
-      let message = '';
-      
-      if (typeof pdfjsLib === 'undefined') {
-        console.error('PDF.js não carregado');
-        message += 'PDF.js não carregado. ';
-        allLoaded = false;
-      }
-      
+    // ===== VERIFICAÇÃO DE BIBLIOTECAS =====      
       if (typeof Tesseract === 'undefined') {
         console.error('Tesseract.js não carregado');
         message += 'Tesseract.js não carregado. ';
