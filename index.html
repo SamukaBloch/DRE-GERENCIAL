@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <title>Automatizador de Notas – Santomé</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
+
 <!-- Bibliotecas locais (PDF.js, Tesseract.js, SheetJS) -->
 <script type="module">
   /* ---------- PDF.js ---------- */
@@ -20,7 +21,10 @@
   import * as XLSX from './libs/xlsx.mjs';
   window.XLSX = XLSX;
 
-  if (typeof checkLibraries === 'function') checkLibraries();
+  // Executar verificação após carregamento
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(checkLibraries, 500);
+  });
 </script>
 
 <!-- Font Awesome -->
@@ -112,6 +116,25 @@ main {
   margin: 0 auto;
   padding: 2rem 1rem;
   width: 100%;
+}
+
+/* Status section */
+.status-section {
+  background: var(--card-bg);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow);
+  text-align: center;
+  display: none;
+}
+
+.status-ok {
+  color: var(--success-color);
+}
+
+.status-error {
+  color: var(--error-color);
 }
 
 /* Upload section */
@@ -440,6 +463,11 @@ footer a:hover {
   </header>
 
   <main>
+    <!-- Status section -->
+    <section class="status-section" id="statusSection">
+      <div id="statusMessage">Carregando bibliotecas...</div>
+    </section>
+
     <section class="upload-section" id="uploadSection">
       <div class="upload-area" onclick="document.getElementById('fileInput').click()">
         <div class="upload-icon">
@@ -503,6 +531,7 @@ footer a:hover {
     let totalFiles = 0;
     let extractedData = [];
     let debugMode = false;
+    let librariesLoaded = false;
     
     // CNPJ da empresa (tomador) - ignorar
     const COMPANY_CNPJ = '07.925.317/0001-88';
@@ -699,23 +728,6 @@ footer a:hover {
               cacheEmitenteName(cnpj, cleanName);
               return cleanName;
             }
-          }
-        }
-      }
-      
-      // ESTRATÉGIA 3: Padrões específicos conhecidos
-      const specificPatterns = [
-        /^([A-ZÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ\s]{10,}(?:LTDA\.?|EPP|MEI|EIRELI|S\.?A\.?))/gmi,
-        /([A-ZÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ\s]+(?:FUNILARIA|LANTERNAGEM|OFICINA|MECA?NICA|SERVI[ÇC]OS)[A-ZÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ\s]*)/gi
-      ];
-      
-      for (const pattern of specificPatterns) {
-        const matches = [...text.matchAll(pattern)];
-        for (const match of matches) {
-          const candidate = match[1].trim();
-          if (isValidName(candidate) && candidate.length > 8 && candidate.length < 100) {
-            cacheEmitenteName(cnpj, candidate);
-            return candidate;
           }
         }
       }
@@ -954,8 +966,63 @@ footer a:hover {
       return dateStr; // já está em dd/mm/yyyy
     }
     
+    // ===== VERIFICAÇÃO DE BIBLIOTECAS =====
+    function checkLibraries() {
+      const statusSection = document.getElementById('statusSection');
+      const statusMessage = document.getElementById('statusMessage');
+      
+      statusSection.style.display = 'block';
+      
+      let allLoaded = true;
+      let message = '';
+      
+      if (typeof pdfjsLib === 'undefined') {
+        console.error('PDF.js não carregado');
+        message += 'PDF.js não carregado. ';
+        allLoaded = false;
+      }
+      
+      if (typeof Tesseract === 'undefined') {
+        console.error('Tesseract.js não carregado');
+        message += 'Tesseract.js não carregado. ';
+        allLoaded = false;
+      }
+      
+      if (typeof XLSX === 'undefined') {
+        console.error('SheetJS não carregado');
+        message += 'SheetJS não carregado. ';
+        allLoaded = false;
+      }
+      
+      if (allLoaded) {
+        statusMessage.innerHTML = '<i class="fas fa-check-circle"></i> Todas as bibliotecas carregadas com sucesso!';
+        statusMessage.className = 'status-ok';
+        librariesLoaded = true;
+        
+        // Oculta o status após 3 segundos
+        setTimeout(() => {
+          statusSection.style.display = 'none';
+        }, 3000);
+        
+        console.log('Todas as bibliotecas carregadas com sucesso');
+      } else {
+        statusMessage.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Erro: ${message}`;
+        statusMessage.className = 'status-error';
+        librariesLoaded = false;
+        
+        console.error('Erro no carregamento das bibliotecas:', message);
+      }
+      
+      return allLoaded;
+    }
+    
     // ===== PROCESSAMENTO DE ARQUIVOS =====
     async function handleFiles(files) {
+      if (!librariesLoaded) {
+        alert('Aguarde o carregamento das bibliotecas!');
+        return;
+      }
+      
       totalFiles = files.length;
       processedFiles = 0;
       extractedData = [];
@@ -1198,35 +1265,8 @@ footer a:hover {
       document.getElementById('debugText').textContent = text.substring(0, 5000) + (text.length > 5000 ? '\n... (texto truncado)' : '');
     }
     
-    // ===== VERIFICAÇÃO DE BIBLIOTECAS =====
-    function checkLibraries() {
-      if (typeof pdfjsLib === 'undefined') {
-        console.error('PDF.js não carregado');
-        return false;
-      }
-      
-      if (typeof Tesseract === 'undefined') {
-        console.error('Tesseract.js não carregado');
-        return false;
-      }
-      
-      if (typeof XLSX === 'undefined') {
-        console.error('SheetJS não carregado');
-        return false;
-      }
-      
-      // Configura PDF.js
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.js';
-      
-      console.log('Todas as bibliotecas carregadas com sucesso');
-      return true;
-    }
-    
     // ===== EVENT LISTENERS =====
     document.addEventListener('DOMContentLoaded', function() {
-      // Verificar bibliotecas
-      setTimeout(checkLibraries, 100);
-      
       // Upload de arquivos
       const fileInput = document.getElementById('fileInput');
       const uploadSection = document.getElementById('uploadSection');
@@ -1267,5 +1307,4 @@ footer a:hover {
     });
   </script>
 </body>
-</html></parameter>
-</invoke>
+</html>
