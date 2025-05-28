@@ -1165,7 +1165,7 @@ footer a:hover {
 function parseEmitenteName(text) {
   let m = text.match(/Raz[aã]o Social[:\s]*([^\r\n]+)/i);
   if (m) return m[1].trim();
-  m = text.match/([\s\S]+?)\s+Nome\s+Fantasia:/i);
+  m = text.match(/([\s\S]+?)\s+Nome\s+Fantasia:/i);
   if (m) return m[1].trim();
   m = text.match(/^([A-ZÀ-Ÿ0-9 &,\.\-]{5,})/m);
   return m ? m[1].trim() : '';
