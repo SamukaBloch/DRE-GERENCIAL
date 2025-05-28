@@ -10,7 +10,6 @@
   // Marcar bibliotecas como carregadas imediatamente
   let librariesLoaded = true;
 
-  let librariesLoaded = false;
 
   /* ---------- PDF.js ---------- */
   import * as pdfjsLib from './libs/pdf.min.mjs';
@@ -541,7 +540,6 @@ footer a:hover {
       tbody.innerHTML = '';
       document.getElementById('exportBtn').disabled = true;
     let debugMode = false;
-    let librariesLoaded = false;
     
     // CNPJ da empresa (tomador) - ignorar
     const COMPANY_CNPJ = '07.925.317/0001-88';
@@ -1008,7 +1006,6 @@ footer a:hover {
         console.error('Erro no carregamento das bibliotecas:', message);
       }
       
-      return allLoaded;
     }
     
     // ===== PROCESSAMENTO DE ARQUIVOS =====
