@@ -4,41 +4,11 @@
   <meta charset="utf-8">
   <title>Automatizador de Notas – Santomé</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-<!-- Bibliotecas locais (PDF.js, Tesseract.js, SheetJS) -->
-<script type="module">
-  /* ---------- PDF.js ---------- */
-  import * as pdfjsLib from './libs/pdf.min.mjs';
-  pdfjsLib.GlobalWorkerOptions.workerSrc = './libs/pdf.worker.min.mjs';
-  window.pdfjsLib = pdfjsLib;                     /* mantém compatibilidade */
+<!-- Bibliotecas CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-  /* ---------- Tesseract.js ---------- */
-  import Tesseract from './libs/tesseract.esm.min.js';   /* export default */
-  const { createWorker } = Tesseract;
-  window.Tesseract = { ...Tesseract, createWorker };
-// ===== Cache helpers =====
-window.cacheEmitenteName = function cacheEmitenteName(cnpj, nome){
-  const digits = (cnpj||'').replace(/\D/g,'');
-  if(digits.length===14 && nome) localStorage.setItem('nm_'+digits, nome);
-}
-window.getCachedEmitenteName = function getCachedEmitenteName(cnpj){
-  const digits = (cnpj||'').replace(/\D/g,'');
-  if(digits.length===14){
-    return localStorage.getItem('nm_'+digits) || '';
-  }
-  return '';
-}
-
-
-  /* ---------- SheetJS ---------- */
-  import * as XLSX from './libs/xlsx.mjs';               /* build ESM */
-  window.XLSX = XLSX;
-
-  if (typeof checkLibraries === 'function') checkLibraries();
-</script>
-  
-  <!-- PDF.js -->
-  <!-- Tesseract.js -->
-<!-- SheetJS -->
 <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -330,6 +300,32 @@ window.getCachedEmitenteName = function getCachedEmitenteName(cnpj){
       transform: scale(1.1);
     }
 
+    /* Debug section */
+    .debug-section {
+      margin-top: 2rem;
+      background: #f5f5f5;
+      border-radius: 8px;
+      padding: 1rem;
+      display: none;
+    }
+
+    .debug-section h3 {
+      margin-bottom: 1rem;
+      color: #666;
+    }
+
+    .debug-text {
+      font-family: monospace;
+      font-size: 0.8rem;
+      background: white;
+      padding: 1rem;
+      border-radius: 4px;
+      max-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
     /* Footer */
     footer {
       background: #333;
@@ -474,664 +470,328 @@ window.getCachedEmitenteName = function getCachedEmitenteName(cnpj){
         </table>
       </div>
     </section>
+
+    <!-- Debug section for development -->
+    <section class="debug-section" id="debugSection">
+      <h3>Debug - Texto Extraído</h3>
+      <div class="debug-text" id="debugText"></div>
+    </section>
   </main>
 
   <footer>
     <p>&copy; 2025 COMERCIO DE BANANAS SANTOMÉ LTDA | 
-    <a href="#" onclick="alert('Manual de uso em desenvolvimento')">Manual de Uso</a></p>
+    <a href="#" onclick="toggleDebug()">Debug Mode</a></p>
   </footer>
 
   <script>
     // Global variables
-// ===== Cache helpers (global) =====
-function cacheEmitenteName(cnpj, nome){
-  const digits = (cnpj||'').replace(/\D/g,'');
-  if(digits.length===14 && nome) localStorage.setItem('nm_'+digits, nome);
-}
-function getCachedEmitenteName(cnpj){
-  const digits = (cnpj||'').replace(/\D/g,'');
-  if(digits.length===14){
-    return localStorage.getItem('nm_'+digits) || '';
-  }
-  return '';
-}
-
     let processedFiles = 0;
     let totalFiles = 0;
     let extractedData = [];
+    let debugMode = false;
     
     // Company CNPJ to ignore (tomador)
     const COMPANY_CNPJ = '07.925.317/0001-88';
     
-    // Initialize PDF.js with verification
+    // Initialize PDF.js
     if (typeof pdfjsLib !== 'undefined') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = './libs/pdf.worker.min.mjs';
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     }
     
-    // Regular expressions
+    // Enhanced extraction functions
     
-/* ---------- Nº DOCUMENTO robusto ---------- */
-function detectNumeroDocumento(text){
-  const etiquetas = [
-    /Número da (?:NFS.?e|Nota)[^\d]{0,15}(\d{3,})/i,
-    /Nº\s?(?:NF|Documento|RPS)[^\d]{0,10}(\d{3,})/i,
-    /RPS\s*[:#-]?\s*(\d{3,})/i
-  ];
-  for(const re_ of etiquetas){
-    const m = text.match(re_);
-    if(m) return m[1];
-  }
-  const topo = text.slice(0, Math.floor(text.length*0.25));
-  const m = topo.match(/\b(\d{4,9})\b/);
-  return m ? m[1] : '';
-}
-
-/* ---------- DESCRIÇÃO limpa ---------- */
-function detectDescricao(text){
-  const lab = /(Descrição do Serviço[^:\n]*:|DESCRIÇÃO DOS SERVIÇOS PRESTADOS|DISCRIMINA[ÇC]ÃO DOS SERVIÇOS)/i;
-  const i = text.search(lab);
-  if(i !== -1){
-    let linha = text.slice(i).split(/\n/).slice(1,6)
-                 .map(l=>l.trim())
-                 .find(l => l && !/valor (unit|serviço)/i.test(l));
-    if(linha){
-      linha = linha.replace(/valor.*$/i,'')
-                   .replace(/\s{2,}/g,' ')
-                   .toLowerCase();
-      const placa = linha.match(/\b([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2}|[A-Z]{3}-?\d{4})\b/i);
-      return (placa ? placa[0].toUpperCase()+' – ' : '') + linha.slice(0,120);
-    }
-  }
-  return '';
-}
-
-const regexes = {
-      cnpj: /\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g,
-      date: /\b\d{2}\/\d{2}\/\d{4}\b/g,
-      dateISO: /\b\d{4}-\d{2}-\d{2}\b/g,
-      money: /\d{1,3}(?:\.\d{3})*,\d{2}/g,
-      docNumber: /(?:Número da NFS-e|Número da Nota|Nº NF|Nº RPS|RPS)\s*:?\s*(\d+)/i,
-      placa: /([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2}|[A-Z]{3}-?\d{4})/g
-    };
-// ======== HELPERS NOVOS ========
-// Remove acentuação e normaliza string
-const normalize = s => s.normalize("NFD").replace(/[̀-\u036f]/g, "");
-
-
-
-
-/** Extrai nome do emitente a partir do texto bruto */
-
-
-
-
-function getEmitenteName(text, cnpj){
-  if(!cnpj) return "";
-  const digits = cnpj.replace(/\D/g,"");
-
-  const cached = getCachedEmitenteName(cnpj);
-  if(cached) return cached;
-
-  const isValid = nome=>{
-      if(!nome) return false;
-      if(/^\d{2}\/\d{2}\/\d{4}$/.test(nome)) return false;
-      const bad = /(CPF|CNPJ|TOMADOR|CONSUMIDOR|SERVI[ÇC]OS?\s*CPF|NOTA|N[ÚU]MERO)/i;
-      if(bad.test(nome)) return false;
-      return (nome.match(/[A-Z]/gi)||[]).length >= 5;
-  };
-
-  const blocoPrest = text.match(/PRESTADOR(?: DE)? SERVI[ÇC]OS([\s\S]{0,200})TOMADOR/i);
-  if(blocoPrest){
-      const cand = blocoPrest[1].split(/[\r\n]+/).map(l=>l.trim()).filter(l=>l);
-      const melhor = cand.find(l=>/Raz[aã]o/i.test(l)) || cand.find(l=>/fantasia/i.test(l)) || cand[0];
-      if(isValid(melhor)) return melhor.replace(/\s+/g," ").trim();
-  }
-
-  const rot = text.match(/(?:Raz[aã]o Social|Nome\/Raz[aã]o social|Nome fantasia|Emitente)[^:\n]*:\s*([^\n]{5,})/i);
-  if(rot && isValid(rot[1])) return rot[1].replace(/\s+/g," ").trim();
-
-  const lines = text.split(/[\r\n]+/).map(l=>l.trim()).filter(Boolean);
-  const idx = lines.findIndex(l=>l.replace(/\D/g,"").includes(digits));
-  const compKey = /(LTDA|EPP|MEI|EIRELI|S\.?A|SERVI[ÇC]OS|COM[EÉ]RCIO|IND[ÚU]STRIA)/i;
-  if(idx!==-1){
-      let candidates=[];
-      for(const off of [-3,-2,-1,1,2,3]){
-          const i=idx+off;
-          if(i>=0 && i<lines.length){
-              const ln=lines[i];
-              if(isValid(ln)) candidates.push(ln);
-          }
-      }
-      let best = candidates.find(l=>compKey.test(l));
-      if(!best) best = candidates.sort((a,b)=>b.length-a.length)[0];
-      if(best) return best.replace(/\s+/g," ").trim();
-  }
-
-  const p = text.indexOf(digits);
-  if(p!==-1){
-     const slice=text.slice(Math.max(0,p-250),p+120);
-     const m=slice.match(/([^\n\r]{8,}?(?:LTDA\.?|EPP|MEI|EIRELI|S\.?A|SERVI[ÇC]OS|COM[EÉ]RCIO))/i);
-     if(m && isValid(m[1])) return m[1].replace(/\s+/g," ").trim();
-  }
-  return "";
-}
-function getDescricaoServico(text){
-  const discriPart = text.split(/DISCRIMINA[ÇC]ÃO[^:\n]*:/i)[1];
-  if(discriPart){
-     const linha = discriPart.split(/[\r\n]+/).map(l=>l.trim()).find(l=>l && !/valor unit/i.test(l));
-     if(linha){
-        let desc = linha.replace(/valor.*$/i,'').trim();
-        const placaMatch = desc.match(/\b([A-Z]{3}[-\s]?[0-9][A-Z0-9][0-9]{2}|[A-Z]{3}-?[0-9]{4})\b/i);
-        desc = desc.replace(/\s+/g,' ').replace(/[^\w\s\-.,]/g,'').toLowerCase();
-        if(placaMatch){
-           return placaMatch[0].toUpperCase()+' – '+desc;
-        }
-        return desc;
-     }
-  }
-  const fallback = text.match(/(SERVIÇOS? PRESTADOS?|Descrição[^:\n]*):?\s*([\s\S]{0,400})/i);
-  if(fallback){
-      return fallback[2].split(/[\r\n]+/)[0].trim();
-  }
-  return "";
-}
-
-// ======== FIM HELPERS NOVOS ========
-
-    
-    // Function to check if libraries are loaded
-    function checkLibraries() {
-      const status = {
-        pdfjs: typeof pdfjsLib !== 'undefined',
-        tesseract: typeof Tesseract !== 'undefined',
-        xlsx: typeof XLSX !== 'undefined'
+    /* ========= NOME DO EMITENTE - VERSÃO MELHORADA ========= */
+    function detectarNomeEmitente(text, cnpj) {
+      if (!cnpj) return '';
+      
+      // Cache check
+      const cached = getCachedEmitenteName(cnpj);
+      if (cached) return cached;
+      
+      const cnpjDigits = cnpj.replace(/\D/g, '');
+      
+      // Validação robusta do nome
+      const isValidName = (nome) => {
+        if (!nome || nome.length < 3) return false;
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(nome)) return false; // data
+        if (/^[\d\.\-\/\s]+$/.test(nome)) return false; // só números/pontuação
+        if (/(CPF|CNPJ|TOMADOR|CONSUMIDOR|NOTA|N[ÚU]MERO|DATA|VALOR|SERVI[ÇC]O|TELEFONE|EMAIL|ENDERE[ÇC]O)/i.test(nome)) return false;
+        return true;
       };
       
-      console.log('Status das bibliotecas:', status);
-      
-      if (!status.pdfjs) {
-        console.error('PDF.js não carregado. Verifique a conexão com a internet.');
-      }
-      if (!status.tesseract) {
-        console.error('Tesseract.js não carregado. Verifique a conexão com a internet.');
-      }
-      if (!status.xlsx) {
-        console.error('SheetJS não carregado. Verifique a conexão com a internet.');
-      }
-      
-      return status.pdfjs && status.tesseract && status.xlsx;
-    }
-    
-    // Event listeners
-    document.addEventListener('DOMContentLoaded', function() {
-      // Check libraries after a small delay
-      setTimeout(() => {
-        const librariesLoaded = checkLibraries();
-        if (!librariesLoaded) {
-          alert('Algumas bibliotecas não carregaram corretamente. Verifique sua conexão com a internet e recarregue a página.');
-        }
-      }, 2000);
-      
-      const uploadSection = document.getElementById('uploadSection');
-      const fileInput = document.getElementById('fileInput');
-      const exportBtn = document.getElementById('exportBtn');
-      
-      // Drag and drop events
-      uploadSection.addEventListener('dragover', handleDragOver);
-      uploadSection.addEventListener('dragleave', handleDragLeave);
-      uploadSection.addEventListener('drop', handleDrop);
-      
-      // File input change
-      fileInput.addEventListener('change', function(e) {
-        handleFiles(Array.from(e.target.files));
-      });
-      
-      // Export button
-      exportBtn.addEventListener('click', exportToExcel);
-    });
-    
-    // Drag and drop handlers
-    function handleDragOver(e) {
-      e.preventDefault();
-      e.currentTarget.classList.add('dragover');
-    }
-    
-    function handleDragLeave(e) {
-      e.preventDefault();
-      e.currentTarget.classList.remove('dragover');
-    }
-    
-    function handleDrop(e) {
-      e.preventDefault();
-      e.currentTarget.classList.remove('dragover');
-      const files = Array.from(e.dataTransfer.files);
-      handleFiles(files);
-    }
-    
-    // Main file processing function
-    async function handleFiles(files) {
-      if (files.length === 0) return;
-      
-      // Check if libraries are available before processing
-      if (!checkLibraries()) {
-        alert('Bibliotecas necessárias não estão disponíveis. Recarregue a página e tente novamente.');
-        return;
-      }
-      
-      totalFiles = files.length;
-      processedFiles = 0;
-      extractedData = [];
-      
-      showProgress();
-      updateProgress();
-      
-      // Process files with max 3 concurrent operations
-      const chunks = [];
-      for (let i = 0; i < files.length; i += 3) {
-        chunks.push(files.slice(i, i + 3));
-      }
-      
-      for (const chunk of chunks) {
-        const promises = chunk.map(file => processFile(file));
-        await Promise.allSettled(promises);
-      }
-      
-      hideProgress();
-      updateResultsTable();
-      showResults();
-    }
-    
-    // Process single file
-    async function processFile(file) {
-      try {
-        let text = '';
+      // Método 1: Busca por seções estruturadas
+      const prestadorMatch = text.match(/(?:PRESTADOR|EMITENTE|FORNECEDOR)[\s\S]*?(?=TOMADOR|CLIENTE|DESTINAT[ÁA]RIO)/i);
+      if (prestadorMatch) {
+        const secao = prestadorMatch[0];
         
-        if (file.type === 'application/pdf') {
-          text = await extractTextFromPDF(file);
-        } else if (file.type.startsWith('image/')) {
-          text = await extractTextFromImage(file);
-        } else {
-          console.warn('Tipo de arquivo não suportado:', file.type);
-          return;
-        }
+        // Procura por campos específicos
+        let nome = '';
+        const patterns = [
+          /(?:Raz[aã]o\s+Social|Nome\/Raz[aã]o\s+Social|Empresa)[^:\n]*:\s*([^\n\r]{5,80})/i,
+          /(?:Nome\s+Fantasia)[^:\n]*:\s*([^\n\r]{5,80})/i,
+          /(?:Nome)[^:\n]*:\s*([^\n\r]{5,80})/i
+        ];
         
-        // Extract data from text
-        const data = extractDataFromText(text, file.name);
-        
-        if (data) {
-          extractedData.push(data);
-        }
-        
-        processedFiles++;
-        updateProgress();
-        
-      } catch (error) {
-        console.error('Erro ao processar arquivo:', file.name, error);
-        processedFiles++;
-        updateProgress();
-      }
-    }
-    
-    // Extract text from PDF
-    async function extractTextFromPDF(file) {
-      return new Promise(async (resolve, reject) => {
-        try {
-          const arrayBuffer = await file.arrayBuffer();
-          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-          
-          let fullText = '';
-          
-          
-          for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const textContent = await page.getTextContent();
-
-            // Agrupa os itens por coordenada Y para reconstruir linhas reais
-            const lineBuckets = {};
-            textContent.items.forEach(it=>{
-              const y = Math.round(it.transform[5]);  // posição vertical
-              const x = it.transform[4];              // posição horizontal
-              if(!lineBuckets[y]) lineBuckets[y] = [];
-              lineBuckets[y].push({x, str: it.str});
-            });
-            const orderedY = Object.keys(lineBuckets).map(n=>parseFloat(n)).sort((a,b)=>b-a); // topo→base
-            const lines = orderedY.map(y=>{
-              return lineBuckets[y].sort((a,b)=>a.x-b.x).map(t=>t.str).join(' ').trim();
-            });
-
-            const pageText = lines.join('\n');
-            fullText += pageText + '\n';
+        for (const pattern of patterns) {
+          const match = secao.match(pattern);
+          if (match && isValidName(match[1].trim())) {
+            nome = match[1].trim();
+            break;
           }
-
-          
-          resolve(fullText);
-        } catch (error) {
-          console.error('Erro ao extrair texto do PDF:', error);
-          reject(error);
         }
-      });
-    }
-    
-    // Extract text from image
-    async function extractTextFromImage(file) {
-      return new Promise(async (resolve, reject) => {
-        try {
-          const worker = await Tesseract.createWorker('por');
-          
-          const imageUrl = URL.createObjectURL(file);
-          const result = await worker.recognize(imageUrl);
-          
-          await worker.terminate();
-          URL.revokeObjectURL(imageUrl);
-          
-          resolve(result.data.text);
-        } catch (error) {
-          console.error('Erro ao extrair texto da imagem:', error);
-          reject(error);
+        
+        if (nome) {
+          cacheEmitenteName(cnpj, nome);
+          return nome;
         }
-      });
-    }
-    
-    // Extract structured data from text
-    function extractDataFromText(text, filename) {
-      // Skip if text is too short
-      if (text.length < 50) {
-        console.warn('Texto muito curto para extração:', filename);
-        return null;
       }
       
-      // Find all CNPJs
-      const cnpjs = [...text.matchAll(regexes.cnpj)].map(match => match[0]);
-      
-      // Skip company CNPJ (tomador)
-      const emitenteCNPJ = cnpjs.find(cnpj => {
-        const digits = cnpj.replace(/[^\d]/g, '');
-        return digits !== COMPANY_CNPJ.replace(/[^\d]/g, '');
-      });
-      
-      if (!emitenteCNPJ) {
-        console.warn('CNPJ do emitente não encontrado:', filename);
-        return null;
+      // Método 2: Busca próxima ao CNPJ
+      const cnpjIndex = text.indexOf(cnpjDigits);
+      if (cnpjIndex !== -1) {
+        // Busca antes e depois do CNPJ
+        const before = text.substring(Math.max(0, cnpjIndex - 300), cnpjIndex);
+        const after = text.substring(cnpjIndex, cnpjIndex + 300);
+        
+        const searchText = before + after;
+        const lines = searchText.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
+        
+        // Prioriza linhas com indicadores de empresa
+        const empresaKeywords = /(LTDA\.?|EPP|MEI|EIRELI|S\.?A\.?|SERVI[ÇC]OS|COM[EÉ]RCIO|IND[ÚU]STRIA|FUNILARIA|LANTERNAGEM)/i;
+        
+        for (const line of lines) {
+          if (isValidName(line) && empresaKeywords.test(line) && line.length > 10) {
+            const cleanName = line.replace(/^\W+|\W+$/g, '').replace(/\s+/g, ' ');
+            if (cleanName) {
+              cacheEmitenteName(cnpj, cleanName);
+              return cleanName;
+            }
+          }
+        }
+        
+        // Se não encontrou com keywords, busca qualquer nome válido próximo
+        for (const line of lines) {
+          if (isValidName(line) && line.length > 8 && line.length < 80) {
+            const cleanName = line.replace(/^\W+|\W+$/g, '').replace(/\s+/g, ' ');
+            if (cleanName) {
+              cacheEmitenteName(cnpj, cleanName);
+              return cleanName;
+            }
+          }
+        }
       }
       
-      // Extract other data
-      const emitenteNome = getEmitenteName(text, emitenteCNPJ);
-  if(emitenteNome) cacheEmitenteName(emitenteCNPJ, emitenteNome);
+      // Método 3: Padrões específicos do documento
+      const docPatterns = [
+        /([A-ZÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ\s]{10,}(?:LTDA\.?|EPP|MEI|EIRELI|S\.?A\.?))/gi,
+        /^([A-ZÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ\s]{8,60})$/gm
+      ];
       
-      // Find dates
-      const dates = [...text.matchAll(regexes.date)].map(match => match[0]);
-      const datesISO = [...text.matchAll(regexes.dateISO)].map(match => match[0]);
-      
-      let dataEmissao = '';
-      if (dates.length > 0) {
-        dataEmissao = dates[0];
-      } else if (datesISO.length > 0) {
-        const parts = datesISO[0].split('-');
-        dataEmissao = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      for (const pattern of docPatterns) {
+        const matches = [...text.matchAll(pattern)];
+        for (const match of matches) {
+          const candidate = match[1].trim();
+          if (isValidName(candidate) && candidate.length > 8) {
+            cacheEmitenteName(cnpj, candidate);
+            return candidate;
+          }
+        }
       }
       
-            // Find document number
-      const numeroDocumento = detectNumeroDocumento(text);
-      // Find monetary values
-      const valores = [...text.matchAll(regexes.money)].map(match => match[0]);
-      let valorTotal = '';
-      if (valores.length > 0) {
-        // Try to find the largest value, which is likely the total
-        const numericValues = valores.map(v => parseFloat(v.replace(/\./g, '').replace(',', '.')));
-        const maxIndex = numericValues.indexOf(Math.max(...numericValues));
-        valorTotal = valores[maxIndex];
+      return '';
+    }
+    
+    /* ========= NÚMERO DO DOCUMENTO - VERSÃO MELHORADA ========= */
+    function detectarNumeroDocumento(text) {
+      // Padrões específicos por tipo de documento
+      const patterns = [
+        // NFS-e específicos
+        /N[uú]mero\s+da\s+NFS?-?e[^:\n]*:?\s*(\d{3,10})/gi,
+        /N[uú]mero\s+da\s+Nota[^:\n]*:?\s*(\d{3,10})/gi,
+        /NFS?-?e\s*[n°nº]?[^:\n]*:?\s*(\d{3,10})/gi,
+        
+        // RPS
+        /RPS\s*[n°nº]?[^:\n]*:?\s*(\d{3,10})/gi,
+        /N[uú]mero\s+do\s+RPS[^:\n]*:?\s*(\d{3,10})/gi,
+        
+        // Padrões gerais
+        /N[uú]mero[^:\n]*:?\s*(\d{3,10})/gi,
+        /N[°º]\s*(\d{3,10})/gi,
+        /Documento[^:\n]*:?\s*(\d{3,10})/gi
+      ];
+      
+      for (const pattern of patterns) {
+        const matches = [...text.matchAll(pattern)];
+        for (const match of matches) {
+          const numero = match[1];
+          if (numero && numero.length >= 3) {
+            return numero;
+          }
+        }
       }
       
-      // Get service description
-      const descricao = detectDescricao(text);
+      // Fallback: busca números no início do documento (primeira metade)
+      const topHalf = text.substring(0, Math.floor(text.length * 0.4));
+      const numeros = topHalf.match(/\b(\d{3,8})\b/g);
       
-      return {
-        cnpj: emitenteCNPJ,
-        nome: emitenteNome,
-        data: dataEmissao,
-        documento: numeroDocumento,
-        valor: valorTotal,
-        descricao: descricao,
-        filename: filename
-      };
-    }
-    
-    // Update progress bar and text
-    function updateProgress() {
-      const progressFill = document.getElementById('progressFill');
-      const progressText = document.getElementById('progressText');
-      
-      const percentage = Math.round((processedFiles / totalFiles) * 100);
-      progressFill.style.width = `${percentage}%`;
-      progressText.textContent = `Processando arquivos... ${processedFiles}/${totalFiles} (${percentage}%)`;
-      
-      // Enable export button if data is available
-      const exportBtn = document.getElementById('exportBtn');
-      exportBtn.disabled = extractedData.length === 0;
-    }
-    
-    // Show progress section
-    function showProgress() {
-      const progressSection = document.getElementById('progressSection');
-      progressSection.style.display = 'block';
-    }
-    
-    // Hide progress section
-    function hideProgress() {
-      const progressSection = document.getElementById('progressSection');
-      progressSection.style.display = 'none';
-    }
-    
-    // Show results section
-    function showResults() {
-      const resultsSection = document.getElementById('resultsSection');
-      resultsSection.style.display = 'block';
-    }
-    
-    // Update results table
-    function updateResultsTable() {
-      const tableBody = document.querySelector('#resultsTable tbody');
-      tableBody.innerHTML = '';
-      
-      if (extractedData.length === 0) {
-        const row = document.createElement('tr');
-        const cell = document.createElement('td');
-        cell.colSpan = 7;
-        cell.textContent = 'Nenhum dado extraído.';
-        cell.style.textAlign = 'center';
-        row.appendChild(cell);
-        tableBody.appendChild(row);
-        return;
-      }
-      
-      extractedData.forEach((data, index) => {
-        const row = document.createElement('tr');
-        
-        // CNPJ Emitente
-        const cnpjCell = document.createElement('td');
-        cnpjCell.textContent = data.cnpj || '';
-        cnpjCell.contentEditable = 'true';
-        row.appendChild(cnpjCell);
-        
-        // Nome Emitente
-        const nomeCell = document.createElement('td');
-        nomeCell.textContent = data.nome || '';
-        nomeCell.contentEditable = 'true';
-        row.appendChild(nomeCell);
-        // se nome vazio, consulta API pública
-        if (!data.nome) fillEmitenteViaAPI(data.cnpj, row);
-
-        
-        // Data Emissão
-        const dataCell = document.createElement('td');
-        dataCell.textContent = data.data || '';
-        dataCell.contentEditable = 'true';
-        row.appendChild(dataCell);
-        
-        // Nº Documento
-        const docCell = document.createElement('td');
-        docCell.textContent = data.documento || '';
-        docCell.contentEditable = 'true';
-        row.appendChild(docCell);
-        
-        // Valor Total
-        const valorCell = document.createElement('td');
-        valorCell.textContent = data.valor || '';
-        valorCell.contentEditable = 'true';
-        row.appendChild(valorCell);
-        
-        // Descrição
-        const descCell = document.createElement('td');
-        descCell.textContent = data.descricao || '';
-        descCell.contentEditable = 'true';
-        row.appendChild(descCell);
-        
-        // Ações
-        const actionsCell = document.createElement('td');
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-btn';
-        deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-        deleteBtn.addEventListener('click', () => {
-          extractedData.splice(index, 1);
-          updateResultsTable();
+      if (numeros) {
+        // Filtra números muito comuns que não são documentos
+        const filtered = numeros.filter(num => {
+          const n = parseInt(num);
+          return n > 100 && n < 999999999 && !['2024', '2025', '2023'].includes(num);
         });
-        actionsCell.appendChild(deleteBtn);
-        row.appendChild(actionsCell);
         
-        tableBody.appendChild(row);
-      });
-    }
-    
-    // Export to Excel
-    function exportToExcel() {
-      if (extractedData.length === 0) {
-        alert('Não há dados para exportar.');
-        return;
+        if (filtered.length > 0) {
+          return filtered[0];
+        }
       }
       
-      // Create worksheet
-      const ws = XLSX.utils.json_to_sheet(extractedData.map(data => ({
-        'CNPJ': data.cnpj || '',
-        'Nome Emitente': data.nome || '',
-        'Data Emissão': data.data || '',
-        'Nº Documento': data.documento || '',
-        'Valor Total': data.valor || '',
-        'Descrição': data.descricao || '',
-        'Arquivo': data.filename || ''
-      })));
-      
-      // Create workbook
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Notas Fiscais');
-      
-      // Generate filename with date
-      const now = new Date();
-      const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const filename = `notas_fiscais_${dateStr}.xlsx`;
-      
-      // Save file
-      XLSX.writeFile(wb, filename);
+      return '';
     }
     
-    // Add event listeners for table editing
-    document.addEventListener('input', function(e) {
-      if (e.target.contentEditable === 'true') {
-        // Update data array when user edits cells
-        const row = e.target.parentElement;
-        const table = row.parentElement.parentElement;
-        const rowIndex = Array.from(table.querySelectorAll('tbody tr')).indexOf(row);
-        const cellIndex = Array.from(row.querySelectorAll('td[contenteditable="true"]')).indexOf(e.target);
-        
-        if (extractedData[rowIndex]) {
-          const fields = ['cnpj', 'nome', 'data', 'documento', 'valor', 'descricao'];
-          if (fields[cellIndex]) {
-            extractedData[rowIndex][fields[cellIndex]] = e.target.textContent.trim();
+    /* ========= DESCRIÇÃO DO SERVIÇO - VERSÃO MELHORADA ========= */
+    function detectarDescricaoServico(text) {
+      // Padrões de busca por seção de descrição
+      const sectionPatterns = [
+        /DESCRI[ÇC][ÃA]O\s+DOS?\s+SERVI[ÇC]OS?\s+PRESTADOS?[^:\n]*:?\s*([\s\S]{20,300}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|Base|Al[ií]quota|$)/gi,
+        /Descri[çc][ãa]o\s+do\s+Servi[çc]o[^:\n]*:?\s*([\s\S]{10,200}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi,
+        /DISCRIMINA[ÇC][ÃA]O[^:\n]*:?\s*([\s\S]{10,200}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi,
+        /Servi[çc]o\s+Prestado[^:\n]*:?\s*([\s\S]{10,200}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi
+      ];
+      
+      for (const pattern of sectionPatterns) {
+        const matches = [...text.matchAll(pattern)];
+        for (const match of matches) {
+          let descricao = match[1].trim();
+          
+          // Limpa a descrição
+          descricao = descricao
+            .replace(/\n+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .replace(/^[:\-\s]+|[:\-\s]+$/g, '')
+            .replace(/valor.*$/i, '')
+            .replace(/quantidade.*$/i, '')
+            .replace(/al[ií]quota.*$/i, '')
+            .trim();
+          
+          if (descricao.length > 8 && descricao.length < 200) {
+            // Busca por placa de veículo na descrição
+            const placaMatch = descricao.match(/\b([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2}|[A-Z]{3}-?\d{4})\b/i);
+            if (placaMatch) {
+              const placa = placaMatch[0].toUpperCase().replace(/[-\s]/g, '');
+              descricao = `${placa} – ${descricao.toLowerCase()}`;
+            }
+            
+            return descricao.substring(0, 150);
           }
         }
       }
-    });
-    
-    
-// Salva correção manual no cache
-document.addEventListener('blur', function(e){
-  if(e.target && e.target.tagName==='TD' && e.target.parentElement){
-     const headerCells = e.target.parentElement.parentElement.parentElement.querySelectorAll('th');
-     const colIndex = Array.from(e.target.parentElement.children).indexOf(e.target);
-     if(headerCells[colIndex] && /Nome Emitente/i.test(headerCells[colIndex].textContent)){
-        const cnpj = e.target.parentElement.querySelector('td').textContent.trim();
-        const nome = e.target.textContent.trim();
-        if(nome) cacheEmitenteName(cnpj, nome);
-     }
-  }
-}, true);
-
-// Utility function to clean text
-    function cleanText(text) {
-      return text
-        .replace(/\s+/g, ' ')
-        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
-        .trim();
-    }
-  </script>
-<!-- Espera assíncrona para confirmar carregamento das libs locais -->
-<script>
-  (function waitForLibs(retries = 20){
-    const ok = typeof pdfjsLib!=='undefined' && typeof Tesseract!=='undefined' && typeof XLSX!=='undefined';
-    if(ok){
-      console.log('Bibliotecas locais carregadas OK');
-      if(typeof checkLibraries==='function') checkLibraries();
-      return;
-    }
-    if(retries>0){
-      setTimeout(()=>waitForLibs(retries-1),300);
-    }else{
-      console.error('Não foi possível carregar todas as bibliotecas locais.');
-    }
-  })();
-
-/** Consulta nome da empresa via API pública se nome extraído estiver vazio */
-
-
-async function fillEmitenteViaAPI(cnpj, rowEl){
-  const digits = cnpj.replace(/[^0-9]/g,'');
-  if(digits.length !== 14) return;
-
-  const endpoints = [
-    `https://publica.cnpj.ws/cnpj/${digits}`,
-    `https://api-publica.speedio.com.br/buscarcnpj?cnpj=${digits}`
-  ];
-
-  let nome = '';
-  for (const url of endpoints){
-    try{
-      const resp = await fetch(url, {mode:'cors'});
-      if(!resp.ok) continue;
-      const info = await resp.json();
-      if(info.razao_social){
-          nome = info.razao_social;
-      } else if(info.NOME_EMPRESARIAL){
-          nome = info.NOME_EMPRESARIAL;
-      } else if(info.nome_fantasia){
-          nome = info.nome_fantasia;
+      
+      // Fallback: busca por padrões específicos conhecidos
+      const specificPatterns = [
+        /PINTURA\s+DE\s+\d+\s+RODAS?/gi,
+        /FUNILARIA\s+E?\s*LANTERNAGEM/gi,
+        /REPARO\s+DE\s+LATARIA/gi,
+        /SERVI[ÇC]OS?\s+AUTOMOTIVOS?/gi
+      ];
+      
+      for (const pattern of specificPatterns) {
+        const match = text.match(pattern);
+        if (match) {
+          return match[0].toLowerCase();
+        }
       }
-      nome = (nome || '').trim();
-      if(nome) break;
-    }catch(e){
-      console.warn('API CNPJ falhou para', url, e);
+      
+      return '';
     }
-  }
-  if(!nome) return;
-
-  // Atualiza célula
-  const td = rowEl.querySelector('td:nth-child(2)');
-  if(td) td.textContent = nome;
-
-  // Sincroniza array interno
-  const idx = Array.from(rowEl.parentElement.children).indexOf(rowEl);
-  if(extractedData[idx]) extractedData[idx].nome = nome;
-  cacheEmitenteName(cnpj, nome);
-}
-/* tudo ok */
-</script>
-</body>
-</html>
+    
+    /* ========= VALOR TOTAL - VERSÃO MELHORADA ========= */
+    function detectarValorTotal(text) {
+      // Padrões específicos para valor total
+      const patterns = [
+        /Valor\s+Total[^:\n]*:?\s*([\d.,]+)/gi,
+        /Total[^:\n]*:?\s*([\d.,]+)/gi,
+        /Valor\s+L[ií]quido[^:\n]*:?\s*([\d.,]+)/gi,
+        /Valor\s+do\s+Servi[çc]o[^:\n]*:?\s*([\d.,]+)/gi
+      ];
+      
+      const valores = [];
+      
+      for (const pattern of patterns) {
+        const matches = [...text.matchAll(pattern)];
+        for (const match of matches) {
+          const valor = match[1].replace(/\s/g, '');
+          if (/^\d{1,3}(?:\.\d{3})*,\d{2}$/.test(valor)) {
+            valores.push(valor);
+          }
+        }
+      }
+      
+      // Se encontrou valores específicos, retorna o maior
+      if (valores.length > 0) {
+        return valores.sort((a, b) => {
+          const numA = parseFloat(a.replace(/\./g, '').replace(',', '.'));
+          const numB = parseFloat(b.replace(/\./g, '').replace(',', '.'));
+          return numB - numA;
+        })[0];
+      }
+      
+      // Fallback: busca todos os valores monetários
+      const allValues = [...text.matchAll(/\b(\d{1,3}(?:\.\d{3})*,\d{2})\b/g)];
+      if (allValues.length > 0) {
+        // Retorna o maior valor encontrado
+        return allValues
+          .map(m => m[1])
+          .sort((a, b) => {
+            const numA = parseFloat(a.replace(/\./g, '').replace(',', '.'));
+            const numB = parseFloat(b.replace(/\./g, '').replace(',', '.'));
+            return numB - numA;
+          })[0];
+      }
+      
+      return '';
+    }
+    
+    /* ========= DATA DE EMISSÃO - VERSÃO MELHORADA ========= */
+    function detectarDataEmissao(text) {
+      // Padrões específicos para data de emissão
+      const patterns = [
+        /Data[^:\n]*Emiss[ãa]o[^:\n]*:?\s*(\d{2}\/\d{2}\/\d{4})/gi,
+        /Data\/Hora\s+Emiss[ãa]o[^:\n]*:?\s*(\d{2}\/\d{2}\/\d{4})/gi,
+        /Emiss[ãa]o[^:\n]*:?\s*(\d{2}\/\d{2}\/\d{4})/gi,
+        /Data\s+Fato\s+Gerador[^:\n]*:?\s*(\d{2}\/\d{2}\/\d{4})/gi
+      ];
+      
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) {
+          return match[1];
+        }
+      }
+      
+      // Fallback: primeira data encontrada no documento
+      const allDates = [...text.matchAll(/\b(\d{2}\/\d{2}\/\d{4})\b/g)];
+      if (allDates.length > 0) {
+        return allDates[0][1];
+      }
+      
+      // Busca formato ISO e converte
+      const isoDate = text.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+      if (isoDate) {
+        const parts = isoDate[1].split('-');
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      
+      return '';
+    }
+    
+    // Cache functions
+    function cacheEmitenteName(cnpj, nome) {
+      const digits = (cnpj || '').replace(/\D/g, '');
+      if (digits.length === 14 && nome) {
+        localStorage.setItem('nm_' + digits, nome);
+      }
+    }
+    
+    function getCachedEmitenteName(cnpj) {
+      const digits = (cnpj
