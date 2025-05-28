@@ -870,19 +870,8 @@ function getDescricaoServico(text){
         dataEmissao = `${parts[2]}/${parts[1]}/${parts[0]}`;
       }
       
-      // Find document number
-      let numeroDocumento = '';
-      const docMatch = text.match(regexes.docNumber);
-      if (docMatch && docMatch[1]) {
-        numeroDocumento = docMatch[1];
-      } else {
-        // Try to find any number that looks like a document number
-        const numberMatches = text.match(/\b\d{4,9}\b/g);
-        if (numberMatches && numberMatches.length > 0) {
-          numeroDocumento = numberMatches[0];
-        }
-      }
-      
+            // Find document number
+      const numeroDocumento = detectNumeroDocumento(text);
       // Find monetary values
       const valores = [...text.matchAll(regexes.money)].map(match => match[0]);
       let valorTotal = '';
@@ -1146,41 +1135,3 @@ async function fillEmitenteViaAPI(cnpj, rowEl){
 </script>
 </body>
 </html>
-</html
-/* ---------- Nº DOCUMENTO robusto ---------- */
-function detectNumeroDocumento(text){
-  const etiquetas = [
-    /Número\s*da\s*NFS.?e[\s\r\n]*?(\d{3,})/i,
-    /Número\s*da\s*Nota[\s\r\n]*?(\d{3,})/i,
-    /Nº\s?(?:NF|Documento|RPS)[^\d]{0,10}(\d{3,})/i,
-    /RPS\s*[:#-]?\s*(\d{3,})/i
-  ];
-  for(const re_ of etiquetas){
-    const m = text.match(re_);
-    if(m) return m[1];
-  }
-  const topo = text.slice(0, Math.floor(text.length*0.25));
-  const m = topo.match(/\b(\d{4,9})\b/);
-  return m ? m[1] : '';
-}
-
-/* ---------- DESCRIÇÃO limpando cabeçalhos ---------- */
-function detectDescricao(text){
-  const lab = /(Descrição do Serviço[^:\n]*:|DESCRIÇÃO DOS SERVIÇOS PRESTADOS|DISCRIMINA[ÇC]ÃO DOS SERVIÇOS)/i;
-  const i = text.search(lab);
-  if(i !== -1){
-    let linha = text.slice(i).split(/\n/).slice(1,6)
-                 .map(l=>l.trim())
-                 .find(l => l && !/valor\s+unit/i.test(l));   // só descarta cabeçalho numérico
-
-    if(linha){
-      linha = linha.replace(/valor.*$/i,'')
-                   .replace(/\s{2,}/g,' ')
-                   .toLowerCase();
-      const placa = linha.match(/\b([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2}|[A-Z]{3}-?\d{4})\b/i);
-      return (placa ? placa[0].toUpperCase()+' – ' : '') + linha.slice(0,120);
-    }
-  }
-  return '';
-}
->
