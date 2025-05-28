@@ -4,419 +4,433 @@
   <meta charset="utf-8">
   <title>Automatizador de Notas – Santomé</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-<!-- Bibliotecas CDN -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Bibliotecas locais (PDF.js, Tesseract.js, SheetJS) -->
+<script type="module">
+  /* ---------- PDF.js ---------- */
+  import * as pdfjsLib from './libs/pdf.min.mjs';
+  pdfjsLib.GlobalWorkerOptions.workerSrc = './libs/pdf.worker.min.mjs';
+  window.pdfjsLib = pdfjsLib;
+
+  /* ---------- Tesseract.js ---------- */
+  import Tesseract from './libs/tesseract.esm.min.js';
+  const { createWorker } = Tesseract;
+  window.Tesseract = { ...Tesseract, createWorker };
+
+  /* ---------- SheetJS ---------- */
+  import * as XLSX from './libs/xlsx.mjs';
+  window.XLSX = XLSX;
+
+  if (typeof checkLibraries === 'function') checkLibraries();
+</script>
 
 <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  <style>
-    /* ====== Variáveis de cor ====== */
-    :root {
-      --primary-color: #304ffe;
-      --secondary-color: #eef2ff;
-      --border-color: #d9d9d9;
-      --success-color: #00c853;
-      --error-color: #d32f2f;
-      --light-text: #666;
-      --bg-color: #f8f9fa;
-      --card-bg: #ffffff;
-      --shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
+<style>
+/* ====== Variáveis de cor ====== */
+:root {
+  --primary-color: #304ffe;
+  --secondary-color: #eef2ff;
+  --border-color: #d9d9d9;
+  --success-color: #00c853;
+  --error-color: #d32f2f;
+  --light-text: #666;
+  --bg-color: #f8f9fa;
+  --card-bg: #ffffff;
+  --shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
 
-    /* Dark mode support */
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg-color: #1a1a1a;
-        --card-bg: #2d2d2d;
-        --border-color: #404040;
-        --light-text: #ccc;
-      }
-    }
-    
-    /* Garantir que a tabela sempre tenha fundo claro, independente do modo escuro */
-    .table-container {
-      background-color: #ffffff !important;
-    }
-    
-    table {
-      background-color: #ffffff !important;
-    }
-    
-    th, td {
-      background-color: #ffffff !important;
-      color: #333333 !important;
-    }
-    
-    th {
-      background-color: #f0f4ff !important;
-    }
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-color: #1a1a1a;
+    --card-bg: #2d2d2d;
+    --border-color: #404040;
+    --light-text: #ccc;
+  }
+}
 
-    /* Reset e base */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+/* Garantir que a tabela sempre tenha fundo claro */
+.table-container {
+  background-color: #ffffff !important;
+}
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background-color: var(--bg-color);
-      color: #333;
-      line-height: 1.6;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
+table {
+  background-color: #ffffff !important;
+}
 
-    /* Header */
-    header {
-      background: linear-gradient(135deg, var(--primary-color), #1e88e5);
-      color: white;
-      padding: 2rem 0;
-      text-align: center;
-      box-shadow: var(--shadow);
-    }
+th, td {
+  background-color: #ffffff !important;
+  color: #333333 !important;
+}
 
-    header h1 {
-      font-size: 2.5rem;
-      font-weight: 300;
-      margin-bottom: 0.5rem;
-    }
+th {
+  background-color: #f0f4ff !important;
+}
 
-    header p {
-      opacity: 0.9;
-      font-size: 1.1rem;
-    }
+/* Reset e base */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 
-    /* Main container */
-    main {
-      flex: 1;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 2rem 1rem;
-      width: 100%;
-    }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg-color);
+  color: #333;
+  line-height: 1.6;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 
-    /* Upload section */
-    .upload-section {
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: 2rem;
-      margin-bottom: 2rem;
-      box-shadow: var(--shadow);
-      border: 2px dashed var(--border-color);
-      transition: all 0.3s ease;
-    }
+/* Header */
+header {
+  background: linear-gradient(135deg, var(--primary-color), #1e88e5);
+  color: white;
+  padding: 2rem 0;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
 
-    .upload-section.dragover {
-      border-color: var(--primary-color);
-      background-color: var(--secondary-color);
-      transform: scale(1.02);
-    }
+header h1 {
+  font-size: 2.5rem;
+  font-weight: 300;
+  margin-bottom: 0.5rem;
+}
 
-    .upload-area {
-      text-align: center;
-      padding: 3rem 2rem;
-      cursor: pointer;
-      border-radius: 8px;
-      transition: background-color 0.3s ease;
-    }
+header p {
+  opacity: 0.9;
+  font-size: 1.1rem;
+}
 
-    .upload-area:hover {
-      background-color: var(--secondary-color);
-    }
+/* Main container */
+main {
+  flex: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  width: 100%;
+}
 
-    .upload-icon {
-      font-size: 4rem;
-      color: var(--primary-color);
-      margin-bottom: 1rem;
-    }
+/* Upload section */
+.upload-section {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow);
+  border: 2px dashed var(--border-color);
+  transition: all 0.3s ease;
+}
 
-    .upload-text {
-      font-size: 1.2rem;
-      margin-bottom: 0.5rem;
-      color: #333;
-    }
+.upload-section.dragover {
+  border-color: var(--primary-color);
+  background-color: var(--secondary-color);
+  transform: scale(1.02);
+}
 
-    .upload-hint {
-      color: var(--light-text);
-      font-size: 0.9rem;
-    }
+.upload-area {
+  text-align: center;
+  padding: 3rem 2rem;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background-color 0.3s ease;
+}
 
-    #fileInput {
-      display: none;
-    }
+.upload-area:hover {
+  background-color: var(--secondary-color);
+}
 
-    /* Progress section */
-    .progress-section {
-      margin-top: 1.5rem;
-      display: none;
-    }
+.upload-icon {
+  font-size: 4rem;
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+}
 
-    .progress-bar {
-      width: 100%;
-      height: 8px;
-      background-color: #e0e0e0;
-      border-radius: 4px;
-      overflow: hidden;
-      margin-bottom: 0.5rem;
-    }
+.upload-text {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
 
-    .progress-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--primary-color), var(--success-color));
-      width: 0%;
-      transition: width 0.3s ease;
-    }
+.upload-hint {
+  color: var(--light-text);
+  font-size: 0.9rem;
+}
 
-    .progress-text {
-      font-size: 0.9rem;
-      color: var(--light-text);
-      text-align: center;
-    }
+#fileInput {
+  display: none;
+}
 
-    /* Results section */
-    .results-section {
-      display: none;
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: 2rem;
-      box-shadow: var(--shadow);
-    }
+/* Progress section */
+.progress-section {
+  margin-top: 1.5rem;
+  display: none;
+}
 
-    .results-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1.5rem;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
 
-    .results-title {
-      font-size: 1.5rem;
-      color: #333;
-    }
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-color), var(--success-color));
+  width: 0%;
+  transition: width 0.3s ease;
+}
 
-    .export-btn {
-      background: var(--success-color);
-      color: white;
-      border: none;
-      padding: 0.75rem 1.5rem;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      transition: all 0.3s ease;
-    }
+.progress-text {
+  font-size: 0.9rem;
+  color: var(--light-text);
+  text-align: center;
+}
 
-    .export-btn:hover:not(:disabled) {
-      background: #4caf50;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
-    }
+/* Results section */
+.results-section {
+  display: none;
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: var(--shadow);
+}
 
-    .export-btn:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-      transform: none;
-    }
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
 
-    /* Table container */
-    .table-container {
-      overflow-x: auto;
-      margin-bottom: 20px;
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
-    }
+.results-title {
+  font-size: 1.5rem;
+  color: #333;
+}
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.9rem;
-      background: var(--card-bg);
-    }
+.export-btn {
+  background: var(--success-color);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+}
 
-    th, td {
-      padding: 0.75rem;
-      text-align: left;
-      border-bottom: 1px solid var(--border-color);
-      vertical-align: top;
-    }
+.export-btn:hover:not(:disabled) {
+  background: #4caf50;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
 
-    th {
-      background: var(--secondary-color);
-      font-weight: 600;
-      color: #333;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
+.export-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
 
-    td[contenteditable="true"] {
-      border: 2px solid transparent;
-      border-radius: 4px;
-      transition: border-color 0.3s ease;
-      cursor: text;
-    }
+/* Table container */
+.table-container {
+  overflow-x: auto;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
 
-    td[contenteditable="true"]:hover {
-      border-color: var(--primary-color);
-      background-color: var(--secondary-color);
-    }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  background: var(--card-bg);
+}
 
-    td[contenteditable="true"]:focus {
-      outline: none;
-      border-color: var(--primary-color);
-      background-color: white;
-    }
+th, td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: top;
+}
 
-    .error-row {
-      background-color: #ffebee;
-    }
+th {
+  background: var(--secondary-color);
+  font-weight: 600;
+  color: #333;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
 
-    .error-row td {
-      color: var(--error-color);
-    }
+td[contenteditable="true"] {
+  border: 2px solid transparent;
+  border-radius: 4px;
+  transition: border-color 0.3s ease;
+  cursor: text;
+}
 
-    .delete-btn {
-      background: var(--error-color);
-      color: white;
-      border: none;
-      padding: 0.5rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.8rem;
-      transition: all 0.3s ease;
-    }
+td[contenteditable="true"]:hover {
+  border-color: var(--primary-color);
+  background-color: var(--secondary-color);
+}
 
-    .delete-btn:hover {
-      background: #c62828;
-      transform: scale(1.1);
-    }
+td[contenteditable="true"]:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  background-color: white;
+}
 
-    /* Debug section */
-    .debug-section {
-      margin-top: 2rem;
-      background: #f5f5f5;
-      border-radius: 8px;
-      padding: 1rem;
-      display: none;
-    }
+.error-row {
+  background-color: #ffebee;
+}
 
-    .debug-section h3 {
-      margin-bottom: 1rem;
-      color: #666;
-    }
+.error-row td {
+  color: var(--error-color);
+}
 
-    .debug-text {
-      font-family: monospace;
-      font-size: 0.8rem;
-      background: white;
-      padding: 1rem;
-      border-radius: 4px;
-      max-height: 300px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      word-break: break-all;
-    }
+.delete-btn {
+  background: var(--error-color);
+  color: white;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.3s ease;
+}
 
-    /* Footer */
-    footer {
-      background: #333;
-      color: white;
-      text-align: center;
-      padding: 1.5rem;
-      margin-top: 2rem;
-    }
+.delete-btn:hover {
+  background: #c62828;
+  transform: scale(1.1);
+}
 
-    footer a {
-      color: var(--primary-color);
-      text-decoration: none;
-    }
+/* Debug section */
+.debug-section {
+  margin-top: 2rem;
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 1rem;
+  display: none;
+}
 
-    footer a:hover {
-      text-decoration: underline;
-    }
+.debug-section h3 {
+  margin-bottom: 1rem;
+  color: #666;
+}
 
-    /* Loading spinner */
-    .spinner {
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid var(--primary-color);
-      border-radius: 50%;
-      width: 24px;
-      height: 24px;
-      animation: spin 1s linear infinite;
-      display: inline-block;
-      margin-right: 0.5rem;
-    }
+.debug-text {
+  font-family: monospace;
+  font-size: 0.8rem;
+  background: white;
+  padding: 1rem;
+  border-radius: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
 
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
+/* Footer */
+footer {
+  background: #333;
+  color: white;
+  text-align: center;
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
 
-    /* Responsive design */
-    @media (max-width: 768px) {
-      header h1 {
-        font-size: 2rem;
-      }
-      
-      main {
-        padding: 1rem;
-      }
-      
-      .upload-section,
-      .results-section {
-        padding: 1.5rem;
-      }
-      
-      .upload-area {
-        padding: 2rem 1rem;
-      }
-      
-      .upload-icon {
-        font-size: 3rem;
-      }
-      
-      .results-header {
-        flex-direction: column;
-        align-items: stretch;
-      }
-      
-      table {
-        font-size: 0.8rem;
-      }
-      
-      th, td {
-        padding: 0.5rem;
-      }
-    }
+footer a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
 
-    @media (max-width: 360px) {
-      header {
-        padding: 1.5rem 0;
-      }
-      
-      header h1 {
-        font-size: 1.8rem;
-      }
-      
-      .upload-section,
-      .results-section {
-        padding: 1rem;
-      }
-      
-      .upload-area {
-        padding: 1.5rem 0.5rem;
-      }
-    }
-  </style>
+footer a:hover {
+  text-decoration: underline;
+}
+
+/* Loading spinner */
+.spinner {
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid var(--primary-color);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  margin-right: 0.5rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  header h1 {
+    font-size: 2rem;
+  }
+  
+  main {
+    padding: 1rem;
+  }
+  
+  .upload-section,
+  .results-section {
+    padding: 1.5rem;
+  }
+  
+  .upload-area {
+    padding: 2rem 1rem;
+  }
+  
+  .upload-icon {
+    font-size: 3rem;
+  }
+  
+  .results-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  table {
+    font-size: 0.8rem;
+  }
+  
+  th, td {
+    padding: 0.5rem;
+  }
+}
+
+@media (max-width: 360px) {
+  header {
+    padding: 1.5rem 0;
+  }
+  
+  header h1 {
+    font-size: 1.8rem;
+  }
+  
+  .upload-section,
+  .results-section {
+    padding: 1rem;
+  }
+  
+  .upload-area {
+    padding: 1.5rem 0.5rem;
+  }
+}
+</style>
 </head>
 
 <body>
@@ -471,7 +485,7 @@
       </div>
     </section>
 
-    <!-- Debug section for development -->
+    <!-- Debug section -->
     <section class="debug-section" id="debugSection">
       <h3>Debug - Texto Extraído</h3>
       <div class="debug-text" id="debugText"></div>
@@ -484,83 +498,115 @@
   </footer>
 
   <script>
-    // Global variables
+    // ===== VARIÁVEIS GLOBAIS =====
     let processedFiles = 0;
     let totalFiles = 0;
     let extractedData = [];
     let debugMode = false;
     
-    // Company CNPJ to ignore (tomador)
+    // CNPJ da empresa (tomador) - ignorar
     const COMPANY_CNPJ = '07.925.317/0001-88';
     
-    // Initialize PDF.js
-    if (typeof pdfjsLib !== 'undefined') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    // ===== CACHE FUNCTIONS =====
+    function cacheEmitenteName(cnpj, nome) {
+      const digits = (cnpj || '').replace(/\D/g, '');
+      if (digits.length === 14 && nome) {
+        localStorage.setItem('nm_' + digits, nome);
+      }
     }
     
-    // Enhanced extraction functions
+    function getCachedEmitenteName(cnpj) {
+      const digits = (cnpj || '').replace(/\D/g, '');
+      if (digits.length === 14) {
+        return localStorage.getItem('nm_' + digits) || '';
+      }
+      return '';
+    }
     
-    /* ========= NOME DO EMITENTE - VERSÃO MELHORADA ========= */
-    function detectarNomeEmitente(text, cnpj) {
+    // ===== SUPER REGEX PATTERNS - ULTRA ROBUSTAS =====
+    const PATTERNS = {
+      // CNPJs - captura todos os formatos
+      cnpj: /\b\d{2}[\.\s]?\d{3}[\.\s]?\d{3}[\s\/]?\d{4}[\s\-]?\d{2}\b/g,
+      
+      // Datas - múltiplos formatos
+      dateFormats: [
+        /\b(\d{2}\/\d{2}\/\d{4})\b/g,
+        /\b(\d{4}-\d{2}-\d{2})\b/g,
+        /\b(\d{2}-\d{2}-\d{4})\b/g
+      ],
+      
+      // Valores monetários - ultra específico
+      money: /\b\d{1,3}(?:\.\d{3})*,\d{2}\b/g,
+      
+      // Placas de veículos - padrão antigo e novo
+      placa: /\b([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2}|[A-Z]{3}[-\s]?\d{4})\b/gi,
+      
+      // Número de documento - super específico
+      docNumber: [
+        /N[úu]mero\s+da\s+NFS?-?[eE]\s*[:\-]?\s*(\d{3,10})/gi,
+        /N[úu]mero\s+da\s+Nota\s*[:\-]?\s*(\d{3,10})/gi,
+        /N[°º]\s*NFS?-?[eE]\s*[:\-]?\s*(\d{3,10})/gi,
+        /RPS\s*[n°º]?\s*[:\-]?\s*(\d{3,10})/gi,
+        /Documento\s*[n°º]?\s*[:\-]?\s*(\d{3,10})/gi
+      ]
+    };
+    
+    // ===== ULTRA EXTRAÇÃO DE NOME DO EMITENTE =====
+    function extractEmitenteNameUltra(text, cnpj) {
       if (!cnpj) return '';
       
-      // Cache check
+      // Verifica cache primeiro
       const cached = getCachedEmitenteName(cnpj);
       if (cached) return cached;
       
-      const cnpjDigits = cnpj.replace(/\D/g, '');
+      const cnpjClean = cnpj.replace(/\D/g, '');
       
-      // Validação robusta do nome
-      const isValidName = (nome) => {
-        if (!nome || nome.length < 3) return false;
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(nome)) return false; // data
-        if (/^[\d\.\-\/\s]+$/.test(nome)) return false; // só números/pontuação
-        if (/(CPF|CNPJ|TOMADOR|CONSUMIDOR|NOTA|N[ÚU]MERO|DATA|VALOR|SERVI[ÇC]O|TELEFONE|EMAIL|ENDERE[ÇC]O)/i.test(nome)) return false;
+      // Validador de nome ultra rigoroso
+      const isValidName = (name) => {
+        if (!name || name.length < 5) return false;
+        if (/^\d+$/.test(name)) return false; // só números
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(name)) return false; // data
+        if (/(CPF|CNPJ|TOMADOR|CONSUMIDOR|NOTA|DATA|VALOR|TELEFONE|EMAIL|CEP|ENDERE[ÇC]O)/i.test(name)) return false;
+        if (/^[^A-Za-z]*$/.test(name)) return false; // sem letras
         return true;
       };
       
-      // Método 1: Busca por seções estruturadas
-      const prestadorMatch = text.match(/(?:PRESTADOR|EMITENTE|FORNECEDOR)[\s\S]*?(?=TOMADOR|CLIENTE|DESTINAT[ÁA]RIO)/i);
-      if (prestadorMatch) {
-        const secao = prestadorMatch[0];
+      // ESTRATÉGIA 1: Busca estruturada por seções
+      const prestadorSection = text.match(/(?:PRESTADOR|EMITENTE|FORNECEDOR)[\s\S]*?(?=TOMADOR|CLIENTE|DESTINAT[ÁA]RIO|$)/i);
+      if (prestadorSection) {
+        const section = prestadorSection[0];
         
-        // Procura por campos específicos
-        let nome = '';
-        const patterns = [
-          /(?:Raz[aã]o\s+Social|Nome\/Raz[aã]o\s+Social|Empresa)[^:\n]*:\s*([^\n\r]{5,80})/i,
-          /(?:Nome\s+Fantasia)[^:\n]*:\s*([^\n\r]{5,80})/i,
-          /(?:Nome)[^:\n]*:\s*([^\n\r]{5,80})/i
+        // Busca por campos rotulados
+        const labeledPatterns = [
+          /(?:Raz[aã]o\s+Social|Nome\/Raz[aã]o\s+Social|Empresa)\s*[:\-]\s*([^\n\r]{8,100})/i,
+          /(?:Nome\s+Fantasia)\s*[:\-]\s*([^\n\r]{8,100})/i,
+          /(?:Nome)\s*[:\-]\s*([^\n\r]{8,100})/i
         ];
         
-        for (const pattern of patterns) {
-          const match = secao.match(pattern);
+        for (const pattern of labeledPatterns) {
+          const match = section.match(pattern);
           if (match && isValidName(match[1].trim())) {
-            nome = match[1].trim();
-            break;
+            const name = match[1].trim().replace(/\s+/g, ' ');
+            cacheEmitenteName(cnpj, name);
+            return name;
           }
-        }
-        
-        if (nome) {
-          cacheEmitenteName(cnpj, nome);
-          return nome;
         }
       }
       
-      // Método 2: Busca próxima ao CNPJ
-      const cnpjIndex = text.indexOf(cnpjDigits);
+      // ESTRATÉGIA 2: Busca por proximidade ao CNPJ
+      const cnpjIndex = text.indexOf(cnpjClean);
       if (cnpjIndex !== -1) {
-        // Busca antes e depois do CNPJ
-        const before = text.substring(Math.max(0, cnpjIndex - 300), cnpjIndex);
-        const after = text.substring(cnpjIndex, cnpjIndex + 300);
+        const beforeCnpj = text.substring(Math.max(0, cnpjIndex - 400), cnpjIndex);
+        const afterCnpj = text.substring(cnpjIndex, cnpjIndex + 200);
         
-        const searchText = before + after;
-        const lines = searchText.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
+        const contextText = beforeCnpj + ' ' + afterCnpj;
+        const lines = contextText.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
         
-        // Prioriza linhas com indicadores de empresa
-        const empresaKeywords = /(LTDA\.?|EPP|MEI|EIRELI|S\.?A\.?|SERVI[ÇC]OS|COM[EÉ]RCIO|IND[ÚU]STRIA|FUNILARIA|LANTERNAGEM)/i;
+        // Busca linhas com indicadores de empresa
+        const businessIndicators = /(LTDA\.?|EPP|MEI|EIRELI|S\.?A\.?|SERVI[ÇC]OS|COM[EÉ]RCIO|IND[ÚU]STRIA|FUNILARIA|LANTERNAGEM|OFICINA|MECA?NICA)/i;
         
         for (const line of lines) {
-          if (isValidName(line) && empresaKeywords.test(line) && line.length > 10) {
+          if (isValidName(line) && businessIndicators.test(line) && line.length > 10 && line.length < 100) {
             const cleanName = line.replace(/^\W+|\W+$/g, '').replace(/\s+/g, ' ');
             if (cleanName) {
               cacheEmitenteName(cnpj, cleanName);
@@ -569,11 +615,11 @@
           }
         }
         
-        // Se não encontrou com keywords, busca qualquer nome válido próximo
+        // Busca qualquer nome válido próximo
         for (const line of lines) {
           if (isValidName(line) && line.length > 8 && line.length < 80) {
             const cleanName = line.replace(/^\W+|\W+$/g, '').replace(/\s+/g, ' ');
-            if (cleanName) {
+            if (cleanName && /[A-Za-z]/.test(cleanName)) {
               cacheEmitenteName(cnpj, cleanName);
               return cleanName;
             }
@@ -581,17 +627,17 @@
         }
       }
       
-      // Método 3: Padrões específicos do documento
-      const docPatterns = [
-        /([A-ZÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ\s]{10,}(?:LTDA\.?|EPP|MEI|EIRELI|S\.?A\.?))/gi,
-        /^([A-ZÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ\s]{8,60})$/gm
+      // ESTRATÉGIA 3: Padrões específicos conhecidos
+      const specificPatterns = [
+        /^([A-ZÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ\s]{10,}(?:LTDA\.?|EPP|MEI|EIRELI|S\.?A\.?))/gmi,
+        /([A-ZÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ\s]+(?:FUNILARIA|LANTERNAGEM|OFICINA|MECA?NICA|SERVI[ÇC]OS)[A-ZÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ\s]*)/gi
       ];
       
-      for (const pattern of docPatterns) {
+      for (const pattern of specificPatterns) {
         const matches = [...text.matchAll(pattern)];
         for (const match of matches) {
           const candidate = match[1].trim();
-          if (isValidName(candidate) && candidate.length > 8) {
+          if (isValidName(candidate) && candidate.length > 8 && candidate.length < 100) {
             cacheEmitenteName(cnpj, candidate);
             return candidate;
           }
@@ -601,45 +647,33 @@
       return '';
     }
     
-    /* ========= NÚMERO DO DOCUMENTO - VERSÃO MELHORADA ========= */
-    function detectarNumeroDocumento(text) {
-      // Padrões específicos por tipo de documento
-      const patterns = [
-        // NFS-e específicos
-        /N[uú]mero\s+da\s+NFS?-?e[^:\n]*:?\s*(\d{3,10})/gi,
-        /N[uú]mero\s+da\s+Nota[^:\n]*:?\s*(\d{3,10})/gi,
-        /NFS?-?e\s*[n°nº]?[^:\n]*:?\s*(\d{3,10})/gi,
-        
-        // RPS
-        /RPS\s*[n°nº]?[^:\n]*:?\s*(\d{3,10})/gi,
-        /N[uú]mero\s+do\s+RPS[^:\n]*:?\s*(\d{3,10})/gi,
-        
-        // Padrões gerais
-        /N[uú]mero[^:\n]*:?\s*(\d{3,10})/gi,
-        /N[°º]\s*(\d{3,10})/gi,
-        /Documento[^:\n]*:?\s*(\d{3,10})/gi
-      ];
-      
-      for (const pattern of patterns) {
+    // ===== ULTRA EXTRAÇÃO DE NÚMERO DO DOCUMENTO =====
+    function extractDocumentNumberUltra(text) {
+      // Busca por padrões específicos com labels
+      for (const pattern of PATTERNS.docNumber) {
         const matches = [...text.matchAll(pattern)];
         for (const match of matches) {
-          const numero = match[1];
-          if (numero && numero.length >= 3) {
-            return numero;
+          const number = match[1];
+          if (number && number.length >= 3 && number.length <= 10) {
+            return number;
           }
         }
       }
       
-      // Fallback: busca números no início do documento (primeira metade)
-      const topHalf = text.substring(0, Math.floor(text.length * 0.4));
-      const numeros = topHalf.match(/\b(\d{3,8})\b/g);
+      // Busca por números no cabeçalho do documento
+      const topSection = text.substring(0, Math.floor(text.length * 0.3));
+      const numberMatches = [...topSection.matchAll(/\b(\d{3,8})\b/g)];
       
-      if (numeros) {
-        // Filtra números muito comuns que não são documentos
-        const filtered = numeros.filter(num => {
-          const n = parseInt(num);
-          return n > 100 && n < 999999999 && !['2024', '2025', '2023'].includes(num);
-        });
+      if (numberMatches.length > 0) {
+        // Filtra números que não são anos ou outros dados
+        const filtered = numberMatches
+          .map(m => m[1])
+          .filter(num => {
+            const n = parseInt(num);
+            return n > 100 && n < 999999999 && 
+                   !['2023', '2024', '2025', '2026'].includes(num) &&
+                   num.length >= 3;
+          });
         
         if (filtered.length > 0) {
           return filtered[0];
@@ -649,87 +683,105 @@
       return '';
     }
     
-    /* ========= DESCRIÇÃO DO SERVIÇO - VERSÃO MELHORADA ========= */
-    function detectarDescricaoServico(text) {
-      // Padrões de busca por seção de descrição
-      const sectionPatterns = [
-        /DESCRI[ÇC][ÃA]O\s+DOS?\s+SERVI[ÇC]OS?\s+PRESTADOS?[^:\n]*:?\s*([\s\S]{20,300}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|Base|Al[ií]quota|$)/gi,
-        /Descri[çc][ãa]o\s+do\s+Servi[çc]o[^:\n]*:?\s*([\s\S]{10,200}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi,
-        /DISCRIMINA[ÇC][ÃA]O[^:\n]*:?\s*([\s\S]{10,200}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi,
-        /Servi[çc]o\s+Prestado[^:\n]*:?\s*([\s\S]{10,200}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi
+    // ===== ULTRA EXTRAÇÃO DE DESCRIÇÃO =====
+    function extractDescriptionUltra(text) {
+      // Padrões específicos para descrição
+      const descriptionPatterns = [
+        /DESCRI[ÇC][ÃA]O\s+DOS?\s+SERVI[ÇC]OS?\s+PRESTADOS?[^:\n]*:?\s*([\s\S]{10,400}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|Base|Al[ií]quota|TOTAL|$)/gi,
+        /Descri[çc][ãa]o\s+do\s+Servi[çc]o[^:\n]*:?\s*([\s\S]{10,300}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi,
+        /DISCRIMINA[ÇC][ÃA]O[^:\n]*:?\s*([\s\S]{10,300}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi,
+        /Servi[çc]o\s+Prestado[^:\n]*:?\s*([\s\S]{10,300}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi
       ];
       
-      for (const pattern of sectionPatterns) {
+      for (const pattern of descriptionPatterns) {
         const matches = [...text.matchAll(pattern)];
         for (const match of matches) {
-          let descricao = match[1].trim();
+          let description = match[1].trim();
           
           // Limpa a descrição
-          descricao = descricao
+          description = description
             .replace(/\n+/g, ' ')
             .replace(/\s+/g, ' ')
             .replace(/^[:\-\s]+|[:\-\s]+$/g, '')
             .replace(/valor.*$/i, '')
             .replace(/quantidade.*$/i, '')
             .replace(/al[ií]quota.*$/i, '')
+            .replace(/você\s+pagou\s+aproximadamente.*$/i, '')
             .trim();
           
-          if (descricao.length > 8 && descricao.length < 200) {
-            // Busca por placa de veículo na descrição
-            const placaMatch = descricao.match(/\b([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2}|[A-Z]{3}-?\d{4})\b/i);
+          if (description.length > 8 && description.length < 300) {
+            // Busca por placa na descrição
+            const placaMatch = description.match(PATTERNS.placa);
             if (placaMatch) {
               const placa = placaMatch[0].toUpperCase().replace(/[-\s]/g, '');
-              descricao = `${placa} – ${descricao.toLowerCase()}`;
+              const cleanDesc = description.toLowerCase().replace(placaMatch[0], '').trim();
+              return `${placa} – ${cleanDesc}`.substring(0, 120);
             }
             
-            return descricao.substring(0, 150);
+            return description.toLowerCase().substring(0, 120);
           }
         }
       }
       
       // Fallback: busca por padrões específicos conhecidos
-      const specificPatterns = [
+      const specificServicePatterns = [
         /PINTURA\s+DE\s+\d+\s+RODAS?/gi,
         /FUNILARIA\s+E?\s*LANTERNAGEM/gi,
         /REPARO\s+DE\s+LATARIA/gi,
-        /SERVI[ÇC]OS?\s+AUTOMOTIVOS?/gi
+        /SERVI[ÇC]OS?\s+AUTOMOTIVOS?/gi,
+        /MANUTEN[ÇC][ÃA]O\s+.*?CAMINH[ÃA]O/gi
       ];
       
-      for (const pattern of specificPatterns) {
+      for (const pattern of specificServicePatterns) {
         const match = text.match(pattern);
         if (match) {
-          return match[0].toLowerCase();
+          let service = match[0].toLowerCase();
+          
+          // Busca placa próxima
+          const contextStart = Math.max(0, text.indexOf(match[0]) - 100);
+          const contextEnd = Math.min(text.length, text.indexOf(match[0]) + match[0].length + 100);
+          const context = text.substring(contextStart, contextEnd);
+          
+          const placaMatch = context.match(PATTERNS.placa);
+          if (placaMatch) {
+            const placa = placaMatch[0].toUpperCase().replace(/[-\s]/g, '');
+            return `${placa} – ${service}`;
+          }
+          
+          return service;
         }
       }
       
       return '';
     }
     
-    /* ========= VALOR TOTAL - VERSÃO MELHORADA ========= */
-    function detectarValorTotal(text) {
+    // ===== ULTRA EXTRAÇÃO DE VALOR =====
+    function extractValueUltra(text) {
       // Padrões específicos para valor total
-      const patterns = [
+      const valuePatterns = [
         /Valor\s+Total[^:\n]*:?\s*([\d.,]+)/gi,
+        /VALOR\s+TOTAL[^:\n]*:?\s*([\d.,]+)/gi,
         /Total[^:\n]*:?\s*([\d.,]+)/gi,
         /Valor\s+L[ií]quido[^:\n]*:?\s*([\d.,]+)/gi,
-        /Valor\s+do\s+Servi[çc]o[^:\n]*:?\s*([\d.,]+)/gi
+        /Valor\s+do\s+Servi[çc]o[^:\n]*:?\s*([\d.,]+)/gi,
+        /Valor\s+Servi[çc]o[^:\n]*:?\s*([\d.,]+)/gi
       ];
       
-      const valores = [];
+      const foundValues = [];
       
-      for (const pattern of patterns) {
+      for (const pattern of valuePatterns) {
         const matches = [...text.matchAll(pattern)];
         for (const match of matches) {
-          const valor = match[1].replace(/\s/g, '');
-          if (/^\d{1,3}(?:\.\d{3})*,\d{2}$/.test(valor)) {
-            valores.push(valor);
+          const value = match[1].replace(/\s/g, '');
+          if (/^\d{1,3}(?:\.\d{3})*,\d{2}$/.test(value)) {
+            foundValues.push(value);
           }
         }
       }
       
       // Se encontrou valores específicos, retorna o maior
-      if (valores.length > 0) {
-        return valores.sort((a, b) => {
+      if (foundValues.length > 0) {
+        return foundValues.sort((a, b) => {
           const numA = parseFloat(a.replace(/\./g, '').replace(',', '.'));
           const numB = parseFloat(b.replace(/\./g, '').replace(',', '.'));
           return numB - numA;
@@ -737,11 +789,10 @@
       }
       
       // Fallback: busca todos os valores monetários
-      const allValues = [...text.matchAll(/\b(\d{1,3}(?:\.\d{3})*,\d{2})\b/g)];
+      const allValues = [...text.matchAll(PATTERNS.money)];
       if (allValues.length > 0) {
-        // Retorna o maior valor encontrado
         return allValues
-          .map(m => m[1])
+          .map(m => m[0])
           .sort((a, b) => {
             const numA = parseFloat(a.replace(/\./g, '').replace(',', '.'));
             const numB = parseFloat(b.replace(/\./g, '').replace(',', '.'));
@@ -752,46 +803,609 @@
       return '';
     }
     
-    /* ========= DATA DE EMISSÃO - VERSÃO MELHORADA ========= */
-    function detectarDataEmissao(text) {
+    // ===== ULTRA EXTRAÇÃO DE DATA =====
+    function extractDateUltra(text) {
       // Padrões específicos para data de emissão
-      const patterns = [
+      const datePatterns = [
         /Data[^:\n]*Emiss[ãa]o[^:\n]*:?\s*(\d{2}\/\d{2}\/\d{4})/gi,
         /Data\/Hora\s+Emiss[ãa]o[^:\n]*:?\s*(\d{2}\/\d{2}\/\d{4})/gi,
         /Emiss[ãa]o[^:\n]*:?\s*(\d{2}\/\d{2}\/\d{4})/gi,
-        /Data\s+Fato\s+Gerador[^:\n]*:?\s*(\d{2}\/\d{2}\/\d{4})/gi
+        /Data\s+Fato\s+Gerador[^:\n]*:?\s*(\d{2}\/\d{2}\/\d{4})/gi,
+        /Data\s+da\s+Emiss[ãa]o[^:\n]*:?\s*(\d{2}\/\d{2}\/\d{4})/gi
       ];
       
-      for (const pattern of patterns) {
+      for (const pattern of datePatterns) {
         const match = text.match(pattern);
-        if (match) {
+        if (match && match[1]) {
           return match[1];
         }
       }
       
       // Fallback: primeira data encontrada no documento
-      const allDates = [...text.matchAll(/\b(\d{2}\/\d{2}\/\d{4})\b/g)];
-      if (allDates.length > 0) {
-        return allDates[0][1];
-      }
-      
-      // Busca formato ISO e converte
-      const isoDate = text.match(/\b(\d{4}-\d{2}-\d{2})\b/);
-      if (isoDate) {
-        const parts = isoDate[1].split('-');
-        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      for (const pattern of PATTERNS.dateFormats) {
+        const matches = [...text.matchAll(pattern)];
+        if (matches.length > 0) {
+          let date = matches[0][1];
+          
+          // Converte formato ISO para BR se necessário
+          if (date.includes('-')) {
+            const parts = date.split('-');
+            if (parts.length === 3 && parts[0].length === 4) {
+              date = `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+          }
+          
+          return date;
+        }
       }
       
       return '';
     }
     
-    // Cache functions
-    function cacheEmitenteName(cnpj, nome) {
-      const digits = (cnpj || '').replace(/\D/g, '');
-      if (digits.length === 14 && nome) {
-        localStorage.setItem('nm_' + digits, nome);
+    // ===== EXTRAÇÃO PRINCIPAL DE DADOS =====
+    function extractDataFromText(text, filename) {
+      if (text.length < 50) {
+        console.warn('Texto muito curto para extração:', filename);
+        return null;
+      }
+      
+      if (debugMode) {
+        document.getElementById('debugText').textContent = text.substring(0, 2000);
+        document.getElementById('debugSection').style.display = 'block';
+      }
+      
+      // 1. EXTRAI TODOS OS CNPJs
+      const allCnpjs = [...text.matchAll(PATTERNS.cnpj)]
+        .map(match => match[0])
+        .map(cnpj => cnpj.replace(/[\s\-\.]/g, '').replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5'));
+      
+      console.log('CNPJs encontrados:', allCnpjs);
+      
+      // 2. FILTRA CNPJ DO EMITENTE (não é o da empresa)
+      const companyCnpjClean = COMPANY_CNPJ.replace(/[\s\-\.\/]/g, '');
+      const emitenteCnpj = allCnpjs.find(cnpj => {
+        const cnpjClean = cnpj.replace(/[\s\-\.\/]/g, '');
+        return cnpjClean !== companyCnpjClean;
+      });
+      
+      if (!emitenteCnpj) {
+        console.warn('CNPJ do emitente não encontrado:', filename);
+        return null;
+      }
+      
+      console.log('CNPJ do emitente:', emitenteCnpj);
+      
+      // 3. EXTRAI OUTROS DADOS
+      const emitenteNome = extractEmitenteNameUltra(text, emitenteCnpj);
+      const dataEmissao = extractDateUltra(text);
+      const numeroDocumento = extractDocumentNumberUltra(text);
+      const valorTotal = extractValueUltra(text);
+      const descricao = extractDescriptionUltra(text);
+      
+      console.log('Dados extraídos:', {
+        cnpj: emitenteCnpj,
+        nome: emitenteNome,
+        data: dataEmissao,
+        documento: numeroDocumento,
+        valor: valorTotal,
+        descricao: descricao
+      });
+      
+      return {
+        cnpj: emitenteCnpj,
+        nome: emitenteNome,
+        data: dataEmissao,
+        documento: numeroDocumento,
+        valor: valorTotal,
+        descricao: descricao,
+        filename: filename
+      };
+    }
+    
+    // ===== EXTRAÇÃO DE TEXTO DO PDF - MELHORADA =====
+    async function extractTextFromPDF(file) {
+      return new Promise(async (resolve, reject) => {
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          
+          let fullText = '';
+          
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            
+            // Agrupa os itens por coordenada Y para reconstruir linhas reais
+            const lineBuckets = {};
+            textContent.items.forEach(item => {
+              const y = Math.round(item.transform[5]);  // posição vertical
+              const x = item.transform[4];              // posição horizontal
+              if (!lineBuckets[y]) lineBuckets[y] = [];
+              lineBuckets[y].push({ x, str: item.str });
+            });
+            
+            // Ordena por posição vertical (topo para baixo)
+            const orderedY = Object.keys(lineBuckets)
+              .map(n => parseFloat(n))
+              .sort((a, b) => b - a);
+            
+            // Reconstrói as linhas ordenando horizontalmente
+            const lines = orderedY.map(y => {
+              return lineBuckets[y]
+                .sort((a, b) => a.x - b.x)
+                .map(t => t.str)
+                .join(' ')
+                .trim();
+            });
+            
+            const pageText = lines.join('\n');
+            fullText += pageText + '\n';
+          }
+          
+          resolve(fullText);
+        } catch (error) {
+          console.error('Erro ao extrair texto do PDF:', error);
+          reject(error);
+        }
+      });
+    }
+    
+    // ===== EXTRAÇÃO DE TEXTO DA IMAGEM - MELHORADA =====
+    async function extractTextFromImage(file) {
+      return new Promise(async (resolve, reject) => {
+        try {
+          // Pré-processamento da imagem para melhorar OCR
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const img = new Image();
+          
+          img.onload = async () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            
+            // Desenha a imagem
+            ctx.drawImage(img, 0, 0);
+            
+            // Converte para grayscale
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            
+            for (let i = 0; i < data.length; i += 4) {
+              const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+              data[i] = gray;     // R
+              data[i + 1] = gray; // G
+              data[i + 2] = gray; // B
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+            
+            // Executa OCR na imagem processada
+            const worker = await Tesseract.createWorker('por');
+            await worker.setParameters({
+              tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝàáâãäçèéêëìíîïñòóôõöùúûüý.,/:-() ',
+            });
+            
+            const result = await worker.recognize(canvas);
+            
+            await worker.terminate();
+            resolve(result.data.text);
+          };
+          
+          img.onerror = () => {
+            reject(new Error('Erro ao carregar imagem'));
+          };
+          
+          const imageUrl = URL.createObjectURL(file);
+          img.src = imageUrl;
+          
+          // Limpa URL após uso
+          setTimeout(() => URL.revokeObjectURL(imageUrl), 10000);
+          
+        } catch (error) {
+          console.error('Erro ao extrair texto da imagem:', error);
+          reject(error);
+        }
+      });
+    }
+    
+    // ===== PROCESSAMENTO DE ARQUIVOS =====
+    async function processFile(file) {
+      try {
+        let text = '';
+        
+        if (file.type === 'application/pdf') {
+          text = await extractTextFromPDF(file);
+        } else if (file.type.startsWith('image/')) {
+          text = await extractTextFromImage(file);
+        } else {
+          console.warn('Tipo de arquivo não suportado:', file.type);
+          return;
+        }
+        
+        // Extrai dados do texto
+        const data = extractDataFromText(text, file.name);
+        
+        if (data) {
+          // Tenta preencher nome via API se estiver vazio
+          if (!data.nome && data.cnpj) {
+            const nomeAPI = await fetchEmitenteNameFromAPI(data.cnpj);
+            if (nomeAPI) {
+              data.nome = nomeAPI;
+              cacheEmitenteName(data.cnpj, nomeAPI);
+            }
+          }
+          
+          extractedData.push(data);
+        }
+        
+        processedFiles++;
+        updateProgress();
+        
+      } catch (error) {
+        console.error('Erro ao processar arquivo:', file.name, error);
+        processedFiles++;
+        updateProgress();
       }
     }
     
-    function getCachedEmitenteName(cnpj) {
-      const digits = (cnpj
+    // ===== BUSCA NOME VIA API PÚBLICA =====
+    async function fetchEmitenteNameFromAPI(cnpj) {
+      const digits = cnpj.replace(/[^0-9]/g, '');
+      if (digits.length !== 14) return '';
+      
+      const endpoints = [
+        `https://publica.cnpj.ws/cnpj/${digits}`,
+        `https://api-publica.speedio.com.br/buscarcnpj?cnpj=${digits}`
+      ];
+      
+      for (const url of endpoints) {
+        try {
+          const response = await fetch(url, { mode: 'cors' });
+          if (!response.ok) continue;
+          
+          const data = await response.json();
+          let nome = '';
+          
+          if (data.razao_social) {
+            nome = data.razao_social;
+          } else if (data.NOME_EMPRESARIAL) {
+            nome = data.NOME_EMPRESARIAL;
+          } else if (data.nome_fantasia) {
+            nome = data.nome_fantasia;
+          }
+          
+          nome = (nome || '').trim();
+          if (nome) return nome;
+          
+        } catch (error) {
+          console.warn('API CNPJ falhou para', url, error);
+        }
+      }
+      
+      return '';
+    }
+    
+    // ===== MANIPULAÇÃO DE ARQUIVOS =====
+    async function handleFiles(files) {
+      if (files.length === 0) return;
+      
+      if (!checkLibraries()) {
+        alert('Bibliotecas necessárias não estão disponíveis. Recarregue a página e tente novamente.');
+        return;
+      }
+      
+      totalFiles = files.length;
+      processedFiles = 0;
+      extractedData = [];
+      
+      showProgress();
+      updateProgress();
+      
+      // Processa arquivos com máximo 3 operações concorrentes
+      const chunks = [];
+      for (let i = 0; i < files.length; i += 3) {
+        chunks.push(files.slice(i, i + 3));
+      }
+      
+      for (const chunk of chunks) {
+        const promises = chunk.map(file => processFile(file));
+        await Promise.allSettled(promises);
+      }
+      
+      hideProgress();
+      updateResultsTable();
+      showResults();
+    }
+    
+    // ===== INTERFACE - TABELA DE RESULTADOS =====
+    function updateResultsTable() {
+      const tableBody = document.querySelector('#resultsTable tbody');
+      tableBody.innerHTML = '';
+      
+      if (extractedData.length === 0) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 7;
+        cell.textContent = 'Nenhum dado extraído.';
+        cell.style.textAlign = 'center';
+        row.appendChild(cell);
+        tableBody.appendChild(row);
+        return;
+      }
+      
+      extractedData.forEach((data, index) => {
+        const row = document.createElement('tr');
+        
+        // Se algum campo crítico está vazio, marca linha como erro
+        const hasError = !data.cnpj || !data.documento || !data.valor;
+        if (hasError) {
+          row.classList.add('error-row');
+        }
+        
+        // CNPJ Emitente
+        const cnpjCell = document.createElement('td');
+        cnpjCell.textContent = data.cnpj || '';
+        cnpjCell.contentEditable = 'true';
+        row.appendChild(cnpjCell);
+        
+        // Nome Emitente
+        const nomeCell = document.createElement('td');
+        nomeCell.textContent = data.nome || '';
+        nomeCell.contentEditable = 'true';
+        row.appendChild(nomeCell);
+        
+        // Data Emissão
+        const dataCell = document.createElement('td');
+        dataCell.textContent = data.data || '';
+        dataCell.contentEditable = 'true';
+        row.appendChild(dataCell);
+        
+        // Nº Documento
+        const docCell = document.createElement('td');
+        docCell.textContent = data.documento || '';
+        docCell.contentEditable = 'true';
+        row.appendChild(docCell);
+        
+        // Valor Total
+        const valorCell = document.createElement('td');
+        valorCell.textContent = data.valor || '';
+        valorCell.contentEditable = 'true';
+        row.appendChild(valorCell);
+        
+        // Descrição
+        const descCell = document.createElement('td');
+        descCell.textContent = data.descricao || '';
+        descCell.contentEditable = 'true';
+        row.appendChild(descCell);
+        
+        // Ações
+        const actionsCell = document.createElement('td');
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+        deleteBtn.addEventListener('click', () => {
+          extractedData.splice(index, 1);
+          updateResultsTable();
+          updateExportButton();
+        });
+        actionsCell.appendChild(deleteBtn);
+        row.appendChild(actionsCell);
+        
+        tableBody.appendChild(row);
+      });
+      
+      updateExportButton();
+    }
+    
+    // ===== INTERFACE - CONTROLES =====
+    function updateProgress() {
+      const progressFill = document.getElementById('progressFill');
+      const progressText = document.getElementById('progressText');
+      
+      const percentage = Math.round((processedFiles / totalFiles) * 100);
+      progressFill.style.width = `${percentage}%`;
+      progressText.textContent = `Processando arquivos... ${processedFiles}/${totalFiles} (${percentage}%)`;
+    }
+    
+    function showProgress() {
+      document.getElementById('progressSection').style.display = 'block';
+    }
+    
+    function hideProgress() {
+      document.getElementById('progressSection').style.display = 'none';
+    }
+    
+    function showResults() {
+      document.getElementById('resultsSection').style.display = 'block';
+    }
+    
+    function updateExportButton() {
+      const exportBtn = document.getElementById('exportBtn');
+      exportBtn.disabled = extractedData.length === 0;
+    }
+    
+    function toggleDebug() {
+      debugMode = !debugMode;
+      const debugSection = document.getElementById('debugSection');
+      debugSection.style.display = debugMode ? 'block' : 'none';
+      
+      if (!debugMode) {
+        document.getElementById('debugText').textContent = '';
+      }
+    }
+    
+    // ===== EXPORTAÇÃO PARA EXCEL =====
+    function exportToExcel() {
+      if (extractedData.length === 0) {
+        alert('Não há dados para exportar.');
+        return;
+      }
+      
+      // Atualiza dados com edições da tabela
+      const rows = document.querySelectorAll('#resultsTable tbody tr');
+      rows.forEach((row, index) => {
+        if (extractedData[index]) {
+          const cells = row.querySelectorAll('td[contenteditable="true"]');
+          extractedData[index].cnpj = cells[0]?.textContent.trim() || '';
+          extractedData[index].nome = cells[1]?.textContent.trim() || '';
+          extractedData[index].data = cells[2]?.textContent.trim() || '';
+          extractedData[index].documento = cells[3]?.textContent.trim() || '';
+          extractedData[index].valor = cells[4]?.textContent.trim() || '';
+          extractedData[index].descricao = cells[5]?.textContent.trim() || '';
+        }
+      });
+      
+      // Cria worksheet
+      const ws = XLSX.utils.json_to_sheet(extractedData.map(data => ({
+        'CNPJ Emitente': data.cnpj || '',
+        'Nome Emitente': data.nome || '',
+        'Data Emissão': data.data || '',
+        'Nº Documento': data.documento || '',
+        'Valor Total': data.valor || '',
+        'Descrição': data.descricao || '',
+        'Arquivo': data.filename || ''
+      })));
+      
+      // Cria workbook
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Despesas');
+      
+      // Gera nome do arquivo com data/hora
+      const now = new Date();
+      const dateStr = now.getFullYear() +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        String(now.getDate()).padStart(2, '0') + '_' +
+        String(now.getHours()).padStart(2, '0') +
+        String(now.getMinutes()).padStart(2, '0');
+      
+      const filename = `despesas_${dateStr}.xlsx`;
+      
+      // Salva arquivo
+      XLSX.writeFile(wb, filename);
+    }
+    
+    // ===== VERIFICAÇÃO DE BIBLIOTECAS =====
+    function checkLibraries() {
+      const status = {
+        pdfjs: typeof pdfjsLib !== 'undefined',
+        tesseract: typeof Tesseract !== 'undefined',
+        xlsx: typeof XLSX !== 'undefined'
+      };
+      
+      console.log('Status das bibliotecas:', status);
+      
+      if (!status.pdfjs) {
+        console.error('PDF.js não carregado.');
+      }
+      if (!status.tesseract) {
+        console.error('Tesseract.js não carregado.');
+      }
+      if (!status.xlsx) {
+        console.error('SheetJS não carregado.');
+      }
+      
+      return status.pdfjs && status.tesseract && status.xlsx;
+    }
+    
+    // ===== EVENT LISTENERS =====
+    document.addEventListener('DOMContentLoaded', function() {
+      // Verifica bibliotecas após delay
+      setTimeout(() => {
+        const librariesLoaded = checkLibraries();
+        if (!librariesLoaded) {
+          alert('Algumas bibliotecas não carregaram. Verifique sua conexão e recarregue a página.');
+        }
+      }, 2000);
+      
+      const uploadSection = document.getElementById('uploadSection');
+      const fileInput = document.getElementById('fileInput');
+      const exportBtn = document.getElementById('exportBtn');
+      
+      // Drag and drop
+      uploadSection.addEventListener('dragover', handleDragOver);
+      uploadSection.addEventListener('dragleave', handleDragLeave);
+      uploadSection.addEventListener('drop', handleDrop);
+      
+      // File input
+      fileInput.addEventListener('change', function(e) {
+        handleFiles(Array.from(e.target.files));
+      });
+      
+      // Export button
+      exportBtn.addEventListener('click', exportToExcel);
+      
+      // Edição de células - salva no cache quando nome é editado
+      document.addEventListener('blur', function(e) {
+        if (e.target && e.target.contentEditable === 'true' && e.target.parentElement) {
+          const headerCells = e.target.parentElement.parentElement.parentElement.querySelectorAll('th');
+          const colIndex = Array.from(e.target.parentElement.children).indexOf(e.target);
+          
+          if (headerCells[colIndex] && /Nome Emitente/i.test(headerCells[colIndex].textContent)) {
+            const cnpjCell = e.target.parentElement.querySelector('td');
+            const cnpj = cnpjCell?.textContent.trim();
+            const nome = e.target.textContent.trim();
+            
+            if (cnpj && nome) {
+              cacheEmitenteName(cnpj, nome);
+            }
+          }
+        }
+      }, true);
+      
+      // Atualiza dados quando célula é editada
+      document.addEventListener('input', function(e) {
+        if (e.target.contentEditable === 'true') {
+          const row = e.target.parentElement;
+          const table = row.parentElement.parentElement;
+          const rowIndex = Array.from(table.querySelectorAll('tbody tr')).indexOf(row);
+          const cellIndex = Array.from(row.querySelectorAll('td[contenteditable="true"]')).indexOf(e.target);
+          
+          if (extractedData[rowIndex]) {
+            const fields = ['cnpj', 'nome', 'data', 'documento', 'valor', 'descricao'];
+            if (fields[cellIndex]) {
+              extractedData[rowIndex][fields[cellIndex]] = e.target.textContent.trim();
+            }
+          }
+        }
+      });
+    });
+    
+    // ===== DRAG AND DROP HANDLERS =====
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.currentTarget.classList.add('dragover');
+    }
+    
+    function handleDragLeave(e) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('dragover');
+    }
+    
+    function handleDrop(e) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('dragover');
+      const files = Array.from(e.dataTransfer.files);
+      handleFiles(files);
+    }
+    
+    // ===== ESPERA CARREGAMENTO DAS BIBLIOTECAS =====
+    (function waitForLibs(retries = 20) {
+      const ok = typeof pdfjsLib !== 'undefined' && 
+                 typeof Tesseract !== 'undefined' && 
+                 typeof XLSX !== 'undefined';
+      
+      if (ok) {
+        console.log('Bibliotecas locais carregadas OK');
+        if (typeof checkLibraries === 'function') checkLibraries();
+        return;
+      }
+      
+      if (retries > 0) {
+        setTimeout(() => waitForLibs(retries - 1), 300);
+      } else {
+        console.error('Não foi possível carregar todas as bibliotecas locais.');
+      }
+    })();
+  </script>
+</body>
+</html>
