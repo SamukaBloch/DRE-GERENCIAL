@@ -538,8 +538,24 @@ footer a:hover {
       // Valores monetários - ultra específico
       money: /\b\d{1,3}(?:\.\d{3})*,\d{2}\b/g,
       
-      // Placas de veículos - padrão antigo e novo
-      placa: /\b([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2}|[A-Z]{3}[-\s]?\d{4})\b/gi,
+      // Placas de veículos - ULTRA ROBUSTA - múltiplos padrões
+      placa: [
+        // Padrão novo: ABC1D23
+        /\b([A-Z]{3}\d[A-Z]\d{2})\b/gi,
+        // Padrão antigo: ABC-1234 ou ABC 1234
+        /\b([A-Z]{3}[-\s]?\d{4})\b/gi,
+        // Variações específicas encontradas em NFS-e
+        /PLACA[:\s]*([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2})/gi,
+        /PLACA[:\s]*([A-Z]{3}[-\s]?\d{4})/gi,
+        /placa\s*[=:]\s*([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2})/gi,
+        /placa\s*[=:]\s*([A-Z]{3}[-\s]?\d{4})/gi,
+        // Padrões sem prefixo "PLACA"
+        /\b([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2})\b/gi,
+        /\b([A-Z]{3}[-\s]?\d{4})\b/gi,
+        // Variações específicas do documento exemplo
+        /VEICULO[:\s]*CAMINH[AÃ]O\s+PLACA[:\s]*([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2})/gi,
+        /CAMINH[AÃ]O\s+PLACA[:\s]*([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2})/gi
+      ],
       
       // Número de documento - super específico
       docNumber: [
@@ -550,6 +566,66 @@ footer a:hover {
         /Documento\s*[n°º]?\s*[:\-]?\s*(\d{3,10})/gi
       ]
     };
+    
+    // ===== ULTRA EXTRAÇÃO DE PLACA - FUNÇÃO ESPECÍFICA =====
+    function extractPlacaFromText(text) {
+      console.log('Buscando placa no texto...');
+      
+      // Busca por todos os padrões de placa
+      for (const pattern of PATTERNS.placa) {
+        const matches = [...text.matchAll(pattern)];
+        for (const match of matches) {
+          let placa = match[1] || match[0];
+          
+          // Limpa e normaliza a placa
+          placa = placa.toUpperCase()
+                      .replace(/[-\s]/g, '')
+                      .trim();
+          
+          // Valida se é uma placa válida
+          if (isValidPlaca(placa)) {
+            console.log('Placa encontrada:', placa);
+            return placa;
+          }
+        }
+      }
+      
+      // Busca adicional por padrões específicos no contexto
+      const contextPatterns = [
+        /VEICULO[^:\n]*([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2})/gi,
+        /CAMINH[AÃ]O[^:\n]*([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2})/gi,
+        /FONTE[^:\n]*([A-Z]{3}[-\s]?\d[A-Z0-9]\d{2})/gi
+      ];
+      
+      for (const pattern of contextPatterns) {
+        const matches = [...text.matchAll(pattern)];
+        for (const match of matches) {
+          let placa = match[1];
+          placa = placa.toUpperCase().replace(/[-\s]/g, '').trim();
+          
+          if (isValidPlaca(placa)) {
+            console.log('Placa encontrada por contexto:', placa);
+            return placa;
+          }
+        }
+      }
+      
+      console.log('Nenhuma placa encontrada');
+      return '';
+    }
+    
+    // ===== VALIDADOR DE PLACA =====
+    function isValidPlaca(placa) {
+      if (!placa || placa.length < 7) return false;
+      
+      // Padrão novo: ABC1D23
+      if (/^[A-Z]{3}\d[A-Z]\d{2}$/.test(placa)) return true;
+      
+      // Padrão antigo: ABC1234
+      if (/^[A-Z]{3}\d{4}$/.test(placa)) return true;
+      
+      return false;
+    }
     
     // ===== ULTRA EXTRAÇÃO DE NOME DO EMITENTE =====
     function extractEmitenteNameUltra(text, cnpj) {
@@ -683,8 +759,14 @@ footer a:hover {
       return '';
     }
     
-    // ===== ULTRA EXTRAÇÃO DE DESCRIÇÃO =====
+    // ===== ULTRA EXTRAÇÃO DE DESCRIÇÃO COM PLACA =====
     function extractDescriptionUltra(text) {
+      console.log('Iniciando extração de descrição...');
+      
+      // Primeiro, busca a placa em todo o documento
+      const placa = extractPlacaFromText(text);
+      console.log('Placa encontrada:', placa);
+      
       // Padrões específicos para descrição
       const descriptionPatterns = [
         /DESCRI[ÇC][ÃA]O\s+DOS?\s+SERVI[ÇC]OS?\s+PRESTADOS?[^:\n]*:?\s*([\s\S]{10,400}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|Base|Al[ií]quota|TOTAL|$)/gi,
@@ -693,13 +775,15 @@ footer a:hover {
         /Servi[çc]o\s+Prestado[^:\n]*:?\s*([\s\S]{10,300}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi
       ];
       
+      let description = '';
+      
       for (const pattern of descriptionPatterns) {
         const matches = [...text.matchAll(pattern)];
         for (const match of matches) {
-          let description = match[1].trim();
+          let desc = match[1].trim();
           
           // Limpa a descrição
-          description = description
+          desc = desc
             .replace(/\n+/g, ' ')
             .replace(/\s+/g, ' ')
             .replace(/^[:\-\s]+|[:\-\s]+$/g, '')
@@ -707,506 +791,317 @@ footer a:hover {
             .replace(/quantidade.*$/i, '')
             .replace(/al[ií]quota.*$/i, '')
             .replace(/você\s+pagou\s+aproximadamente.*$/i, '')
+            .replace(/fonte[:\s]*ibpt.*$/i, '')
             .trim();
           
-          if (description.length > 8 && description.length < 300) {
-            // Busca por placa na descrição
-            const placaMatch = description.match(PATTERNS.placa);
-            if (placaMatch) {
-              const placa = placaMatch[0].toUpperCase().replace(/[-\s]/g, '');
-              const cleanDesc = description.toLowerCase().replace(placaMatch[0], '').trim();
-              return `${placa} – ${cleanDesc}`.substring(0, 120);
-            }
+          if (desc && desc.length > 5) {
+            description = desc;
+            break;
+          }
+        }
+      }
+      
+      // Se não encontrou descrição, tenta buscar por contexto de veículo
+      if (!description) {
+        const vehiclePatterns = [
+          /(?:VEICULO|CAMINH[AÃ]O|FONTE|VEICULOS?)[^:\n]*:?\s*([\s\S]{10,200}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi,
+          /(?:MANUTENC[AÃ]O|REPARO|CONSERTO|PINTURA|SERVICO)[^:\n]*:?\s*([\s\S]{10,200}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi
+        ];
+        
+        for (const pattern of vehiclePatterns) {
+          const matches = [...text.matchAll(pattern)];
+          for (const match of matches) {
+            let desc = match[1].trim()
+              .replace(/\n+/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
             
-            return description.toLowerCase().substring(0, 120);
+            if (desc && desc.length > 5) {
+              description = desc;
+              break;
+            }
           }
+          if (description) break;
         }
       }
       
-      // Fallback: busca por padrões específicos conhecidos
-      const specificServicePatterns = [
-        /PINTURA\s+DE\s+\d+\s+RODAS?/gi,
-        /FUNILARIA\s+E?\s*LANTERNAGEM/gi,
-        /REPARO\s+DE\s+LATARIA/gi,
-        /SERVI[ÇC]OS?\s+AUTOMOTIVOS?/gi,
-        /MANUTEN[ÇC][ÃA]O\s+.*?CAMINH[ÃA]O/gi
-      ];
-      
-      for (const pattern of specificServicePatterns) {
-        const match = text.match(pattern);
-        if (match) {
-          let service = match[0].toLowerCase();
+      // Formatação final da descrição
+      if (description) {
+        // Limita a 120 caracteres
+        if (description.length > 120) {
+          description = description.substring(0, 117) + '...';
+        }
+        
+        // Se temos placa, formata como "PLACA - descrição"
+        if (placa) {
+          // Remove a placa da descrição se já estiver lá
+          description = description.replace(new RegExp(placa, 'gi'), '').trim();
+          description = description.replace(/^[-\s]+|[-\s]+$/g, '');
           
-          // Busca placa próxima
-          const contextStart = Math.max(0, text.indexOf(match[0]) - 100);
-          const contextEnd = Math.min(text.length, text.indexOf(match[0]) + match[0].length + 100);
-          const context = text.substring(contextStart, contextEnd);
-          
-          const placaMatch = context.match(PATTERNS.placa);
-          if (placaMatch) {
-            const placa = placaMatch[0].toUpperCase().replace(/[-\s]/g, '');
-            return `${placa} – ${service}`;
+          // Formata final
+          if (description) {
+            description = `${placa} – ${description}`;
+          } else {
+            description = `${placa} – serviços automotivos`;
           }
-          
-          return service;
+        }
+        
+        // Converte para minúsculas exceto a placa
+        if (placa) {
+          const parts = description.split(' – ');
+          if (parts.length === 2) {
+            description = `${parts[0]} – ${parts[1].toLowerCase()}`;
+          }
+        } else {
+          description = description.toLowerCase();
+        }
+      } else {
+        // Se não encontrou nada, usa a placa se disponível
+        if (placa) {
+          description = `${placa} – serviços não especificados`;
+        } else {
+          description = 'serviços não especificados';
+        }
+      }
+      
+      console.log('Descrição final:', description);
+      return description;
+    }
+    
+    // ===== EXTRAÇÃO DE CNPJ DO EMITENTE =====
+    function extractCNPJEmitente(text) {
+      const cnpjMatches = [...text.matchAll(PATTERNS.cnpj)];
+      const companyCnpjClean = COMPANY_CNPJ.replace(/\D/g, '');
+      
+      for (const match of cnpjMatches) {
+        const cnpj = match[0];
+        const cnpjClean = cnpj.replace(/\D/g, '');
+        
+        // Ignora o CNPJ da empresa
+        if (cnpjClean !== companyCnpjClean) {
+          return formatCNPJ(cnpjClean);
         }
       }
       
       return '';
     }
     
-    // ===== ULTRA EXTRAÇÃO DE VALOR =====
-    function extractValueUltra(text) {
-      // Padrões específicos para valor total
-      const valuePatterns = [
-        /Valor\s+Total[^:\n]*:?\s*([\d.,]+)/gi,
-        /VALOR\s+TOTAL[^:\n]*:?\s*([\d.,]+)/gi,
-        /Total[^:\n]*:?\s*([\d.,]+)/gi,
-        /Valor\s+L[ií]quido[^:\n]*:?\s*([\d.,]+)/gi,
-        /Valor\s+do\s+Servi[çc]o[^:\n]*:?\s*([\d.,]+)/gi,
-        /Valor\s+Servi[çc]o[^:\n]*:?\s*([\d.,]+)/gi
-      ];
-      
-      const foundValues = [];
-      
-      for (const pattern of valuePatterns) {
-        const matches = [...text.matchAll(pattern)];
-        for (const match of matches) {
-          const value = match[1].replace(/\s/g, '');
-          if (/^\d{1,3}(?:\.\d{3})*,\d{2}$/.test(value)) {
-            foundValues.push(value);
-          }
-        }
-      }
-      
-      // Se encontrou valores específicos, retorna o maior
-      if (foundValues.length > 0) {
-        return foundValues.sort((a, b) => {
-          const numA = parseFloat(a.replace(/\./g, '').replace(',', '.'));
-          const numB = parseFloat(b.replace(/\./g, '').replace(',', '.'));
-          return numB - numA;
-        })[0];
-      }
-      
-      // Fallback: busca todos os valores monetários
-      const allValues = [...text.matchAll(PATTERNS.money)];
-      if (allValues.length > 0) {
-        return allValues
-          .map(m => m[0])
-          .sort((a, b) => {
-            const numA = parseFloat(a.replace(/\./g, '').replace(',', '.'));
-            const numB = parseFloat(b.replace(/\./g, '').replace(',', '.'));
-            return numB - numA;
-          })[0];
-      }
-      
-      return '';
-    }
-    
-    // ===== ULTRA EXTRAÇÃO DE DATA =====
-    function extractDateUltra(text) {
-      // Padrões específicos para data de emissão
-      const datePatterns = [
-        /Data[^:\n]*Emiss[ãa]o[^:\n]*:?\s*(\d{2}\/\d{2}\/\d{4})/gi,
-        /Data\/Hora\s+Emiss[ãa]o[^:\n]*:?\s*(\d{2}\/\d{2}\/\d{4})/gi,
-        /Emiss[ãa]o[^:\n]*:?\s*(\d{2}\/\d{2}\/\d{4})/gi,
-        /Data\s+Fato\s+Gerador[^:\n]*:?\s*(\d{2}\/\d{2}\/\d{4})/gi,
-        /Data\s+da\s+Emiss[ãa]o[^:\n]*:?\s*(\d{2}\/\d{2}\/\d{4})/gi
-      ];
-      
-      for (const pattern of datePatterns) {
-        const match = text.match(pattern);
-        if (match && match[1]) {
-          return match[1];
-        }
-      }
-      
-      // Fallback: primeira data encontrada no documento
+    // ===== EXTRAÇÃO DE DATA DE EMISSÃO =====
+    function extractDataEmissao(text) {
       for (const pattern of PATTERNS.dateFormats) {
         const matches = [...text.matchAll(pattern)];
-        if (matches.length > 0) {
-          let date = matches[0][1];
-          
-          // Converte formato ISO para BR se necessário
-          if (date.includes('-')) {
-            const parts = date.split('-');
-            if (parts.length === 3 && parts[0].length === 4) {
-              date = `${parts[2]}/${parts[1]}/${parts[0]}`;
-            }
+        for (const match of matches) {
+          const date = match[1];
+          if (isValidDate(date)) {
+            return formatDate(date);
           }
-          
-          return date;
         }
       }
-      
       return '';
     }
     
-    // ===== EXTRAÇÃO PRINCIPAL DE DADOS =====
-    function extractDataFromText(text, filename) {
-      if (text.length < 50) {
-        console.warn('Texto muito curto para extração:', filename);
-        return null;
-      }
+    // ===== EXTRAÇÃO DE VALOR TOTAL =====
+    function extractValorTotal(text) {
+      const moneyMatches = [...text.matchAll(PATTERNS.money)];
       
-      if (debugMode) {
-        document.getElementById('debugText').textContent = text.substring(0, 2000);
-        document.getElementById('debugSection').style.display = 'block';
-      }
+      if (moneyMatches.length === 0) return '';
       
-      // 1. EXTRAI TODOS OS CNPJs
-      const allCnpjs = [...text.matchAll(PATTERNS.cnpj)]
-        .map(match => match[0])
-        .map(cnpj => cnpj.replace(/[\s\-\.]/g, '').replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5'));
-      
-      console.log('CNPJs encontrados:', allCnpjs);
-      
-      // 2. FILTRA CNPJ DO EMITENTE (não é o da empresa)
-      const companyCnpjClean = COMPANY_CNPJ.replace(/[\s\-\.\/]/g, '');
-      const emitenteCnpj = allCnpjs.find(cnpj => {
-        const cnpjClean = cnpj.replace(/[\s\-\.\/]/g, '');
-        return cnpjClean !== companyCnpjClean;
+      // Converte todos os valores para número para comparação
+      const values = moneyMatches.map(match => {
+        const valueStr = match[0];
+        return {
+          original: valueStr,
+          numeric: parseFloat(valueStr.replace(/\./g, '').replace(',', '.'))
+        };
       });
       
-      if (!emitenteCnpj) {
-        console.warn('CNPJ do emitente não encontrado:', filename);
-        return null;
-      }
+      // Retorna o maior valor
+      const maxValue = values.reduce((max, current) => 
+        current.numeric > max.numeric ? current : max
+      );
       
-      console.log('CNPJ do emitente:', emitenteCnpj);
-      
-      // 3. EXTRAI OUTROS DADOS
-      const emitenteNome = extractEmitenteNameUltra(text, emitenteCnpj);
-      const dataEmissao = extractDateUltra(text);
-      const numeroDocumento = extractDocumentNumberUltra(text);
-      const valorTotal = extractValueUltra(text);
-      const descricao = extractDescriptionUltra(text);
-      
-      console.log('Dados extraídos:', {
-        cnpj: emitenteCnpj,
-        nome: emitenteNome,
-        data: dataEmissao,
-        documento: numeroDocumento,
-        valor: valorTotal,
-        descricao: descricao
-      });
-      
-      return {
-        cnpj: emitenteCnpj,
-        nome: emitenteNome,
-        data: dataEmissao,
-        documento: numeroDocumento,
-        valor: valorTotal,
-        descricao: descricao,
-        filename: filename
-      };
+      return maxValue.original;
     }
     
-    // ===== EXTRAÇÃO DE TEXTO DO PDF - MELHORADA =====
-    async function extractTextFromPDF(file) {
-      return new Promise(async (resolve, reject) => {
-        try {
-          const arrayBuffer = await file.arrayBuffer();
-          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-          
-          let fullText = '';
-          
-          for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const textContent = await page.getTextContent();
-            
-            // Agrupa os itens por coordenada Y para reconstruir linhas reais
-            const lineBuckets = {};
-            textContent.items.forEach(item => {
-              const y = Math.round(item.transform[5]);  // posição vertical
-              const x = item.transform[4];              // posição horizontal
-              if (!lineBuckets[y]) lineBuckets[y] = [];
-              lineBuckets[y].push({ x, str: item.str });
-            });
-            
-            // Ordena por posição vertical (topo para baixo)
-            const orderedY = Object.keys(lineBuckets)
-              .map(n => parseFloat(n))
-              .sort((a, b) => b - a);
-            
-            // Reconstrói as linhas ordenando horizontalmente
-            const lines = orderedY.map(y => {
-              return lineBuckets[y]
-                .sort((a, b) => a.x - b.x)
-                .map(t => t.str)
-                .join(' ')
-                .trim();
-            });
-            
-            const pageText = lines.join('\n');
-            fullText += pageText + '\n';
-          }
-          
-          resolve(fullText);
-        } catch (error) {
-          console.error('Erro ao extrair texto do PDF:', error);
-          reject(error);
-        }
-      });
+    // ===== FUNÇÕES AUXILIARES =====
+    function formatCNPJ(cnpj) {
+      return cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
     }
     
-    // ===== EXTRAÇÃO DE TEXTO DA IMAGEM - MELHORADA =====
-    async function extractTextFromImage(file) {
-      return new Promise(async (resolve, reject) => {
-        try {
-          // Pré-processamento da imagem para melhorar OCR
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          const img = new Image();
-          
-          img.onload = async () => {
-            canvas.width = img.width;
-            canvas.height = img.height;
-            
-            // Desenha a imagem
-            ctx.drawImage(img, 0, 0);
-            
-            // Converte para grayscale
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imageData.data;
-            
-            for (let i = 0; i < data.length; i += 4) {
-              const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-              data[i] = gray;     // R
-              data[i + 1] = gray; // G
-              data[i + 2] = gray; // B
-            }
-            
-            ctx.putImageData(imageData, 0, 0);
-            
-            // Executa OCR na imagem processada
-            const worker = await Tesseract.createWorker('por');
-            await worker.setParameters({
-              tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝàáâãäçèéêëìíîïñòóôõöùúûüý.,/:-() ',
-            });
-            
-            const result = await worker.recognize(canvas);
-            
-            await worker.terminate();
-            resolve(result.data.text);
-          };
-          
-          img.onerror = () => {
-            reject(new Error('Erro ao carregar imagem'));
-          };
-          
-          const imageUrl = URL.createObjectURL(file);
-          img.src = imageUrl;
-          
-          // Limpa URL após uso
-          setTimeout(() => URL.revokeObjectURL(imageUrl), 10000);
-          
-        } catch (error) {
-          console.error('Erro ao extrair texto da imagem:', error);
-          reject(error);
+    function isValidDate(dateStr) {
+      const formats = [
+        /^\d{2}\/\d{2}\/\d{4}$/,
+        /^\d{4}-\d{2}-\d{2}$/,
+        /^\d{2}-\d{2}-\d{4}$/
+      ];
+      
+      return formats.some(format => format.test(dateStr));
+    }
+    
+    function formatDate(dateStr) {
+      // Converte para formato dd/mm/yyyy
+      if (dateStr.includes('-')) {
+        const parts = dateStr.split('-');
+        if (parts[0].length === 4) {
+          // yyyy-mm-dd -> dd/mm/yyyy
+          return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        } else {
+          // dd-mm-yyyy -> dd/mm/yyyy
+          return dateStr.replace(/-/g, '/');
         }
-      });
+      }
+      
+      return dateStr; // já está em dd/mm/yyyy
     }
     
     // ===== PROCESSAMENTO DE ARQUIVOS =====
-    async function processFile(file) {
-      try {
-        let text = '';
-        
-        if (file.type === 'application/pdf') {
-          text = await extractTextFromPDF(file);
-        } else if (file.type.startsWith('image/')) {
-          text = await extractTextFromImage(file);
-        } else {
-          console.warn('Tipo de arquivo não suportado:', file.type);
-          return;
-        }
-        
-        // Extrai dados do texto
-        const data = extractDataFromText(text, file.name);
-        
-        if (data) {
-          // Tenta preencher nome via API se estiver vazio
-          if (!data.nome && data.cnpj) {
-            const nomeAPI = await fetchEmitenteNameFromAPI(data.cnpj);
-            if (nomeAPI) {
-              data.nome = nomeAPI;
-              cacheEmitenteName(data.cnpj, nomeAPI);
-            }
-          }
-          
-          extractedData.push(data);
-        }
-        
-        processedFiles++;
-        updateProgress();
-        
-      } catch (error) {
-        console.error('Erro ao processar arquivo:', file.name, error);
-        processedFiles++;
-        updateProgress();
-      }
-    }
-    
-    // ===== BUSCA NOME VIA API PÚBLICA =====
-    async function fetchEmitenteNameFromAPI(cnpj) {
-      const digits = cnpj.replace(/[^0-9]/g, '');
-      if (digits.length !== 14) return '';
-      
-      const endpoints = [
-        `https://publica.cnpj.ws/cnpj/${digits}`,
-        `https://api-publica.speedio.com.br/buscarcnpj?cnpj=${digits}`
-      ];
-      
-      for (const url of endpoints) {
-        try {
-          const response = await fetch(url, { mode: 'cors' });
-          if (!response.ok) continue;
-          
-          const data = await response.json();
-          let nome = '';
-          
-          if (data.razao_social) {
-            nome = data.razao_social;
-          } else if (data.NOME_EMPRESARIAL) {
-            nome = data.NOME_EMPRESARIAL;
-          } else if (data.nome_fantasia) {
-            nome = data.nome_fantasia;
-          }
-          
-          nome = (nome || '').trim();
-          if (nome) return nome;
-          
-        } catch (error) {
-          console.warn('API CNPJ falhou para', url, error);
-        }
-      }
-      
-      return '';
-    }
-    
-    // ===== MANIPULAÇÃO DE ARQUIVOS =====
     async function handleFiles(files) {
-      if (files.length === 0) return;
-      
-      if (!checkLibraries()) {
-        alert('Bibliotecas necessárias não estão disponíveis. Recarregue a página e tente novamente.');
-        return;
-      }
-      
       totalFiles = files.length;
       processedFiles = 0;
       extractedData = [];
       
       showProgress();
-      updateProgress();
       
-      // Processa arquivos com máximo 3 operações concorrentes
-      const chunks = [];
-      for (let i = 0; i < files.length; i += 3) {
-        chunks.push(files.slice(i, i + 3));
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        updateProgress(i, totalFiles, `Processando ${file.name}...`);
+        
+        try {
+          let extractedText = '';
+          
+          if (file.type === 'application/pdf') {
+            extractedText = await processPDF(file);
+          } else if (file.type.startsWith('image/')) {
+            extractedText = await processImage(file);
+          }
+          
+          if (extractedText) {
+            const data = extractDataFromText(extractedText, file.name);
+            if (data.cnpj_emitente || data.nome_emitente) {
+              extractedData.push(data);
+              addRowToTable(data);
+            }
+            
+            if (debugMode) {
+              updateDebugText(extractedText);
+            }
+          }
+        } catch (error) {
+          console.error(`Erro ao processar ${file.name}:`, error);
+          const errorData = {
+            filename: file.name,
+            cnpj_emitente: 'ERRO',
+            nome_emitente: 'Erro no processamento',
+            data_emissao: '',
+            numero_documento: '',
+            valor_total: '',
+            descricao: error.message || 'Erro desconhecido'
+          };
+          extractedData.push(errorData);
+          addRowToTable(errorData, true);
+        }
+        
+        processedFiles++;
       }
       
-      for (const chunk of chunks) {
-        const promises = chunk.map(file => processFile(file));
-        await Promise.allSettled(promises);
-      }
-      
-      hideProgress();
-      updateResultsTable();
+      updateProgress(totalFiles, totalFiles, 'Processamento concluído!');
+      setTimeout(hideProgress, 2000);
+      enableExportIfAny();
       showResults();
     }
     
-    // ===== INTERFACE - TABELA DE RESULTADOS =====
-    function updateResultsTable() {
-      const tableBody = document.querySelector('#resultsTable tbody');
-      tableBody.innerHTML = '';
+    // ===== PROCESSAMENTO DE PDF =====
+    async function processPDF(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+      let fullText = '';
       
-      if (extractedData.length === 0) {
-        const row = document.createElement('tr');
-        const cell = document.createElement('td');
-        cell.colSpan = 7;
-        cell.textContent = 'Nenhum dado extraído.';
-        cell.style.textAlign = 'center';
-        row.appendChild(cell);
-        tableBody.appendChild(row);
-        return;
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str).join(' ');
+        fullText += pageText + '\n\n';
       }
       
-      extractedData.forEach((data, index) => {
-        const row = document.createElement('tr');
-        
-        // Se algum campo crítico está vazio, marca linha como erro
-        const hasError = !data.cnpj || !data.documento || !data.valor;
-        if (hasError) {
-          row.classList.add('error-row');
+      return fullText;
+    }
+    
+    // ===== PROCESSAMENTO DE IMAGEM =====
+    async function processImage(file) {
+      // Pré-processamento da imagem
+      const processedImage = await preprocessImage(file);
+      
+      // OCR com Tesseract
+      const { data: { text } } = await Tesseract.recognize(
+        processedImage,
+        'por+eng',
+        {
+          logger: m => console.log(m),
+          tessedit_ocr_engine_mode: 2,
+          tessedit_pageseg_mode: 1
         }
+      );
+      
+      return text;
+    }
+    
+    // ===== PRÉ-PROCESSAMENTO DE IMAGEM =====
+    async function preprocessImage(file) {
+      return new Promise((resolve) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
         
-        // CNPJ Emitente
-        const cnpjCell = document.createElement('td');
-        cnpjCell.textContent = data.cnpj || '';
-        cnpjCell.contentEditable = 'true';
-        row.appendChild(cnpjCell);
+        img.onload = () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          
+          // Desenha a imagem
+          ctx.drawImage(img, 0, 0);
+          
+          // Converte para grayscale
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imageData.data;
+          
+          for (let i = 0; i < data.length; i += 4) {
+            const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+            data[i] = gray;
+            data[i + 1] = gray;
+            data[i + 2] = gray;
+          }
+          
+          ctx.putImageData(imageData, 0, 0);
+          resolve(canvas);
+        };
         
-        // Nome Emitente
-        const nomeCell = document.createElement('td');
-        nomeCell.textContent = data.nome || '';
-        nomeCell.contentEditable = 'true';
-        row.appendChild(nomeCell);
-        
-        // Data Emissão
-        const dataCell = document.createElement('td');
-        dataCell.textContent = data.data || '';
-        dataCell.contentEditable = 'true';
-        row.appendChild(dataCell);
-        
-        // Nº Documento
-        const docCell = document.createElement('td');
-        docCell.textContent = data.documento || '';
-        docCell.contentEditable = 'true';
-        row.appendChild(docCell);
-        
-        // Valor Total
-        const valorCell = document.createElement('td');
-        valorCell.textContent = data.valor || '';
-        valorCell.contentEditable = 'true';
-        row.appendChild(valorCell);
-        
-        // Descrição
-        const descCell = document.createElement('td');
-        descCell.textContent = data.descricao || '';
-        descCell.contentEditable = 'true';
-        row.appendChild(descCell);
-        
-        // Ações
-        const actionsCell = document.createElement('td');
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-btn';
-        deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-        deleteBtn.addEventListener('click', () => {
-          extractedData.splice(index, 1);
-          updateResultsTable();
-          updateExportButton();
-        });
-        actionsCell.appendChild(deleteBtn);
-        row.appendChild(actionsCell);
-        
-        tableBody.appendChild(row);
+        img.src = URL.createObjectURL(file);
       });
-      
-      updateExportButton();
     }
     
-    // ===== INTERFACE - CONTROLES =====
-    function updateProgress() {
-      const progressFill = document.getElementById('progressFill');
-      const progressText = document.getElementById('progressText');
+    // ===== EXTRAÇÃO DE DADOS DO TEXTO =====
+    function extractDataFromText(text, filename) {
+      console.log(`Extraindo dados de ${filename}...`);
       
-      const percentage = Math.round((processedFiles / totalFiles) * 100);
-      progressFill.style.width = `${percentage}%`;
-      progressText.textContent = `Processando arquivos... ${processedFiles}/${totalFiles} (${percentage}%)`;
+      const data = {
+        filename: filename,
+        cnpj_emitente: extractCNPJEmitente(text),
+        nome_emitente: '',
+        data_emissao: extractDataEmissao(text),
+        numero_documento: extractDocumentNumberUltra(text),
+        valor_total: extractValorTotal(text),
+        descricao: extractDescriptionUltra(text)
+      };
+      
+      // Extrai nome do emitente baseado no CNPJ
+      if (data.cnpj_emitente) {
+        data.nome_emitente = extractEmitenteNameUltra(text, data.cnpj_emitente);
+      }
+      
+      console.log('Dados extraídos:', data);
+      return data;
     }
     
+    // ===== INTERFACE DE PROGRESSO =====
     function showProgress() {
       document.getElementById('progressSection').style.display = 'block';
     }
@@ -1215,197 +1110,162 @@ footer a:hover {
       document.getElementById('progressSection').style.display = 'none';
     }
     
+    function updateProgress(current, total, message) {
+      const percentage = Math.round((current / total) * 100);
+      document.getElementById('progressFill').style.width = percentage + '%';
+      document.getElementById('progressText').textContent = `${message} (${current}/${total})`;
+    }
+    
     function showResults() {
       document.getElementById('resultsSection').style.display = 'block';
     }
     
-    function updateExportButton() {
-      const exportBtn = document.getElementById('exportBtn');
-      exportBtn.disabled = extractedData.length === 0;
+    // ===== TABELA DE RESULTADOS =====
+    function addRowToTable(data, isError = false) {
+      const tbody = document.querySelector('#resultsTable tbody');
+      const row = document.createElement('tr');
+      
+      if (isError) {
+        row.className = 'error-row';
+      }
+      
+      row.innerHTML = `
+        <td contenteditable="true">${data.cnpj_emitente || ''}</td>
+        <td contenteditable="true">${data.nome_emitente || ''}</td>
+        <td contenteditable="true">${data.data_emissao || ''}</td>
+        <td contenteditable="true">${data.numero_documento || ''}</td>
+        <td contenteditable="true">${data.valor_total || ''}</td>
+        <td contenteditable="true">${data.descricao || ''}</td>
+        <td>
+          <button class="delete-btn" onclick="deleteRow(this)" title="Excluir linha">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      `;
+      
+      tbody.appendChild(row);
     }
     
-    function toggleDebug() {
-      debugMode = !debugMode;
-      const debugSection = document.getElementById('debugSection');
-      debugSection.style.display = debugMode ? 'block' : 'none';
+    function deleteRow(button) {
+      const row = button.closest('tr');
+      const index = Array.from(row.parentNode.children).indexOf(row);
       
-      if (!debugMode) {
-        document.getElementById('debugText').textContent = '';
-      }
+      row.remove();
+      extractedData.splice(index, 1);
+      enableExportIfAny();
+    }
+    
+    function enableExportIfAny() {
+      const hasData = document.querySelector('#resultsTable tbody tr');
+      document.getElementById('exportBtn').disabled = !hasData;
     }
     
     // ===== EXPORTAÇÃO PARA EXCEL =====
     function exportToExcel() {
-      if (extractedData.length === 0) {
-        alert('Não há dados para exportar.');
-        return;
-      }
+      const table = document.getElementById('resultsTable');
+      const rows = Array.from(table.querySelectorAll('tbody tr'));
       
-      // Atualiza dados com edições da tabela
-      const rows = document.querySelectorAll('#resultsTable tbody tr');
-      rows.forEach((row, index) => {
-        if (extractedData[index]) {
-          const cells = row.querySelectorAll('td[contenteditable="true"]');
-          extractedData[index].cnpj = cells[0]?.textContent.trim() || '';
-          extractedData[index].nome = cells[1]?.textContent.trim() || '';
-          extractedData[index].data = cells[2]?.textContent.trim() || '';
-          extractedData[index].documento = cells[3]?.textContent.trim() || '';
-          extractedData[index].valor = cells[4]?.textContent.trim() || '';
-          extractedData[index].descricao = cells[5]?.textContent.trim() || '';
-        }
+      const data = rows.map(row => {
+        const cells = Array.from(row.querySelectorAll('td[contenteditable]'));
+        return {
+          'CNPJ Emitente': cells[0].textContent.trim(),
+          'Nome Emitente': cells[1].textContent.trim(),
+          'Data Emissão': cells[2].textContent.trim(),
+          'Nº Documento': cells[3].textContent.trim(),
+          'Valor Total': cells[4].textContent.trim(),
+          'Descrição': cells[5].textContent.trim()
+        };
       });
       
-      // Cria worksheet
-      const ws = XLSX.utils.json_to_sheet(extractedData.map(data => ({
-        'CNPJ Emitente': data.cnpj || '',
-        'Nome Emitente': data.nome || '',
-        'Data Emissão': data.data || '',
-        'Nº Documento': data.documento || '',
-        'Valor Total': data.valor || '',
-        'Descrição': data.descricao || '',
-        'Arquivo': data.filename || ''
-      })));
-      
-      // Cria workbook
+      const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Despesas');
       
-      // Gera nome do arquivo com data/hora
       const now = new Date();
-      const dateStr = now.getFullYear() +
-        String(now.getMonth() + 1).padStart(2, '0') +
-        String(now.getDate()).padStart(2, '0') + '_' +
-        String(now.getHours()).padStart(2, '0') +
-        String(now.getMinutes()).padStart(2, '0');
+      const filename = `despesas_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.xlsx`;
       
-      const filename = `despesas_${dateStr}.xlsx`;
-      
-      // Salva arquivo
       XLSX.writeFile(wb, filename);
+    }
+    
+    // ===== DEBUG =====
+    function toggleDebug() {
+      debugMode = !debugMode;
+      const debugSection = document.getElementById('debugSection');
+      debugSection.style.display = debugMode ? 'block' : 'none';
+    }
+    
+    function updateDebugText(text) {
+      document.getElementById('debugText').textContent = text.substring(0, 5000) + (text.length > 5000 ? '\n... (texto truncado)' : '');
     }
     
     // ===== VERIFICAÇÃO DE BIBLIOTECAS =====
     function checkLibraries() {
-      const status = {
-        pdfjs: typeof pdfjsLib !== 'undefined',
-        tesseract: typeof Tesseract !== 'undefined',
-        xlsx: typeof XLSX !== 'undefined'
-      };
-      
-      console.log('Status das bibliotecas:', status);
-      
-      if (!status.pdfjs) {
-        console.error('PDF.js não carregado.');
-      }
-      if (!status.tesseract) {
-        console.error('Tesseract.js não carregado.');
-      }
-      if (!status.xlsx) {
-        console.error('SheetJS não carregado.');
+      if (typeof pdfjsLib === 'undefined') {
+        console.error('PDF.js não carregado');
+        return false;
       }
       
-      return status.pdfjs && status.tesseract && status.xlsx;
+      if (typeof Tesseract === 'undefined') {
+        console.error('Tesseract.js não carregado');
+        return false;
+      }
+      
+      if (typeof XLSX === 'undefined') {
+        console.error('SheetJS não carregado');
+        return false;
+      }
+      
+      // Configura PDF.js
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.js';
+      
+      console.log('Todas as bibliotecas carregadas com sucesso');
+      return true;
     }
     
     // ===== EVENT LISTENERS =====
     document.addEventListener('DOMContentLoaded', function() {
-      // Verifica bibliotecas após delay
-      setTimeout(() => {
-        const librariesLoaded = checkLibraries();
-        if (!librariesLoaded) {
-          alert('Algumas bibliotecas não carregaram. Verifique sua conexão e recarregue a página.');
-        }
-      }, 2000);
+      // Verificar bibliotecas
+      setTimeout(checkLibraries, 100);
       
-      const uploadSection = document.getElementById('uploadSection');
+      // Upload de arquivos
       const fileInput = document.getElementById('fileInput');
+      const uploadSection = document.getElementById('uploadSection');
       const exportBtn = document.getElementById('exportBtn');
       
-      // Drag and drop
-      uploadSection.addEventListener('dragover', handleDragOver);
-      uploadSection.addEventListener('dragleave', handleDragLeave);
-      uploadSection.addEventListener('drop', handleDrop);
-      
-      // File input
       fileInput.addEventListener('change', function(e) {
-        handleFiles(Array.from(e.target.files));
+        if (e.target.files.length > 0) {
+          handleFiles(Array.from(e.target.files));
+        }
       });
       
-      // Export button
+      // Drag and drop
+      uploadSection.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadSection.classList.add('dragover');
+      });
+      
+      uploadSection.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadSection.classList.remove('dragover');
+      });
+      
+      uploadSection.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadSection.classList.remove('dragover');
+        
+        const files = Array.from(e.dataTransfer.files).filter(file => 
+          file.type === 'application/pdf' || file.type.startsWith('image/')
+        );
+        
+        if (files.length > 0) {
+          handleFiles(files);
+        }
+      });
+      
+      // Botão de exportar
       exportBtn.addEventListener('click', exportToExcel);
-      
-      // Edição de células - salva no cache quando nome é editado
-      document.addEventListener('blur', function(e) {
-        if (e.target && e.target.contentEditable === 'true' && e.target.parentElement) {
-          const headerCells = e.target.parentElement.parentElement.parentElement.querySelectorAll('th');
-          const colIndex = Array.from(e.target.parentElement.children).indexOf(e.target);
-          
-          if (headerCells[colIndex] && /Nome Emitente/i.test(headerCells[colIndex].textContent)) {
-            const cnpjCell = e.target.parentElement.querySelector('td');
-            const cnpj = cnpjCell?.textContent.trim();
-            const nome = e.target.textContent.trim();
-            
-            if (cnpj && nome) {
-              cacheEmitenteName(cnpj, nome);
-            }
-          }
-        }
-      }, true);
-      
-      // Atualiza dados quando célula é editada
-      document.addEventListener('input', function(e) {
-        if (e.target.contentEditable === 'true') {
-          const row = e.target.parentElement;
-          const table = row.parentElement.parentElement;
-          const rowIndex = Array.from(table.querySelectorAll('tbody tr')).indexOf(row);
-          const cellIndex = Array.from(row.querySelectorAll('td[contenteditable="true"]')).indexOf(e.target);
-          
-          if (extractedData[rowIndex]) {
-            const fields = ['cnpj', 'nome', 'data', 'documento', 'valor', 'descricao'];
-            if (fields[cellIndex]) {
-              extractedData[rowIndex][fields[cellIndex]] = e.target.textContent.trim();
-            }
-          }
-        }
-      });
     });
-    
-    // ===== DRAG AND DROP HANDLERS =====
-    function handleDragOver(e) {
-      e.preventDefault();
-      e.currentTarget.classList.add('dragover');
-    }
-    
-    function handleDragLeave(e) {
-      e.preventDefault();
-      e.currentTarget.classList.remove('dragover');
-    }
-    
-    function handleDrop(e) {
-      e.preventDefault();
-      e.currentTarget.classList.remove('dragover');
-      const files = Array.from(e.dataTransfer.files);
-      handleFiles(files);
-    }
-    
-    // ===== ESPERA CARREGAMENTO DAS BIBLIOTECAS =====
-    (function waitForLibs(retries = 20) {
-      const ok = typeof pdfjsLib !== 'undefined' && 
-                 typeof Tesseract !== 'undefined' && 
-                 typeof XLSX !== 'undefined';
-      
-      if (ok) {
-        console.log('Bibliotecas locais carregadas OK');
-        if (typeof checkLibraries === 'function') checkLibraries();
-        return;
-      }
-      
-      if (retries > 0) {
-        setTimeout(() => waitForLibs(retries - 1), 300);
-      } else {
-        console.error('Não foi possível carregar todas as bibliotecas locais.');
-      }
-    })();
   </script>
 </body>
-</html>
+</html></parameter>
+</invoke>
