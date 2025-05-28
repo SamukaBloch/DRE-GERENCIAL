@@ -970,40 +970,6 @@ footer a:hover {
       return dateStr; // já está em dd/mm/yyyy
     }
     
-    // ===== VERIFICAÇÃO DE BIBLIOTECAS =====      
-      if (typeof Tesseract === 'undefined') {
-        console.error('Tesseract.js não carregado');
-        message += 'Tesseract.js não carregado. ';
-        allLoaded = false;
-      }
-      
-      if (typeof XLSX === 'undefined') {
-        console.error('SheetJS não carregado');
-        message += 'SheetJS não carregado. ';
-        allLoaded = false;
-      }
-      
-      if (allLoaded) {
-        statusMessage.innerHTML = '<i class="fas fa-check-circle"></i> Todas as bibliotecas carregadas com sucesso!';
-        statusMessage.className = 'status-ok';
-        librariesLoaded = true;
-        
-        // Oculta o status após 3 segundos
-        setTimeout(() => {
-          statusSection.style.display = 'none';
-        }, 3000);
-        
-        console.log('Todas as bibliotecas carregadas com sucesso');
-      } else {
-        statusMessage.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Erro: ${message}`;
-        statusMessage.className = 'status-error';
-        librariesLoaded = false;
-        
-        console.error('Erro no carregamento das bibliotecas:', message);
-      }
-      
-    }
-    
     // ===== PROCESSAMENTO DE ARQUIVOS =====
     async function handleFiles(files) {
       if (!librariesLoaded) {
