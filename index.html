@@ -1103,29 +1103,7 @@ function renderTable() {
 }
 
 // ===== Atualiza exportToExcel para usar savedEntries =====
-function exportToExcel() {
-  if (savedEntries.length === 0) return;
-  const worksheetData = [
-    ['CNPJ Emitente', 'Nome Emitente', 'Data Emissão', 'Nº Documento', 'Valor Total', 'Descrição']
-  ];
-  savedEntries.forEach(item => {
-    worksheetData.push([
-      item.cnpj,
-      item.nome,
-      item.data,
-      item.documento,
-      item.valor,
-      item.descricao
-    ]);
-  });
-  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Despesas');
-  const now = new Date();
-  const pad = n => n.toString().padStart(2, '0');
-  const filename = `relatorio_${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}.xlsx`;
-  XLSX.writeFile(workbook, filename);
-}
+
 
 function exportToExcel() {
       const table = document.getElementById('resultsTable');
