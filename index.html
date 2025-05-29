@@ -553,6 +553,7 @@ async function ocrImagePage(pdf, pageNum) {
     let processedFiles = 0;
     let totalFiles = 0;
     let extractedData = [];
+let savedEntries = [];
     let debugMode = false;
     let librariesLoaded = false;
     
@@ -1068,7 +1069,65 @@ function extractDocumentNumberRobust(text) {
     }
 
     // ===== EXPORTAÇÃO PARA EXCEL =====
-    function exportToExcel() {
+    
+// ===== Botão Salvar no relatório =====
+document.getElementById('saveReportBtn').addEventListener('click', () => {
+  // Adiciona extrações atuais ao relatório e limpa extrações
+  if (extractedData.length > 0) {
+    savedEntries = extractedData.concat(savedEntries);
+    extractedData = [];
+    renderTable(); // atualiza a tabela com savedEntries
+  }
+});
+
+// ===== Atualiza função renderTable para usar savedEntries =====
+const originalRenderTable = renderTable;
+function renderTable() {
+  const dataToShow = savedEntries;
+  const tbody = document.querySelector('#resultsTable tbody');
+  tbody.innerHTML = '';
+  dataToShow.forEach((item) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${item.cnpj}</td>
+      <td>${item.nome}</td>
+      <td>${item.data}</td>
+      <td>${item.documento}</td>
+      <td>${item.valor}</td>
+      <td>${item.descricao}</td>
+      <td>
+        <button class="delete-btn" onclick="deleteEntry(this)">🗑️</button>
+      </td>`;
+    tbody.appendChild(row);
+  });
+}
+
+// ===== Atualiza exportToExcel para usar savedEntries =====
+function exportToExcel() {
+  if (savedEntries.length === 0) return;
+  const worksheetData = [
+    ['CNPJ Emitente', 'Nome Emitente', 'Data Emissão', 'Nº Documento', 'Valor Total', 'Descrição']
+  ];
+  savedEntries.forEach(item => {
+    worksheetData.push([
+      item.cnpj,
+      item.nome,
+      item.data,
+      item.documento,
+      item.valor,
+      item.descricao
+    ]);
+  });
+  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Despesas');
+  const now = new Date();
+  const pad = n => n.toString().padStart(2, '0');
+  const filename = `relatorio_${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}.xlsx`;
+  XLSX.writeFile(workbook, filename);
+}
+
+function exportToExcel() {
       const table = document.getElementById('resultsTable');
       const rows = Array.from(table.querySelectorAll('tbody tr'));
       
