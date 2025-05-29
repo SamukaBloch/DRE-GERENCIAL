@@ -586,6 +586,14 @@ async function ocrImagePage(pdf, pageNum) {
       ]
     };
 
+// ===== Complemento: novos padrões de extração de Nº Documento =====
+PATTERNS.docNumber.push(
+  /N[°ºª]\s*Documento[:\s]*(\d{1,10})/gi,
+  /Doc\.?[:\-]?\s*(\d{1,10})/gi,
+  /No\.\s*Documento[:\s]*(\d{1,10})/gi
+);
+
+
     // ===== FUNÇÕES DE CACHE =====
     function cacheEmitenteName(cnpj, nome) {
       const digits = (cnpj || '').replace(/\D/g, '');
