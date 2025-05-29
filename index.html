@@ -895,47 +895,69 @@ function extractDocumentNumberRobust(text) {
       }
     }
 
+    
+    // ===== Persistência e Renderização de Entradas =====
+    window.savedEntries = JSON.parse(localStorage.getItem('savedEntries') || '[]');
+    function renderSavedEntries() {
+      const tbody = document.querySelector('#resultsTable tbody');
+      tbody.innerHTML = '';
+      window.savedEntries.forEach(item => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td contenteditable="true">${item.cnpj_emitente || ''}</td>
+          <td contenteditable="true">${item.nome_emitente || ''}</td>
+          <td contenteditable="true">${item.data_emissao || ''}</td>
+          <td contenteditable="true">${item.numero_documento || ''}</td>
+          <td contenteditable="true">${item.valor_total || ''}</td>
+          <td contenteditable="true">${item.descricao || ''}</td>
+          <td>
+            <button class="delete-btn" onclick="deleteSavedEntry(this)">
+              <i class="fas fa-trash"></i>
+            </button>
+          </td>`;
+        tbody.appendChild(row);
+      });
+    }
+    window.deleteSavedEntry = function(button) {
+      const row = button.closest('tr');
+      const index = Array.from(row.parentNode.children).indexOf(row);
+      window.savedEntries.splice(index, 1);
+      localStorage.setItem('savedEntries', JSON.stringify(window.savedEntries));
+      renderSavedEntries();
+    };
+    // Renderiza ao carregar a página se já houver entradas
+    document.addEventListener('DOMContentLoaded', renderSavedEntries);
+
     // ===== PROCESSAMENTO DE ARQUIVOS =====
+    
     async function handleFiles(files) {
       if (!librariesLoaded) {
         alert('Aguarde o carregamento das bibliotecas!');
         return;
       }
-      
-      totalFiles = files.length;
-      processedFiles = 0;
-      extractedData = [];
-      
       const tbody = document.querySelector('#resultsTable tbody');
-      tbody.innerHTML = '';
       document.getElementById('exportBtn').disabled = true;
-      
       showProgress();
-      
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        updateProgress(i, totalFiles, `Processando ${file.name}...`);
-        
+        updateProgress(i, files.length, `Processando ${file.name}...`);
         try {
           let extractedText = '';
-          
           if (file.type === 'application/pdf') {
             extractedText = await processPDF(file);
           } else if (file.type.startsWith('image/')) {
             extractedText = await processImage(file);
           }
-          
-          if (extractedText) {
-            const data = extractDataFromText(extractedText, file.name);
-            if (data.cnpj_emitente || data.nome_emitente) {
-              extractedData.push(data);
-              addRowToTable(data);
-            }
-            
-            if (debugMode) {
-              updateDebugText(extractedText);
-            }
-          }
+          const data = extractDataFromText(extractedText, file.name);
+          // Cache do nome
+          const cached = getCachedEmitenteName(data.cnpj_emitente);
+          if (cached) data.nome_emitente = cached;
+          else cacheEmitenteName(data.cnpj_emitente, data.nome_emitente);
+          // Acumula e persiste
+          window.savedEntries.unshift(data);
+          localStorage.setItem('savedEntries', JSON.stringify(window.savedEntries));
+          renderSavedEntries();
+          if (debugMode) updateDebugText(extractedText);
         } catch (error) {
           console.error(`Erro ao processar ${file.name}:`, error);
           const errorData = {
@@ -947,20 +969,17 @@ function extractDocumentNumberRobust(text) {
             valor_total: '',
             descricao: error.message || 'Erro desconhecido'
           };
-          extractedData.push(errorData);
-          addRowToTable(errorData, true);
+          window.savedEntries.unshift(errorData);
+          localStorage.setItem('savedEntries', JSON.stringify(window.savedEntries));
+          renderSavedEntries();
         }
-        
-        processedFiles++;
       }
-      
-      updateProgress(totalFiles, totalFiles, 'Processamento concluído!');
+      updateProgress(files.length, files.length, 'Processamento concluído!');
       setTimeout(hideProgress, 2000);
       enableExportIfAny();
       showResults();
     }
-
-    // ===== PROCESSAMENTO DE PDF =====
+// ===== PROCESSAMENTO DE PDF =====
     
     async function processPDF(file) {
       const arrayBuffer = await file.arrayBuffer();
