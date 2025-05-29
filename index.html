@@ -586,14 +586,6 @@ async function ocrImagePage(pdf, pageNum) {
       ]
     };
 
-// ===== Complemento: novos padrões de extração de Nº Documento =====
-PATTERNS.docNumber.push(
-  /N[°ºª]\s*Documento[:\s]*(\d{1,10})/gi,
-  /Doc\.?[:\-]?\s*(\d{1,10})/gi,
-  /No\.\s*Documento[:\s]*(\d{1,10})/gi
-);
-
-
     // ===== FUNÇÕES DE CACHE =====
     function cacheEmitenteName(cnpj, nome) {
       const digits = (cnpj || '').replace(/\D/g, '');
@@ -713,7 +705,31 @@ PATTERNS.docNumber.push(
       return '';
     }
 
-    // ===== EXTRAÇÃO DE NÚMERO DO DOCUMENTO =====
+    // ===== Função robusta de extração de Nº Documento =====
+function extractDocumentNumberRobust(text) {
+  // Tenta padrões existentes
+  for (const pattern of PATTERNS.docNumber) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+  }
+  // Fallback linha por linha próximo a palavras-chave
+  const lines = text.split(/[\r\n]+/);
+  for (const line of lines) {
+    if (/nota\s*fiscal|nf[-\s]*e|fatura|documento|doc\.?/i.test(line)) {
+      const numMatch = line.match(/(\d{3,12})/);
+      if (numMatch) {
+        return numMatch[1];
+      }
+    }
+  }
+  // Último recurso: primeiro número longo
+  const fallback = text.match(/\d{4,12}/);
+  return fallback ? fallback[0] : '';
+}
+
+// ===== EXTRAÇÃO DE NÚMERO DO DOCUMENTO =====
     function extractDocumentNumber(text) {
       for (const pattern of PATTERNS.docNumber) {
         const matches = [...text.matchAll(pattern)];
@@ -978,7 +994,7 @@ PATTERNS.docNumber.push(
         cnpj_emitente: extractCNPJEmitente(text),
         nome_emitente: '',
         data_emissao: extractDataEmissao(text),
-        numero_documento: extractDocumentNumber(text),
+        numero_documento: extractDocumentNumberRobust(text) || extractDocumentNumber(text),
         valor_total: extractValorTotal(text),
         descricao: extractDescription(text)
       };
