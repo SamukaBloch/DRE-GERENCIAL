@@ -1103,11 +1103,7 @@ function renderTable() {
   dataToShow = dataToShow.map(item => {
     if (cnpjNameCache[item.cnpj]) item.nome = cnpjNameCache[item.cnpj];
     return item;
-}
-  });
-
-
-  const tbody = document.querySelector('#resultsTable tbody');
+});const tbody = document.querySelector('#resultsTable tbody');
   tbody.innerHTML = '';
   dataToShow.forEach((item) => {
     const row = document.createElement('tr');
