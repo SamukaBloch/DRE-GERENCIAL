@@ -514,6 +514,27 @@
   };
 })();
 
+// ===== Fallback OCR para PDFs apenas-imagem =====
+async function ocrImagePage(pdf, pageNum) {
+  const page = await pdf.getPage(pageNum);
+  const viewport = page.getViewport({ scale: 2 });
+  const canvas = document.createElement('canvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d');
+  await page.render({ canvasContext: ctx, viewport }).promise;
+
+  const worker = await Tesseract.createWorker();
+  await worker.load();
+  await worker.loadLanguage('por+eng');
+  await worker.initialize('por+eng');
+
+  const { data: { text } } = await worker.recognize(canvas);
+  await worker.terminate();
+  return text;
+}
+
+
 
     // Importa as bibliotecas locais
     import * as pdfjsLib from './libs/pdf.min.mjs';
@@ -526,15 +547,6 @@
     // Torna as bibliotecas globais
     window.pdfjsLib = pdfjsLib;
     window.Tesseract = Tesseract;
-
-// ===== Complemento: extrai createWorker do Tesseract =====
-const { createWorker } = Tesseract;
-
-// ===== Complemento: garante createWorker disponível globalmente =====
-if (!window.Tesseract.createWorker && typeof createWorker === 'function') {
-  window.Tesseract = { ...window.Tesseract, createWorker };
-}
-
     window.XLSX = XLSX;
 
     // ===== VARIÁVEIS GLOBAIS =====
@@ -914,20 +926,28 @@ if (!window.Tesseract.createWorker && typeof createWorker === 'function') {
     }
 
     // ===== PROCESSAMENTO DE PDF =====
+    
     async function processPDF(file) {
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
       let fullText = '';
-      
+
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
-        const pageText = textContent.items.map(item => item.str).join(' ');
-        fullText += pageText + '\n\n';
+        let pageText = textContent.items.map(item => item.str).join(' ');
+        if (!pageText.trim()) {
+          console.log('Fallback OCR por imagem ativado na página', i);
+          pageText = await ocrImagePage(pdf, i);
+        }
+        fullText += pageText + '
+
+';
       }
-      
+
       return fullText;
     }
+
 
     // ===== PROCESSAMENTO DE IMAGEM =====
     async function processImage(file) {
