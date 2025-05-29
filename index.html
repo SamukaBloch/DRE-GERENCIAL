@@ -514,6 +514,16 @@
   };
 })();
 
+// ===== Cache de Nome Emitente por CNPJ =====
+let cnpjNameCache = JSON.parse(localStorage.getItem('cnpjNameCache') || '{}');
+
+// ===== Função para salvar cache =====
+function saveCnpjNameCache(cnpj, name) {
+  cnpjNameCache[cnpj] = name;
+  localStorage.setItem('cnpjNameCache', JSON.stringify(cnpjNameCache));
+}
+
+
 // ===== Fallback OCR para PDFs apenas-imagem =====
 async function ocrImagePage(pdf, pageNum) {
   const page = await pdf.getPage(pageNum);
@@ -1088,7 +1098,14 @@ document.addEventListener('DOMContentLoaded', () => {
 // ===== Atualiza função renderTable para usar savedEntries =====
 const originalRenderTable = renderTable;
 function renderTable() {
-  const dataToShow = savedEntries;
+  let dataToShow = savedEntries;
+  // Override de nome pelo cache
+  dataToShow = dataToShow.map(item => {
+    if (cnpjNameCache[item.cnpj]) item.nome = cnpjNameCache[item.cnpj];
+    return item;
+  });
+
+
   const tbody = document.querySelector('#resultsTable tbody');
   tbody.innerHTML = '';
   dataToShow.forEach((item) => {
