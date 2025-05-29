@@ -940,9 +940,7 @@ async function ocrImagePage(pdf, pageNum) {
           console.log('Fallback OCR por imagem ativado na página', i);
           pageText = await ocrImagePage(pdf, i);
         }
-        fullText += pageText + '
-
-';
+        fullText += pageText + '\n\n';
       }
 
       return fullText;
