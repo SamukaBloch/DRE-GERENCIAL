@@ -549,7 +549,7 @@
         /N[°º]\s*NFS?-?[eE]\s*[:\-]?\s*(\d{3,10})/gi,
         /RPS\s*[n°º]?\s*[:\-]?\s*(\d{3,10})/gi,
         /Documento\s*[n°º]?\s*[:\-]?\s*(\d{3,10})/gi,
-        /N[oº]\s*Documento[:\s]*([A-Za-z0-9\-]+)/gi  // Adicionada flag 'g'
+        /N[oº]\s*Documento[:\s]*([A-Za-z0-9\-]+)/i
       ]
     };
 
@@ -630,26 +630,11 @@
       const cnpjClean = cnpj.replace(/\D/g, '');
       
       // Busca por padrões específicos
-      let m = text.match(/PRESTADOR\s+DE\s+SERVI[ÇC]OS[\s\S]*?Raz[aã]o\s+Social[:\s]*([^\r\n]+)/i);
+      let m = text.match(/Raz[aã]o\s+Social[:\s]*([^\r\n]+)/i);
       if (m) {
         const name = m[1].trim();
-        // Remove possíveis labels após o nome
-        const cleanName = name.split(/\s+(?:Nome\s+Fantasia|CPF|CNPJ|Endere[çc]o)/i)[0].trim();
-        if (cleanName) {
-          cacheEmitenteName(cnpj, cleanName);
-          return cleanName;
-        }
-      }
-      
-      // Tenta buscar sem o contexto "PRESTADOR"
-      m = text.match(/Raz[aã]o\s+Social[:\s]*([^\r\n]+)/i);
-      if (m) {
-        const name = m[1].trim();
-        const cleanName = name.split(/\s+(?:Nome\s+Fantasia|CPF|CNPJ|Endere[çc]o)/i)[0].trim();
-        if (cleanName) {
-          cacheEmitenteName(cnpj, cleanName);
-          return cleanName;
-        }
+        cacheEmitenteName(cnpj, name);
+        return name;
       }
       
       // Busca por nome próximo ao CNPJ
@@ -662,7 +647,7 @@
           const line = lines[i].trim();
           if (line && line.length > 5 && /[A-Za-z]/.test(line)) {
             const name = line.replace(/^\W+|\W+$/g, '').trim();
-            if (name && !/(PRESTADOR|TOMADOR|SERVI[ÇC]OS|Raz[aã]o|Social)/i.test(name)) {
+            if (name) {
               cacheEmitenteName(cnpj, name);
               return name;
             }
@@ -675,26 +660,6 @@
 
     // ===== EXTRAÇÃO DE DATA =====
     function extractDataEmissao(text) {
-      // Busca por padrões específicos de data de emissão
-      const datePatterns = [
-        /Emitida\s+em\s+(\d{2}\/\d{2}\/\d{4})/gi,
-        /Emiss[ãa]o[:\s]+(\d{2}\/\d{2}\/\d{4})/gi,
-        /Data\s+de?\s+Emiss[ãa]o[:\s]+(\d{2}\/\d{2}\/\d{4})/gi,
-        /Data[:\s]+(\d{2}\/\d{2}\/\d{4})/gi,
-        /(\d{2}\/\d{2}\/\d{4})\s+\d{2}:\d{2}/g  // Data seguida de hora
-      ];
-      
-      for (const pattern of datePatterns) {
-        const match = text.match(pattern);
-        if (match) {
-          const date = match[1];
-          if (isValidDate(date)) {
-            return date;
-          }
-        }
-      }
-      
-      // Fallback para busca genérica
       for (const pattern of PATTERNS.dateFormats) {
         const matches = [...text.matchAll(pattern)];
         for (const match of matches) {
@@ -724,48 +689,19 @@
     // ===== EXTRAÇÃO DE VALOR =====
     function extractValorTotal(text) {
       // Busca por padrões específicos primeiro
-      const valorPatterns = [
-        /Valor\s+Total\s+da\s+NFS-?e?\s+R\$\s*([\d\.,]+)/gi,
-        /Valor\s+Total[:\s]+R\$\s*([\d\.,]+)/gi,
-        /Valor\s+L[ií]quido[:\s]+R\$\s*([\d\.,]+)/gi,
-        /Valor\s+Total[:\s]+([\d\.,]+)/gi,
-        /Valor\s+L[ií]quido[:\s]+([\d\.,]+)/gi
-      ];
+      const valorMatch = text.match(/Valor\s*Total[:\s]*([\d\.,]+)/i) || 
+                        text.match(/Valor\s*L[ií]quido[:\s]*([\d\.,]+)/i);
       
-      for (const pattern of valorPatterns) {
-        const match = text.match(pattern);
-        if (match) {
-          const valor = match[1].trim().replace(/[^\d\.,]/g, '');
-          if (valor) return valor;
-        }
+      if (valorMatch) {
+        return valorMatch[1].trim().replace(/[^\d\.,]/g, '');
       }
       
-      // Se não encontrar, pega valores monetários com R$ e retorna o maior
-      const moneyPattern = /R\$\s*([\d\.,]+)/g;
-      const moneyMatches = [...text.matchAll(moneyPattern)];
+      // Se não encontrar, pega o maior valor monetário
+      const moneyMatches = [...text.matchAll(PATTERNS.money)];
       
-      if (moneyMatches.length > 0) {
-        const values = moneyMatches.map(match => {
-          const valueStr = match[1];
-          return {
-            original: valueStr,
-            numeric: parseFloat(valueStr.replace(/\./g, '').replace(',', '.'))
-          };
-        });
-        
-        const maxValue = values.reduce((max, current) => 
-          current.numeric > max.numeric ? current : max
-        );
-        
-        return maxValue.original;
-      }
+      if (moneyMatches.length === 0) return '';
       
-      // Fallback para padrão sem R$
-      const fallbackMatches = [...text.matchAll(PATTERNS.money)];
-      
-      if (fallbackMatches.length === 0) return '';
-      
-      const values = fallbackMatches.map(match => {
+      const values = moneyMatches.map(match => {
         const valueStr = match[0];
         return {
           original: valueStr,
@@ -784,9 +720,8 @@
     function extractDescription(text) {
       const placa = extractPlacaFromText(text);
       
-      // Busca por bloco de discriminação/descrição
+      // Busca por bloco de descrição
       const descPatterns = [
-        /Discrimina[çc][ãa]o\s+dos\s+servi[çc]os[:\s]*([^]+?)(?=Valor\s+Total|Código\s+de\s+Tributa|Base\s+de\s+C[áa]lculo|$)/gi,
         /Descri[çc][ãa]o\s+do\s+Servi[çc]o[^:\n]*:?\s*([\s\S]{10,300}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi,
         /DISCRIMINA[ÇC][ÃA]O[^:\n]*:?\s*([\s\S]{10,300}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi
       ];
@@ -796,36 +731,12 @@
       for (const pattern of descPatterns) {
         const matches = [...text.matchAll(pattern)];
         if (matches.length > 0) {
-          let desc = matches[0][1].trim();
-          
-          // Extrai apenas a primeira linha relevante
-          const lines = desc.split(/[\r\n]+/);
-          for (const line of lines) {
-            const cleanLine = line.trim();
-            // Ignora linhas com metadados
-            if (cleanLine && 
-                !/(OS:|Placa:|Renavam:|Veiculo:|Pneu:|Tacografo:|Selos|Servicos Realizados:|COSIT)/i.test(cleanLine) &&
-                cleanLine.length > 5) {
-              // Pega a primeira linha de serviço real
-              if (/R\$/.test(cleanLine)) {
-                description = cleanLine.split(/R\$/)[0].trim();
-              } else {
-                description = cleanLine;
-              }
-              break;
-            }
-          }
-          
-          if (description) break;
+          description = matches[0][1].trim()
+            .replace(/\n+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .substring(0, 120);
+          break;
         }
-      }
-      
-      // Limita e formata
-      if (description) {
-        description = description
-          .replace(/\s+/g, ' ')
-          .substring(0, 120)
-          .trim();
       }
       
       // Formata com placa se encontrada
@@ -990,48 +901,8 @@
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
-        
-        // Agrupa os itens por coordenada Y para reconstruir linhas
-        const textItems = textContent.items;
-        const lines = {};
-        
-        textItems.forEach(item => {
-          // Arredonda Y para agrupar textos na mesma linha
-          const y = Math.round(item.transform[5]);
-          if (!lines[y]) {
-            lines[y] = [];
-          }
-          lines[y].push({
-            x: item.transform[4],
-            text: item.str
-          });
-        });
-        
-        // Ordena as linhas por Y (de cima para baixo)
-        const sortedYs = Object.keys(lines).sort((a, b) => b - a);
-        
-        // Reconstrói o texto linha por linha
-        sortedYs.forEach(y => {
-          // Ordena os itens da linha por X (esquerda para direita)
-          const lineItems = lines[y].sort((a, b) => a.x - b.x);
-          
-          // Junta os textos da linha com espaços apropriados
-          let lineText = '';
-          lineItems.forEach((item, index) => {
-            if (index > 0) {
-              // Adiciona espaço se houver gap significativo
-              const gap = item.x - (lineItems[index-1].x + lineItems[index-1].text.length * 5);
-              if (gap > 5) {
-                lineText += ' ';
-              }
-            }
-            lineText += item.text;
-          });
-          
-          fullText += lineText + '\n';
-        });
-        
-        fullText += '\n';
+        const pageText = textContent.items.map(item => item.str).join(' ');
+        fullText += pageText + '\n\n';
       }
       
       return fullText;
