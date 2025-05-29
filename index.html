@@ -526,6 +526,15 @@
     // Torna as bibliotecas globais
     window.pdfjsLib = pdfjsLib;
     window.Tesseract = Tesseract;
+
+// ===== Complemento: extrai createWorker do Tesseract =====
+const { createWorker } = Tesseract;
+
+// ===== Complemento: garante createWorker disponível globalmente =====
+if (!window.Tesseract.createWorker && typeof createWorker === 'function') {
+  window.Tesseract = { ...window.Tesseract, createWorker };
+}
+
     window.XLSX = XLSX;
 
     // ===== VARIÁVEIS GLOBAIS =====
