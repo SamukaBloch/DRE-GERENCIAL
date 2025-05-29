@@ -1211,6 +1211,54 @@ function exportToExcel() {
       // Botão de exportar
       exportBtn.addEventListener('click', exportToExcel);
     });
-  </script>
+  
+// GLOBAL DATA AND CACHE FUNCTIONS
+window.extractedData = window.extractedData || [];
+function cacheEmitenteName(cnpj, name) {
+    try {
+        localStorage.setItem('emitente_' + cnpj, name);
+    } catch(e) {}
+}
+function getCachedEmitenteName(cnpj) {
+    try {
+        return localStorage.getItem('emitente_' + cnpj);
+    } catch(e) {
+        return null;
+    }
+}
+
+// OVERRIDE RENDERING: append new row at top
+function renderRow(item) {
+    const tbody = document.querySelector('#resultsTable tbody');
+    const row = document.createElement('tr');
+    row.innerHTML = `
+        <td>${item.cnpj}</td>
+        <td>${item.nome}</td>
+        <td>${item.data}</td>
+        <td>${item.documento}</td>
+        <td>${item.valor}</td>
+        <td>${item.descricao}</td>
+        <td><!-- ações --></td>
+    `;
+    tbody.insertBefore(row, tbody.firstChild);
+}
+
+// Hook into processFile or wherever data is extracted
+const originalProcessFile = window.processFile;
+window.processFile = async function(file) {
+    const item = await originalProcessFile(file);
+    // Cache name
+    cacheEmitenteName(item.cnpj, item.nome);
+    // Use cache if available
+    const cached = getCachedEmitenteName(item.cnpj);
+    if (cached) {
+        item.nome = cached;
+    }
+    // Store and render
+    window.extractedData.unshift(item);
+    renderRow(item);
+    return item;
+};
+</script>
 </body>
 </html>
