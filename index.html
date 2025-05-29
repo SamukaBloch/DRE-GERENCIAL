@@ -503,6 +503,18 @@
 
   <!-- Script Principal -->
   <script type="module">
+// ===== Polyfill: garante que matchAll sempre receba uma RegExp global =====
+(function() {
+  const originalMatchAll = String.prototype.matchAll;
+  String.prototype.matchAll = function(re) {
+    if (re instanceof RegExp && !re.flags.includes('g')) {
+      re = new RegExp(re.source, re.flags + 'g');
+    }
+    return originalMatchAll.call(this, re);
+  };
+})();
+
+
     // Importa as bibliotecas locais
     import * as pdfjsLib from './libs/pdf.min.mjs';
     import Tesseract from './libs/tesseract.esm.min.js';
