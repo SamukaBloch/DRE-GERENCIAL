@@ -1070,16 +1070,21 @@ function extractDocumentNumberRobust(text) {
 
     // ===== EXPORTAÇÃO PARA EXCEL =====
     
-// ===== Botão Salvar no relatório =====
-document.getElementById('saveReportBtn').addEventListener('click', () => {
+// ===== Botão Salvar no relatório (DOM Ready) =====
+document.addEventListener('DOMContentLoaded', () => {
+  const saveBtn = document.getElementById('saveReportBtn');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', () => {
+
   // Adiciona extrações atuais ao relatório e limpa extrações
   if (extractedData.length > 0) {
     savedEntries = extractedData.concat(savedEntries);
     extractedData = [];
     renderTable(); // atualiza a tabela com savedEntries
   }
+    });
+  }
 });
-
 // ===== Atualiza função renderTable para usar savedEntries =====
 const originalRenderTable = renderTable;
 function renderTable() {
