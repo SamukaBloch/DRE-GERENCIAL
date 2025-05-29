@@ -598,14 +598,14 @@ let savedEntries = [];
     };
 
     // ===== FUNÇÕES DE CACHE =====
-    function cacheEmitenteName(cnpj, nome) {
+    window.cacheEmitenteName = window.cacheEmitenteName || function(cnpj, nome) {
       const digits = (cnpj || '').replace(/\D/g, '');
       if (digits.length === 14 && nome) {
         localStorage.setItem('nm_' + digits, nome);
       }
     }
     
-    function getCachedEmitenteName(cnpj) {
+    window.getCachedEmitenteName = window.getCachedEmitenteName || function(cnpj) {
       const digits = (cnpj || '').replace(/\D/g, '');
       if (digits.length === 14) {
         return localStorage.getItem('nm_' + digits) || '';
@@ -1103,6 +1103,7 @@ function renderTable() {
   dataToShow = dataToShow.map(item => {
     if (cnpjNameCache[item.cnpj]) item.nome = cnpjNameCache[item.cnpj];
     return item;
+}
   });
 
 
@@ -1214,12 +1215,12 @@ function exportToExcel() {
   
 // GLOBAL DATA AND CACHE FUNCTIONS
 window.extractedData = window.extractedData || [];
-function cacheEmitenteName(cnpj, name) {
+window.cacheEmitenteName = window.cacheEmitenteName || function(cnpj, name) {
     try {
         localStorage.setItem('emitente_' + cnpj, name);
     } catch(e) {}
 }
-function getCachedEmitenteName(cnpj) {
+window.getCachedEmitenteName = window.getCachedEmitenteName || function(cnpj) {
     try {
         return localStorage.getItem('emitente_' + cnpj);
     } catch(e) {
@@ -1244,7 +1245,9 @@ function renderRow(item) {
 }
 
 // Hook into processFile or wherever data is extracted
-const originalProcessFile = window.processFile;
+if (!window._hasExtendedProcessFile) {
+    window._hasExtendedProcessFile = true;
+    const originalProcessFile = window.processFile;
 window.processFile = async function(file) {
     const item = await originalProcessFile(file);
     // Cache name
@@ -1258,6 +1261,7 @@ window.processFile = async function(file) {
     window.extractedData.unshift(item);
     renderRow(item);
     return item;
+}
 };
 </script>
 </body>
