@@ -471,8 +471,8 @@
 
 <body>
   <header>
-    <h1><i class="fas fa-bullseye"></i> Automatizador NFS-e Aprimorado</h1>
-    <p>Bibliotecas atualizadas + melhorias sem quebrar funcionalidades</p>
+    <h1><i class="fas fa-bullseye"></i> Automatizador NFS-e v3.4</h1>
+    <p>Novos padrões: FUNILARIA NITZ + SASCAR + compatibilidade total</p>
     <div class="version-badge">v3.4 - Novos Padrões FUNILARIA + SASCAR</div>
   </header>
 
@@ -487,7 +487,7 @@
           <i class="fas fa-bullseye"></i>
         </div>
         <div class="upload-text">Upload de NFS-e</div>
-        <div class="upload-hint">Sistema aprimorado com bibliotecas atualizadas</div>
+        <div class="upload-hint">v3.4 - Suporte para FUNILARIA NITZ + SASCAR + todos anteriores</div>
       </div>
       <input type="file" id="fileInput" multiple accept=".pdf,image/*">
       
@@ -571,14 +571,21 @@
     // CNPJ da empresa (tomador)
     const COMPANY_CNPJ = '07.925.317/0001-88';
 
-    // ===== SISTEMA DE EXTRAÇÃO APRIMORADO v3.3 =====
-    // MELHORIAS ADICIONADAS SEM QUEBRAR FUNCIONALIDADES ANTERIORES:
-    // 1. Bibliotecas atualizadas (PDF.js v3.11.174, SheetJS v0.18.5)  
-    // 2. Busca específica por seção PRESTADOR (corrige RD CARTUCHOS)
-    // 3. Filtros anti-órgão público melhorados
-    // 4. Validação de nomes aprimorada
-    // 5. Limpeza de texto melhorada
-    // 6. Estratégias em ordem de prioridade
+    // ===== SISTEMA DE EXTRAÇÃO v3.4 - NOVOS PADRÕES =====
+    // HISTÓRICO DE MELHORIAS (SEM QUEBRAR FUNCIONALIDADES):
+    // v3.4: + FUNILARIA NITZ LTDA + SASCAR TECNOLOGIA + busca por primeiras linhas + busca por CNPJ+nome
+    // v3.3: + Bibliotecas atualizadas (PDF.js v3.11.174, SheetJS v0.18.5)  
+    // v3.2: + Busca específica por seção PRESTADOR (corrige RD CARTUCHOS)
+    // v3.1: + Filtros anti-órgão público + validação aprimorada + limpeza melhorada
+    // v3.0: + LUCIA IVONETE específica + estratégias em ordem de prioridade
+    // 
+    // CASOS SUPORTADOS:
+    // ✅ RD CARTUCHOS E INFORMATICA LTDA - ME
+    // ✅ LUCIA IVONETE VICK KASMIRSKI - EPP - MECANICA DIESEL KASMIRSKI  
+    // ✅ FUNILARIA NITZ LTDA
+    // ✅ SASCAR - TECNOLOGIA E SEGURANÇA AUTOMOTIVA S.A
+    // ✅ Qualquer empresa com EPP, LTDA, ME, S.A, EIRELI
+    // ✅ Filtros robustos anti-órgão público
     class UltraDirectExtractor {
       constructor() {
         this.debugSteps = [];
@@ -614,7 +621,7 @@
         return '';
       }
 
-      // ===== ESTRATÉGIAS ADICIONAIS v3.4 - Novos Padrões =====
+      // ===== ESTRATÉGIAS ADICIONAIS v3.5 - Nomes com Iniciais =====
       extractEmitenteNameLaser(text, cnpj) {
         this.logStep('info', 'Iniciando extração ULTRA-DIRETA de nome do emitente');
         
@@ -623,7 +630,72 @@
           return '';
         }
 
-        // NOVA ESTRATÉGIA 1: Busca específica por FUNILARIA NITZ
+        // NOVA ESTRATÉGIA 1: Busca específica por W.O. RIGO FILHO
+        const rigoMatch = text.match(/W\.O\.\s+RIGO\s+FILHO[^0-9\n\r]*INFORMATICA[^0-9\n\r]*ME[^0-9\n\r]*/gi);
+        if (rigoMatch) {
+          let name = this.cleanCompanyName(rigoMatch[0]);
+          if (this.validateCompanyNameImproved(name)) {
+            this.logStep('success', 'W.O. RIGO FILHO encontrado', name);
+            return name;
+          }
+        }
+
+        // NOVA ESTRATÉGIA 2: Busca por Razão Social específica
+        const razaoSocialMatch = text.match(/Raz[ãa]o\s+Social:\s*([^\r\n]+)/gi);
+        if (razaoSocialMatch) {
+          for (const match of razaoSocialMatch) {
+            let name = this.cleanCompanyName(match);
+            if (this.validateCompanyNameImproved(name) && name.length > 10) {
+              this.logStep('success', 'Nome encontrado em Razão Social', name);
+              return name;
+            }
+          }
+        }
+
+        // NOVA ESTRATÉGIA 3: Busca por nomes com iniciais (padrão W.O., J.A., etc.)
+        const iniciaisPattern = /([A-Z]\.[A-Z]\.\s+[A-Z][^0-9\n\r]{5,80}(?:LTDA|EPP|ME|S\.?A|EIRELI|INFORMATICA)[^0-9\n\r]*)/gi;
+        const iniciaisMatches = [...text.matchAll(iniciaisPattern)];
+        for (const match of iniciaisMatches) {
+          let name = this.cleanCompanyName(match[1]);
+          if (this.validateCompanyNameImproved(name)) {
+            this.logStep('success', 'Nome com iniciais encontrado', name);
+            return name;
+          }
+        }
+
+        // NOVA ESTRATÉGIA 4: Busca por seção PRESTADOR DE SERVIÇOS melhorada
+        const prestadorMatch = text.match(/PRESTADOR\s+DE\s+SERVI[ÇC]OS([\s\S]*?)(?=TOMADOR|DISCRIMINA[ÇC][ÃA]O|Valor Total|$)/gi);
+        if (prestadorMatch) {
+          const prestadorSection = prestadorMatch[0];
+          this.logStep('info', 'Seção PRESTADOR encontrada', prestadorSection.substring(0, 200));
+          
+          // Busca Razão Social na seção prestador
+          const razaoMatch = prestadorSection.match(/Raz[ãa]o\s+Social:\s*([^\r\n]+)/gi);
+          if (razaoMatch) {
+            let name = this.cleanCompanyName(razaoMatch[0]);
+            if (this.validateCompanyNameImproved(name)) {
+              this.logStep('success', 'Nome encontrado em Razão Social da seção PRESTADOR', name);
+              return name;
+            }
+          }
+          
+          // Busca qualquer linha com empresa na seção prestador
+          const prestadorLines = prestadorSection.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
+          for (const line of prestadorLines) {
+            if (line.length > 15 && line.length < 120 && 
+                /LTDA|EPP|S\.?A|ME|EIRELI|CARTUCHOS|TECNOLOGIA|INFORMATICA|RIGO|FILHO/gi.test(line) &&
+                !/PRESTADOR|TOMADOR|ENDEREÇO|TELEFONE|EMAIL|CPF|CNPJ|Inscrição|Município/i.test(line)) {
+              
+              let name = this.cleanCompanyName(line);
+              if (this.validateCompanyNameImproved(name)) {
+                this.logStep('success', 'Nome encontrado em linha da seção PRESTADOR', name);
+                return name;
+              }
+            }
+          }
+        }
+
+        // ESTRATÉGIA ORIGINAL 1: Busca específica por FUNILARIA NITZ (mantida)
         const funilariaNitzMatch = text.match(/FUNILARIA\s+NITZ[^0-9\n\r]{0,50}LTDA[^0-9\n\r]*/gi);
         if (funilariaNitzMatch) {
           let name = this.cleanCompanyName(funilariaNitzMatch[0]);
@@ -633,7 +705,7 @@
           }
         }
 
-        // NOVA ESTRATÉGIA 2: Busca específica por SASCAR
+        // ESTRATÉGIA ORIGINAL 2: Busca específica por SASCAR (mantida)
         const sascarMatch = text.match(/SASCAR[^0-9\n\r]*TECNOLOGIA[^0-9\n\r]*SEGUR[^0-9\n\r]*AUTOMOTIVA[^0-9\n\r]*S\.?A[^0-9\n\r]*/gi);
         if (sascarMatch) {
           let name = this.cleanCompanyName(sascarMatch[0]);
@@ -643,12 +715,11 @@
           }
         }
 
-        // NOVA ESTRATÉGIA 3: Busca por primeira linha com nome da empresa (início do PDF)
+        // ESTRATÉGIA ORIGINAL 3: Busca por primeira linha com nome da empresa (mantida)
         const lines = text.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
         for (let i = 0; i < Math.min(3, lines.length); i++) {
           const line = lines[i];
           
-          // Se linha tem indicadores de empresa e não é órgão público
           if (line.length > 10 && line.length < 120 && 
               /LTDA|EPP|S\.?A|ME|EIRELI/gi.test(line) &&
               !/PREFEITURA|MUNICIPAL|SECRETARIA|FAZENDA|TOMADOR|PRESTADOR/i.test(line)) {
@@ -661,39 +732,7 @@
           }
         }
 
-        // ESTRATÉGIA ORIGINAL 1: Seção PRESTADOR (funciona para RD CARTUCHOS)
-        const prestadorMatch = text.match(/PRESTADOR\s+DE\s+SERVI[ÇC]OS([\s\S]*?)(?=TOMADOR|DISCRIMINA[ÇC][ÃA]O|$)/gi);
-        if (prestadorMatch) {
-          const prestadorSection = prestadorMatch[0];
-          this.logStep('info', 'Seção PRESTADOR encontrada', prestadorSection.substring(0, 200));
-          
-          // Busca Nome/Razão social específico na seção prestador
-          const nomeRazaoMatch = prestadorSection.match(/Nome\/Raz[ãa]o\s+social:\s*([^\r\n]+)/gi);
-          if (nomeRazaoMatch) {
-            const name = this.cleanCompanyName(nomeRazaoMatch[0]);
-            if (this.validateCompanyNameImproved(name)) {
-              this.logStep('success', 'Nome encontrado na seção PRESTADOR', name);
-              return name;
-            }
-          }
-          
-          // NOVA: Busca qualquer linha com empresa na seção prestador
-          const prestadorLines = prestadorSection.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
-          for (const line of prestadorLines) {
-            if (line.length > 15 && line.length < 120 && 
-                /LTDA|EPP|S\.?A|ME|EIRELI|CARTUCHOS|TECNOLOGIA/gi.test(line) &&
-                !/PRESTADOR|TOMADOR|ENDERECO|TELEFONE|EMAIL|CPF|CNPJ/i.test(line)) {
-              
-              let name = this.cleanCompanyName(line);
-              if (this.validateCompanyNameImproved(name)) {
-                this.logStep('success', 'Nome encontrado em linha da seção PRESTADOR', name);
-                return name;
-              }
-            }
-          }
-        }
-
-        // ESTRATÉGIA ORIGINAL 2: Busca direta por LUCIA IVONETE específica (funciona)
+        // ESTRATÉGIA ORIGINAL 4: Busca direta por LUCIA IVONETE (mantida)
         const luciaDirectMatch = text.match(/LUCIA\s+IVONETE[^0-9\n\r]{1,100}/i);
         if (luciaDirectMatch) {
           let name = luciaDirectMatch[0].trim();
@@ -704,16 +743,12 @@
           }
         }
 
-        // NOVA ESTRATÉGIA 4: Busca por CNPJ e nome próximo
+        // ESTRATÉGIA ORIGINAL 5: Busca por CNPJ e nome próximo (mantida)
         const cnpjPattern = new RegExp(cnpj.replace(/[^\d]/g, '').replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1\\.$2\\.$3/$4-$5'));
         const cnpjIndex = text.search(cnpjPattern);
         
         if (cnpjIndex > -1) {
-          // Busca nas 500 chars antes do CNPJ
           const beforeCnpj = text.substring(Math.max(0, cnpjIndex - 500), cnpjIndex);
-          const afterCnpj = text.substring(cnpjIndex, cnpjIndex + 300);
-          
-          // Busca empresa antes do CNPJ
           const beforeMatch = beforeCnpj.match(/([A-Z][^0-9\n\r]{5,80}(?:LTDA|EPP|S\.?A|ME)[^0-9\n\r]{0,20})[\s\S]*$/gi);
           if (beforeMatch) {
             let name = this.cleanCompanyName(beforeMatch[0]);
@@ -742,7 +777,7 @@
           }
         }
 
-        this.logStep('fail', 'TODAS as estratégias (antigas + novas) falharam');
+        this.logStep('fail', 'TODAS as estratégias (v3.5 + anteriores) falharam');
         return '';
       }
 
@@ -1133,7 +1168,7 @@
       // ===== MÉTODO PRINCIPAL =====
       async extractAllData(text, filename) {
         this.debugSteps = [];
-        this.logStep('info', `=== INICIANDO EXTRAÇÃO APRIMORADA PARA ${filename} ===`);
+        this.logStep('info', `=== INICIANDO EXTRAÇÃO v3.4 PARA ${filename} ===`);
         
         const data = {
           filename: filename,
@@ -1162,7 +1197,7 @@
           data.valor_total = this.extractValorTotal(text);
           data.descricao = this.extractDescription(text);
           
-          this.logStep('success', '=== EXTRAÇÃO APRIMORADA CONCLUÍDA ===', data);
+          this.logStep('success', '=== EXTRAÇÃO v3.4 CONCLUÍDA ===', data);
           
           return data;
           
@@ -1298,7 +1333,7 @@
       }
       
       if (allLoaded) {
-        statusMessage.innerHTML = '<i class="fas fa-check-circle"></i> Sistema APRIMORADO ativo! Bibliotecas atualizadas + melhorias adicionadas.';
+        statusMessage.innerHTML = '<i class="fas fa-check-circle"></i> Sistema v3.4 ativo! Novos padrões FUNILARIA + SASCAR adicionados.';
         statusMessage.className = 'status-ok';
         librariesLoaded = true;
         
@@ -1306,7 +1341,7 @@
           statusSection.style.display = 'none';
         }, 3000);
         
-        console.log('🎯 Sistema de Extração Aprimorado inicializado');
+        console.log('🎯 Sistema de Extração v3.4 inicializado');
       } else {
         statusMessage.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Erro: ${message}`;
         statusMessage.className = 'status-error';
@@ -1523,7 +1558,7 @@
       
       // Atualiza detalhes da extração
       const detailsDiv = document.getElementById('extractionDetails');
-      let html = '<h4>🎯 Processo de Extração Aprimorada:</h4>';
+      let html = '<h4>🎯 Processo de Extração v3.4 (Novos Padrões):</h4>';
       
       if (ultraDirectExtractor.debugSteps.length > 0) {
         html += '<div>';
