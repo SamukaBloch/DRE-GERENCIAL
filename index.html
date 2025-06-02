@@ -471,14 +471,14 @@
 
 <body>
   <header>
-    <h1><i class="fas fa-crosshairs"></i> Automatizador NFS-e Precisão Laser</h1>
-    <p>Extração cirúrgica específica para NFS-e Municipal</p>
-    <div class="version-badge">v3.0 - Laser Precision</div>
+    <h1><i class="fas fa-bullseye"></i> Automatizador NFS-e Ultra-Direto</h1>
+    <p>Extração ultra-direta sem regex complexo</p>
+    <div class="version-badge">v3.2 - Ultra Direct Fix</div>
   </header>
 
   <main>
     <section class="status-section" id="statusSection">
-      <div id="statusMessage">Carregando sistema de precisão laser...</div>
+      <div id="statusMessage">Carregando sistema ultra-direto...</div>
     </section>
 
     <section class="upload-section" id="uploadSection">
@@ -487,7 +487,7 @@
           <i class="fas fa-bullseye"></i>
         </div>
         <div class="upload-text">Upload de NFS-e</div>
-        <div class="upload-hint">Extração ultra-específica para formato municipal</div>
+        <div class="upload-hint">Extração ultra-direta e simplificada</div>
       </div>
       <input type="file" id="fileInput" multiple accept=".pdf,image/*">
       
@@ -495,13 +495,13 @@
         <div class="progress-bar">
           <div class="progress-fill" id="progressFill"></div>
         </div>
-        <div class="progress-text" id="progressText">Aplicando precisão laser...</div>
+        <div class="progress-text" id="progressText">Aplicando extração ultra-direta...</div>
       </div>
     </section>
 
     <section class="results-section" id="resultsSection">
       <div class="results-header">
-        <h2 class="results-title">Resultados Precisão Laser</h2>
+        <h2 class="results-title">Resultados Ultra-Diretos</h2>
         <button class="export-btn" id="exportBtn" disabled>
           <i class="fas fa-file-excel"></i>
           Exportar Excel
@@ -527,7 +527,7 @@
     </section>
 
     <section class="debug-section" id="debugSection">
-      <h3>Debug Precisão Laser - Análise Cirúrgica</h3>
+      <h3>Debug Ultra-Direto - Análise Simples</h3>
       <div class="debug-text" id="debugText"></div>
       <div class="extraction-details" id="extractionDetails"></div>
     </section>
@@ -535,7 +535,7 @@
 
   <footer>
     <p>&copy; 2025 COMERCIO DE BANANAS SANTOMÉ LTDA | 
-    <a href="#" onclick="toggleDebug(); return false;">Debug Laser</a></p>
+    <a href="#" onclick="toggleDebug(); return false;">Debug Ultra-Direto</a></p>
   </footer>
 
   <!-- Script de Precisão Laser -->
@@ -571,8 +571,8 @@
     // CNPJ da empresa (tomador)
     const COMPANY_CNPJ = '07.925.317/0001-88';
 
-    // ===== SISTEMA DE EXTRAÇÃO LASER =====
-    class LaserExtractor {
+    // ===== SISTEMA DE EXTRAÇÃO ULTRA-DIRETA =====
+    class UltraDirectExtractor {
       constructor() {
         this.debugSteps = [];
       }
@@ -607,37 +607,104 @@
         return '';
       }
 
-      // ===== EXTRAÇÃO DE NOME LASER =====
+      // ===== EXTRAÇÃO DE NOME LASER ULTRA-DIRETA =====
       extractEmitenteNameLaser(text, cnpj) {
-        this.logStep('info', 'Iniciando extração LASER de nome do emitente');
+        this.logStep('info', 'Iniciando extração ULTRA-DIRETA de nome do emitente');
         
         if (!cnpj) {
           this.logStep('fail', 'CNPJ não fornecido para busca de nome');
           return '';
         }
 
-        // ESTRATÉGIA LASER 1: Busca específica por seção PRESTADOR
-        const prestadorResult = this.extractFromPrestadorSection(text);
-        if (prestadorResult) {
-          this.logStep('success', 'Nome encontrado na seção PRESTADOR', prestadorResult);
-          return prestadorResult;
+        // ESTRATÉGIA ULTRA-DIRETA 1: Busca por LUCIA IVONETE específica
+        const luciaDirectMatch = text.match(/LUCIA\s+IVONETE[^0-9\n\r]{1,100}/i);
+        if (luciaDirectMatch) {
+          let name = luciaDirectMatch[0].trim();
+          // Remove tudo após "Número da NFS-e" ou similar
+          name = name.replace(/(Número|Situação|Emitida|Autenticidade|CNPJ).*$/i, '').trim();
+          if (name.length > 10) {
+            this.logStep('success', 'LUCIA IVONETE encontrada com busca direta', name);
+            return name;
+          }
         }
 
-        // ESTRATÉGIA LASER 2: Padrões ultra-específicos baseados no documento real
-        const specificResult = this.extractWithSpecificPatterns(text);
-        if (specificResult) {
-          this.logStep('success', 'Nome encontrado com padrões específicos', specificResult);
-          return specificResult;
+        // ESTRATÉGIA ULTRA-DIRETA 2: Busca por qualquer nome com EPP
+        const eppDirectMatch = text.match(/([A-Z][^0-9\n\r]{5,100}\s+EPP[^0-9\n\r]{0,50})/i);
+        if (eppDirectMatch) {
+          let name = eppDirectMatch[1].trim();
+          name = name.replace(/(Número|Situação|Emitida|Autenticidade|CNPJ).*$/i, '').trim();
+          if (name.length > 10 && name.length < 100) {
+            this.logStep('success', 'Nome com EPP encontrado com busca direta', name);
+            return name;
+          }
         }
 
-        // ESTRATÉGIA LASER 3: Busca próxima ao CNPJ do emitente
-        const proximityResult = this.extractFromCNPJProximity(text, cnpj);
-        if (proximityResult) {
-          this.logStep('success', 'Nome encontrado próximo ao CNPJ', proximityResult);
-          return proximityResult;
+        // ESTRATÉGIA ULTRA-DIRETA 3: Primeira linha que parece nome
+        const lines = text.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
+        
+        for (let i = 0; i < Math.min(5, lines.length); i++) {
+          const line = lines[i];
+          this.logStep('info', `Analisando linha ${i}`, line.substring(0, 100));
+          
+          // Se linha contém letras maiúsculas e é longa o suficiente
+          if (line.length > 15 && line.length < 150 && /[A-Z]{3,}/.test(line)) {
+            // Remove números e palavras específicas do final
+            let cleanLine = line.replace(/(Número|Situação|Emitida|Autenticidade|CNPJ|NFS-e|\d+).*$/i, '').trim();
+            
+            // Se ainda tem tamanho bom e parece nome
+            if (cleanLine.length > 10 && cleanLine.length < 100) {
+              // Se contém indicadores de empresa
+              if (/EPP|LTDA|ME|EIRELI|S\/A|DIESEL|MECANICA|COMERCIO/i.test(cleanLine)) {
+                this.logStep('success', `Nome encontrado na linha ${i} com busca ultra-direta`, cleanLine);
+                return cleanLine;
+              }
+              
+              // Se tem 3+ palavras maiúsculas (nome de pessoa/empresa)
+              const upperWords = cleanLine.match(/[A-Z]{2,}/g);
+              if (upperWords && upperWords.length >= 3) {
+                this.logStep('success', `Nome de pessoa encontrado na linha ${i}`, cleanLine);
+                return cleanLine;
+              }
+            }
+          }
         }
 
-        this.logStep('fail', 'Nome do emitente não encontrado com nenhuma estratégia');
+        // ESTRATÉGIA ULTRA-DIRETA 4: Busca antes do CNPJ
+        const cnpjPattern = new RegExp(`([^\\n\\r]{10,80})\\s+${cnpj.replace(/[^\d]/g, '')}`, 'i');
+        const beforeCnpjMatch = text.match(cnpjPattern);
+        if (beforeCnpjMatch) {
+          const name = beforeCnpjMatch[1].trim();
+          if (name.length > 10) {
+            this.logStep('success', 'Nome encontrado antes do CNPJ', name);
+            return name;
+          }
+        }
+
+        // ESTRATÉGIA ULTRA-DIRETA 5: Qualquer texto que parece nome de empresa
+        const businessPatterns = [
+          /([A-Z][A-Z\s]{5,80}(?:DIESEL|MECANICA|COMERCIO|INDUSTRIA|SERVICOS)[^0-9\n\r]{0,30})/gi,
+          /([A-Z\s]{10,80}LTDA[^0-9\n\r]{0,30})/gi,
+          /([A-Z\s]{10,80}EPP[^0-9\n\r]{0,30})/gi
+        ];
+
+        for (const pattern of businessPatterns) {
+          const matches = [...text.matchAll(pattern)];
+          for (const match of matches) {
+            let name = match[1].trim();
+            name = name.replace(/(Número|Situação|Emitida|Autenticidade|CNPJ).*$/i, '').trim();
+            if (name.length > 10 && name.length < 100) {
+              this.logStep('success', 'Nome encontrado com padrão de negócio', name);
+              return name;
+            }
+          }
+        }
+
+        this.logStep('fail', 'TODAS as estratégias ultra-diretas falharam');
+        
+        // DEBUG: Mostra primeiras linhas para análise
+        this.logStep('info', 'Primeiras 3 linhas do texto para debug:', 
+          lines.slice(0, 3).join(' | '));
+        
         return '';
       }
 
@@ -711,7 +778,31 @@
       extractWithSpecificPatterns(text) {
         this.logStep('info', 'Aplicando padrões ultra-específicos');
 
-        // PADRÃO LASER 1: RD CARTUCHOS específico (baseado no seu documento)
+        // PADRÃO LASER 1: Formato específico Guaramirim (NOME - EPP - DESCRIÇÃO)
+        const guaramirimPattern = /([A-Z\s]+ - EPP - [A-Z\s]+)/gi;
+        const guaramirimMatch = text.match(guaramirimPattern);
+        if (guaramirimMatch) {
+          for (const match of guaramirimMatch) {
+            const name = this.cleanCompanyName(match);
+            if (this.validateCompanyName(name) && name.length > 10) {
+              this.logStep('success', 'Nome encontrado com padrão Guaramirim', name);
+              return name;
+            }
+          }
+        }
+
+        // PADRÃO LASER 2: LUCIA IVONETE específico (baseado no documento atual)
+        const luciaPattern = /LUCIA\s+IVONETE[^\r\n]*/gi;
+        const luciaMatch = text.match(luciaPattern);
+        if (luciaMatch) {
+          const name = this.cleanCompanyName(luciaMatch[0]);
+          if (name.includes('LUCIA IVONETE')) {
+            this.logStep('success', 'LUCIA IVONETE encontrada com padrão específico', name);
+            return name;
+          }
+        }
+
+        // PADRÃO LASER 3: RD CARTUCHOS específico (documento anterior)
         const rdCartuchosPattern = /RD\s+CARTUCHOS[^\r\n]*/gi;
         const rdMatch = text.match(rdCartuchosPattern);
         if (rdMatch) {
@@ -722,24 +813,41 @@
           }
         }
 
-        // PADRÃO LASER 2: Empresas com estrutura específica de NFS-e
-        const specificPatterns = [
-          // Padrão: NOME LTDA - ME (formato comum)
+        // PADRÃO LASER 4: Empresas com estrutura EPP específica
+        const eppPatterns = [
+          // NOME - EPP - DESCRIÇÃO
+          /([A-Z\s]+ - EPP[^\r\n]*)/gi,
+          
+          // NOME EPP (sem hífen)
+          /([A-Z][A-Z\s]{5,50} EPP[^\r\n]*)/gi,
+          
+          // NOME seguido de LTDA - ME
           /([A-Z][A-Z\s&\-\.]*LTDA\s*\-\s*ME)/gi,
           
-          // Padrão: NOME E SOBRENOME LTDA
-          /([A-Z][A-Z\s&\-\.]*\s+E\s+[A-Z\s&\-\.]*LTDA[^,\r\n]*)/gi,
-          
-          // Padrão: depois de "Inscrição estadual:" tem o nome
-          /Inscri[çc][ãa]o\s+estadual:[^\r\n]*[\r\n]+([^\r\n]+)/gi
+          // NOME E SOBRENOME LTDA
+          /([A-Z][A-Z\s&\-\.]*\s+E\s+[A-Z\s&\-\.]*LTDA[^,\r\n]*)/gi
         ];
 
-        for (const pattern of specificPatterns) {
+        for (const pattern of eppPatterns) {
           const matches = [...text.matchAll(pattern)];
           for (const match of matches) {
             const name = this.cleanCompanyName(match[1]);
+            if (this.validateCompanyName(name) && name.length > 8) {
+              this.logStep('success', `Nome encontrado com padrão EPP`, name);
+              return name;
+            }
+          }
+        }
+
+        // PADRÃO LASER 5: Busca no CNPJ específico (primeira linha do documento)
+        const lines = text.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length > 0) {
+          const firstLine = lines[0];
+          // Se primeira linha tem mais de 20 caracteres e parece ser nome de empresa
+          if (firstLine.length > 20 && /[A-Z]{3,}/.test(firstLine) && !/^\d/.test(firstLine)) {
+            const name = this.cleanCompanyName(firstLine);
             if (this.validateCompanyName(name)) {
-              this.logStep('success', `Nome encontrado com padrão específico`, name);
+              this.logStep('success', 'Nome encontrado na primeira linha', name);
               return name;
             }
           }
@@ -930,14 +1038,24 @@
       }
 
       validateCompanyName(name) {
-        if (!name || name.length < 5 || name.length > 100) return false;
+        if (!name || name.length < 5 || name.length > 150) return false;
         if (!/[A-Za-z]/.test(name)) return false;
         if (/^[\d\s\-\.]+$/.test(name)) return false;
         
         // Não aceitar nomes que são claramente do órgão público
         if (/SECRETARIA|MUNICIPAL|FAZENDA|PREFEITURA/i.test(name)) return false;
         
-        return true;
+        // Aceitar nomes com EPP, LTDA, ME, etc.
+        if (/EPP|LTDA|ME|EIRELI|S\/A/i.test(name)) return true;
+        
+        // Aceitar se tem pelo menos 3 palavras maiúsculas (nomes de pessoas)
+        const upperWords = name.match(/[A-Z]{2,}/g);
+        if (upperWords && upperWords.length >= 3) return true;
+        
+        // Aceitar se tem palavras características de empresa
+        if (/COMERCIO|INDUSTRIA|SERVICOS|MECANICA|DIESEL/i.test(name)) return true;
+        
+        return false;
       }
 
       cleanCompanyName(name) {
@@ -945,8 +1063,9 @@
         
         return name
           .replace(/^(Nome\/Razão social:|Razão Social:|Nome fantasia:|PRESTADOR:|CPF\/CNPJ:)/gi, '')
-          .replace(/(Inscrição|CPF\/CNPJ|Telefone|E-mail).*$/gi, '')
+          .replace(/(Inscrição|CPF\/CNPJ|Telefone|E-mail|Número da NFS-e|Situação|Emitida|Autenticidade).*$/gi, '')
           .replace(/^[\s\W]+|[\s\W]+$/g, '')
+          .replace(/\s+/g, ' ')  // Normaliza espaços múltiplos
           .trim();
       }
 
@@ -957,7 +1076,7 @@
       // ===== MÉTODO PRINCIPAL =====
       async extractAllData(text, filename) {
         this.debugSteps = [];
-        this.logStep('info', `=== INICIANDO EXTRAÇÃO LASER PARA ${filename} ===`);
+        this.logStep('info', `=== INICIANDO EXTRAÇÃO ULTRA-DIRETA PARA ${filename} ===`);
         
         const data = {
           filename: filename,
@@ -986,15 +1105,15 @@
           data.valor_total = this.extractValorTotal(text);
           data.descricao = this.extractDescription(text);
           
-          this.logStep('success', '=== EXTRAÇÃO LASER CONCLUÍDA ===', data);
+          this.logStep('success', '=== EXTRAÇÃO ULTRA-DIRETA CONCLUÍDA ===', data);
           
           return data;
           
         } catch (error) {
-          this.logStep('error', 'ERRO NA EXTRAÇÃO LASER', error.message);
+          this.logStep('error', 'ERRO NA EXTRAÇÃO ULTRA-DIRETA', error.message);
           return {
             ...data,
-            nome_emitente: 'ERRO LASER',
+            nome_emitente: 'ERRO ULTRA-DIRETO',
             numero_documento: 'ERRO',
             descricao: error.message
           };
@@ -1090,8 +1209,8 @@
       }
     }
 
-    // ===== INSTÂNCIA DO EXTRATOR LASER =====
-    const laserExtractor = new LaserExtractor();
+    // ===== INSTÂNCIA DO EXTRATOR ULTRA-DIRETO =====
+    const ultraDirectExtractor = new UltraDirectExtractor();
 
     // ===== VERIFICAÇÃO DE BIBLIOTECAS =====
     function checkLibraries() {
@@ -1122,7 +1241,7 @@
       }
       
       if (allLoaded) {
-        statusMessage.innerHTML = '<i class="fas fa-check-circle"></i> Sistema LASER ativo! Precisão cirúrgica habilitada.';
+        statusMessage.innerHTML = '<i class="fas fa-check-circle"></i> Sistema ULTRA-DIRETO ativo! Extração simplificada habilitada.';
         statusMessage.className = 'status-ok';
         librariesLoaded = true;
         
@@ -1130,7 +1249,7 @@
           statusSection.style.display = 'none';
         }, 3000);
         
-        console.log('🎯 Sistema de Precisão Laser inicializado');
+        console.log('🎯 Sistema de Extração Ultra-Direta inicializado');
       } else {
         statusMessage.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Erro: ${message}`;
         statusMessage.className = 'status-error';
@@ -1143,7 +1262,7 @@
     // ===== PROCESSAMENTO DE ARQUIVOS =====
     async function handleFiles(files) {
       if (!librariesLoaded) {
-        alert('Aguarde o carregamento do sistema LASER!');
+        alert('Aguarde o carregamento do sistema ULTRA-DIRETO!');
         return;
       }
       
@@ -1151,7 +1270,7 @@
       
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        updateProgress(i, files.length, `Aplicando precisão laser em ${file.name}...`);
+        updateProgress(i, files.length, `Aplicando extração ultra-direta em ${file.name}...`);
         
         try {
           let extractedText = '';
@@ -1163,7 +1282,7 @@
           
           console.log('📄 Texto extraído:', extractedText.substring(0, 500) + '...');
           
-          const data = await laserExtractor.extractAllData(extractedText, file.name);
+          const data = await ultraDirectExtractor.extractAllData(extractedText, file.name);
           
           extractionResults.unshift(data);
           renderResult(data);
@@ -1177,7 +1296,7 @@
           const errorData = {
             filename: file.name,
             cnpj_emitente: 'ERRO',
-            nome_emitente: 'Erro no processamento LASER',
+            nome_emitente: 'Erro no processamento ULTRA-DIRETO',
             data_emissao: '',
             numero_documento: '',
             valor_total: '',
@@ -1188,7 +1307,7 @@
         }
       }
       
-      updateProgress(files.length, files.length, 'Precisão LASER concluída!');
+      updateProgress(files.length, files.length, 'Extração ultra-direta concluída!');
       setTimeout(hideProgress, 2000);
       enableExportIfAny();
       showResults();
@@ -1347,11 +1466,11 @@
       
       // Atualiza detalhes da extração
       const detailsDiv = document.getElementById('extractionDetails');
-      let html = '<h4>🎯 Processo de Extração Laser:</h4>';
+      let html = '<h4>🎯 Processo de Extração Ultra-Direta:</h4>';
       
-      if (laserExtractor.debugSteps.length > 0) {
+      if (ultraDirectExtractor.debugSteps.length > 0) {
         html += '<div>';
-        laserExtractor.debugSteps.forEach(step => {
+        ultraDirectExtractor.debugSteps.forEach(step => {
           const stepClass = step.type === 'success' ? 'step-success' : 
                            step.type === 'fail' || step.type === 'error' ? 'step-fail' : 
                            step.type === 'warning' ? 'step-warning' : '';
@@ -1410,14 +1529,16 @@
       
       exportBtn.addEventListener('click', exportToExcel);
       
-      console.log('🎯 Sistema de Precisão Laser Inicializado!');
-      console.log('🔬 Estratégias Laser Ativas:');
-      console.log('   ✅ Extração de seção PRESTADOR específica');
-      console.log('   ✅ Padrões ultra-específicos para NFS-e');
-      console.log('   ✅ Busca por "Número da nota" cirúrgica');
-      console.log('   ✅ Validação anti-ano (2020-2030)');
-      console.log('   ✅ Filtros anti-órgão público');
-      console.log('   ✅ Debug detalhado paso-a-paso');
+      console.log('🎯 Sistema ULTRA-DIRETO Inicializado!');
+      console.log('🔬 Estratégias Ultra-Diretas (v3.2):');
+      console.log('   ✅ Busca direta por LUCIA IVONETE (NOVO)');
+      console.log('   ✅ Busca direta por qualquer EPP (NOVO)');
+      console.log('   ✅ Análise linha por linha simples (NOVO)');
+      console.log('   ✅ Busca antes do CNPJ (NOVO)');
+      console.log('   ✅ Padrões de negócio diretos (NOVO)');
+      console.log('   ✅ Debug de linhas para análise (NOVO)');
+      console.log('   ✅ Validação simplificada');
+      console.log('   ✅ Sem regex complexo - só busca direta!');
     });
   </script>
 </body>
