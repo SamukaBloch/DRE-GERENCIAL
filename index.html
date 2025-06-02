@@ -644,46 +644,67 @@
       extractFromPrestadorSection(text) {
         this.logStep('info', 'Buscando seção PRESTADOR DE SERVIÇOS');
         
-        // Busca seção específica do prestador
+        // ESTRATÉGIA 1: Busca seção específica do prestador (formato antigo)
         const prestadorRegex = /PRESTADOR\s+DE\s+SERVI[ÇC]OS[\s\S]*?(?=TOMADOR|DISCRIMINA[ÇC][ÃA]O|$)/gi;
         const prestadorMatch = text.match(prestadorRegex);
         
-        if (!prestadorMatch) {
-          this.logStep('warning', 'Seção PRESTADOR não encontrada');
-          return null;
+        if (prestadorMatch) {
+          const prestadorSection = prestadorMatch[0];
+          this.logStep('info', 'Seção PRESTADOR encontrada', prestadorSection.substring(0, 200) + '...');
+
+          // Padrões específicos para NFS-e municipal
+          const namePatterns = [
+            /Nome\/Raz[ãa]o\s+social:\s*([^\r\n]+)/gi,
+            /Raz[ãa]o\s+Social[:\s]*([^\r\n]+)/gi,
+            /Nome\s+fantasia:\s*([^\r\n]+)/gi,
+            /CPF\/CNPJ:\s*[\d\.\-\/\s]+[\r\n]+([^\r\n]+)/gi,
+            /([A-Z][A-Z\s&\-\.]{10,80}(?:LTDA|ME|EPP|S\/A|EIRELI)[^\r\n]*)/gi
+          ];
+
+          for (const pattern of namePatterns) {
+            const match = prestadorSection.match(pattern);
+            if (match && match[1]) {
+              const name = this.cleanCompanyName(match[1]);
+              if (this.validateCompanyName(name)) {
+                this.logStep('success', `Nome encontrado com padrão ${pattern.source}`, name);
+                return name;
+              }
+            }
+          }
         }
 
-        const prestadorSection = prestadorMatch[0];
-        this.logStep('info', 'Seção PRESTADOR encontrada', prestadorSection.substring(0, 200) + '...');
-
-        // Padrões específicos para NFS-e municipal
-        const namePatterns = [
-          // Padrão: Nome/Razão social: NOME
-          /Nome\/Raz[ãa]o\s+social:\s*([^\r\n]+)/gi,
-          /Raz[ãa]o\s+Social[:\s]*([^\r\n]+)/gi,
+        // ESTRATÉGIA 2: NOVO - Busca no cabeçalho (formato Guaramirim)
+        this.logStep('info', 'Buscando nome no cabeçalho do documento');
+        
+        const lines = text.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
+        
+        // Busca nas primeiras 10 linhas do documento
+        for (let i = 0; i < Math.min(10, lines.length); i++) {
+          const line = lines[i];
           
-          // Padrão: Nome fantasia: NOME
-          /Nome\s+fantasia:\s*([^\r\n]+)/gi,
+          // Padrão específico: NOME - EPP - DESCRIÇÃO (formato Guaramirim)
+          const headerPattern = /^([A-Z\s]+(?:EPP|LTDA|ME|EIRELI|S\/A)[^-]*(?:-[^-]+)*)/i;
+          const match = line.match(headerPattern);
           
-          // Padrão: linha com empresa após CPF/CNPJ
-          /CPF\/CNPJ:\s*[\d\.\-\/\s]+[\r\n]+([^\r\n]+)/gi,
-          
-          // Padrão: empresa com LTDA/ME/EPP na seção prestador
-          /([A-Z][A-Z\s&\-\.]{10,80}(?:LTDA|ME|EPP|S\/A|EIRELI)[^\r\n]*)/gi
-        ];
-
-        for (const pattern of namePatterns) {
-          const match = prestadorSection.match(pattern);
-          if (match && match[1]) {
+          if (match) {
             const name = this.cleanCompanyName(match[1]);
+            if (this.validateCompanyName(name) && name.length > 10) {
+              this.logStep('success', `Nome encontrado no cabeçalho linha ${i}`, name);
+              return name;
+            }
+          }
+          
+          // Padrão alternativo: linha que termina com EPP, LTDA, etc.
+          if (/(?:EPP|LTDA|ME|EIRELI|S\/A)\s*(?:-|$)/i.test(line) && line.length > 15) {
+            const name = this.cleanCompanyName(line);
             if (this.validateCompanyName(name)) {
-              this.logStep('success', `Nome encontrado com padrão ${pattern.source}`, name);
+              this.logStep('success', `Nome encontrado por terminação linha ${i}`, name);
               return name;
             }
           }
         }
 
-        this.logStep('warning', 'Nome não encontrado na seção PRESTADOR');
+        this.logStep('warning', 'Nome não encontrado na seção PRESTADOR nem cabeçalho');
         return null;
       }
 
