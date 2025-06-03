@@ -2010,4 +2010,383 @@
         
         try {
           let extractedText = '';
-          if
+          if (file.type === 'application/pdf') {
+            extractedText = await processPDF(file);
+          } else if (file.type.startsWith('image/')) {
+            extractedText = await processImage(file);
+          }
+          
+          console.log('📄 Texto extraído:', extractedText.substring(0, 500) + '...');
+          
+          const data = await ultraDirectExtractor.extractAllData(extractedText, file.name);
+          
+          extractionResults.unshift(data);
+          originalResults = [...extractionResults]; // Atualizar backup para filtros
+          renderResult(data);
+          
+          if (debugMode) {
+            updateDebugInfo(extractedText);
+          }
+          
+        } catch (error) {
+          console.error(`Erro ao processar ${file.name}:`, error);
+          const errorData = {
+            filename: file.name,
+            cnpj_emitente: 'ERRO',
+            nome_emitente: 'Erro no processamento ULTRA-DIRETO',
+            data_emissao: '',
+            numero_documento: '',
+            valor_total: '',
+            descricao: error.message || 'Erro desconhecido',
+            status: 'error'
+          };
+          extractionResults.unshift(errorData);
+          originalResults = [...extractionResults];
+          renderResult(errorData, true);
+          showNotification(`Erro ao processar ${file.name}: ${error.message}`, 'error');
+        }
+      }
+      
+      updateProgress(files.length, files.length, 'Extração ultra-direta concluída!');
+      setTimeout(hideProgress, 2000);
+      updateStatistics();
+      enableExportIfAny();
+      showResults();
+      showNotification(`${files.length} arquivo(s) processado(s) com sucesso!`);
+    }
+
+    // ===== PROCESSAMENTO DE PDF =====
+    async function processPDF(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+      let fullText = '';
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        let pageText = textContent.items.map(item => item.str).join(' ');
+        
+        if (!pageText.trim()) {
+          console.log('Fallback OCR ativado na página', i);
+          pageText = await ocrImagePage(pdf, i);
+        }
+        
+        fullText += pageText + '\n\n';
+      }
+
+      return fullText;
+    }
+
+    async function ocrImagePage(pdf, pageNum) {
+      const page = await pdf.getPage(pageNum);
+      const viewport = page.getViewport({ scale: 2 });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d');
+      await page.render({ canvasContext: ctx, viewport }).promise;
+
+      const worker = await Tesseract.createWorker();
+      await worker.load();
+      await worker.loadLanguage('por+eng');
+      await worker.initialize('por+eng');
+
+      const { data: { text } } = await worker.recognize(canvas);
+      await worker.terminate();
+      return text;
+    }
+
+    // ===== PROCESSAMENTO DE IMAGEM =====
+    async function processImage(file) {
+      const { createWorker } = Tesseract;
+      const worker = await createWorker();
+      
+      await worker.loadLanguage('por');
+      await worker.initialize('por');
+      
+      const { data: { text } } = await worker.recognize(file);
+      await worker.terminate();
+      
+      return text;
+    }
+
+    // ===== INTERFACE =====
+    function renderResult(data, isError = false) {
+      const tbody = document.querySelector('#resultsTable tbody');
+      const row = document.createElement('tr');
+      
+      // Definir classe baseada no status
+      if (isError || data.status === 'error') {
+        row.className = 'error-row';
+      } else if (data.status === 'success') {
+        row.className = 'success-row';
+      } else if (data.status === 'warning') {
+        row.className = 'warning-row';
+      }
+      
+      // Status visual
+      const statusIcon = data.status === 'success' ? '✅' : 
+                        data.status === 'warning' ? '⚠️' : '❌';
+      
+      row.innerHTML = `
+        <td contenteditable="true">${data.cnpj_emitente || ''}</td>
+        <td contenteditable="true">${data.nome_emitente || ''}</td>
+        <td contenteditable="true">${data.data_emissao || ''}</td>
+        <td contenteditable="true">${data.numero_documento || ''}</td>
+        <td contenteditable="true">${data.valor_total || ''}</td>
+        <td contenteditable="true">${data.descricao || ''}</td>
+        <td>${statusIcon}</td>
+        <td>
+          <button class="validate-btn" onclick="validateRow(this)" title="Validar linha">
+            <i class="fas fa-check"></i>
+          </button>
+          <button class="delete-btn" onclick="deleteResult(this)" title="Excluir linha">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      `;
+      
+      tbody.appendChild(row);
+    }
+
+    // ===== FUNÇÕES GLOBAIS PARA BOTÕES =====
+    window.deleteResult = function(button) {
+      const row = button.closest('tr');
+      const index = Array.from(row.parentNode.children).indexOf(row);
+      
+      row.remove();
+      extractionResults.splice(index, 1);
+      originalResults = [...extractionResults];
+      updateStatistics();
+      enableExportIfAny();
+      showNotification('Linha removida com sucesso');
+    }
+
+    window.validateRow = function(button) {
+      const row = button.closest('tr');
+      const isValid = validateRowData(row);
+      
+      if (isValid) {
+        row.className = 'success-row';
+        showNotification('Linha validada com sucesso!');
+      } else {
+        showNotification('Dados da linha precisam ser corrigidos', 'error');
+      }
+    }
+
+    window.toggleDebug = function() {
+      debugMode = !debugMode;
+      const debugSection = document.getElementById('debugSection');
+      debugSection.style.display = debugMode ? 'block' : 'none';
+      showNotification(debugMode ? 'Debug ativado' : 'Debug desativado');
+    }
+
+    window.toggleStats = function() {
+      const statsSection = document.getElementById('statsSection');
+      const isVisible = statsSection.style.display !== 'none';
+      statsSection.style.display = isVisible ? 'none' : 'block';
+      showNotification(isVisible ? 'Estatísticas ocultadas' : 'Estatísticas exibidas');
+    }
+
+    window.toggleFilters = function() {
+      const filterSection = document.getElementById('filterSection');
+      const isVisible = filterSection.style.display !== 'none';
+      filterSection.style.display = isVisible ? 'none' : 'block';
+      showNotification(isVisible ? 'Filtros ocultados' : 'Filtros exibidos');
+    }
+
+    window.applyFilters = applyFilters;
+    window.clearFilters = clearFilters;
+
+    function showProgress() {
+      document.getElementById('progressSection').style.display = 'block';
+    }
+    
+    function hideProgress() {
+      document.getElementById('progressSection').style.display = 'none';
+    }
+    
+    function updateProgress(current, total, message) {
+      const percentage = Math.round((current / total) * 100);
+      document.getElementById('progressFill').style.width = percentage + '%';
+      document.getElementById('progressText').textContent = `${message} (${current}/${total})`;
+    }
+    
+    function showResults() {
+      document.getElementById('resultsSection').style.display = 'block';
+    }
+    
+    function enableExportIfAny() {
+      const hasData = document.querySelector('#resultsTable tbody tr');
+      document.getElementById('exportBtn').disabled = !hasData;
+      document.getElementById('saveBtn').disabled = !hasData;
+      document.getElementById('clearBtn').disabled = !hasData;
+    }
+
+    // ===== EXPORTAÇÃO =====
+    function exportToExcel() {
+      const table = document.getElementById('resultsTable');
+      const rows = Array.from(table.querySelectorAll('tbody tr'));
+      
+      const data = rows.map(row => {
+        const cells = Array.from(row.querySelectorAll('td[contenteditable]'));
+        return {
+          'CNPJ Emitente': cells[0].textContent.trim(),
+          'Nome Emitente': cells[1].textContent.trim(),
+          'Data Emissão': cells[2].textContent.trim(),
+          'Nº Documento': cells[3].textContent.trim(),
+          'Valor Total': cells[4].textContent.trim(),
+          'Descrição': cells[5].textContent.trim()
+        };
+      });
+      
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Despesas_Laser');
+      
+      const now = new Date();
+      const filename = `despesas_laser_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.xlsx`;
+      
+      XLSX.writeFile(wb, filename);
+      showNotification('Excel exportado com sucesso!');
+    }
+
+    function clearAllData() {
+      if (confirm('Tem certeza que deseja limpar todos os dados?')) {
+        extractionResults = [];
+        originalResults = [];
+        
+        // Limpar tabela
+        const tbody = document.querySelector('#resultsTable tbody');
+        tbody.innerHTML = '';
+        
+        // Resetar estatísticas
+        statistics = {
+          totalProcessed: 0,
+          successCount: 0,
+          errorCount: 0,
+          totalValue: 0,
+          uniqueCompanies: new Set()
+        };
+        
+        updateStatistics();
+        enableExportIfAny();
+        
+        // Limpar localStorage
+        localStorage.removeItem('nfse_data_backup');
+        
+        showNotification('Todos os dados foram limpos');
+      }
+    }
+    
+    function updateDebugInfo(text) {
+      // Atualiza texto extraído
+      document.getElementById('debugText').textContent = text.substring(0, 2000) + (text.length > 2000 ? '\n... (texto truncado)' : '');
+      
+      // Atualiza detalhes da extração
+      const detailsDiv = document.getElementById('extractionDetails');
+      let html = '<h4>🎯 Processo de Extração v3.8 (Correções Log + NOVAS):</h4>';
+      
+      if (ultraDirectExtractor.debugSteps.length > 0) {
+        html += '<div>';
+        ultraDirectExtractor.debugSteps.forEach(step => {
+          const stepClass = step.type === 'success' ? 'step-success' : 
+                           step.type === 'fail' || step.type === 'error' ? 'step-fail' : 
+                           step.type === 'warning' ? 'step-warning' : '';
+          
+          html += `<div class="extraction-step ${stepClass}">
+            <strong>[${step.type.toUpperCase()}]</strong> ${step.message}
+            ${step.result ? `<br><em>Resultado: ${step.result}</em>` : ''}
+          </div>`;
+        });
+        html += '</div>';
+      }
+      
+      detailsDiv.innerHTML = html;
+    }
+
+    // ===== INICIALIZAÇÃO =====
+    document.addEventListener('DOMContentLoaded', function() {
+      const uploadSection = document.getElementById('uploadSection');
+      const fileInput = document.getElementById('fileInput');
+      const exportBtn = document.getElementById('exportBtn');
+      const saveBtn = document.getElementById('saveBtn');
+      const clearBtn = document.getElementById('clearBtn');
+      
+      checkLibraries();
+      
+      fileInput.addEventListener('change', function(e) {
+        const files = Array.from(e.target.files).filter(file => 
+          file.type === 'application/pdf' || file.type.startsWith('image/')
+        );
+        
+        if (files.length > 0) {
+          handleFiles(files);
+        }
+      });
+      
+      uploadSection.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadSection.classList.add('dragover');
+      });
+      
+      uploadSection.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadSection.classList.remove('dragover');
+      });
+      
+      uploadSection.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadSection.classList.remove('dragover');
+        
+        const files = Array.from(e.dataTransfer.files).filter(file => 
+          file.type === 'application/pdf' || file.type.startsWith('image/')
+        );
+        
+        if (files.length > 0) {
+          handleFiles(files);
+        }
+      });
+      
+      exportBtn.addEventListener('click', exportToExcel);
+      saveBtn.addEventListener('click', saveDataToLocalStorage);
+      clearBtn.addEventListener('click', clearAllData);
+      
+      console.log('🎯 Sistema v3.8 - Correções do Log + NOVAS Estratégias Implementadas!');
+      console.log('📚 Bibliotecas Atualizadas:');
+      console.log('   ✅ PDF.js atualizado: v3.11.174');
+      console.log('   ✅ SheetJS atualizado: v0.18.5');
+      console.log('🆕 NOVAS Estratégias v3.8 (Correções Log):');
+      console.log('   ✅ VANTOIR DERETTI ME (NOVO)');
+      console.log('   ✅ SERVOPA CAMINHOES LTDA (NOVO)');
+      console.log('   ✅ TRANSPOTECH PECAS E SERVICOS LTDA (NOVO)');
+      console.log('   ✅ SINDICATO DO COMERCIO VAREJISTA DE JARAGUA DO SUL (NOVO)');
+      console.log('   ✅ FSC COMUNICACOES LTDA (NOVO)');
+      console.log('   ✅ Filtros anti-endereços melhorados (NOVO)');
+      console.log('   ✅ Validação aprimorada para empresas específicas (NOVO)');
+      console.log('🔧 Estratégias Mantidas v3.6:');
+      console.log('   ✅ M.A. DA SILVA VIEIRA - AUTO ELÉTRICA ✓');
+      console.log('   ✅ BHS MARINGA TECNOLOGIA LTDA ✓');
+      console.log('   ✅ PORTEC COMERCIO PRODUTOS ELETRONICOS ✓');
+      console.log('   ✅ TRANORTE SISTEMAS MECANIZADOS LTDA ✓');
+      console.log('   ✅ POSTO Z4 LTDA ✓');
+      console.log('   ✅ CONTABILIDADE ORLANDO AMORIM S/S LTDA ✓');
+      console.log('🔧 Estratégias Mantidas v3.5:');
+      console.log('   ✅ W.O. RIGO FILHO - INFORMATICA - ME ✓');
+      console.log('   ✅ Nomes com iniciais ✓');
+      console.log('   ✅ Busca por Razão Social ✓');
+      console.log('🔧 Estratégias Mantidas v3.4:');
+      console.log('   ✅ FUNILARIA NITZ LTDA ✓');
+      console.log('   ✅ SASCAR TECNOLOGIA ✓');
+      console.log('🔧 Estratégias Mantidas v3.3:');
+      console.log('   ✅ Seção PRESTADOR (RD CARTUCHOS) ✓');
+      console.log('   ✅ LUCIA IVONETE específica ✓');
+      console.log('   ✅ Compatibilidade total 100% ✓');
+      console.log('🚀 MELHORIAS ADICIONADAS:');
+      console.log('   ✅ Sistema de notificações');
+      console.log('   ✅ Estatísticas em tempo real');
+      console.log('   ✅ Filtros de dados');
+      console.log('   ✅ Sistema de backup/restore');
+      console.log('   ✅ Validação de dados');
+      console.log('   ✅ Interface aprimorada');
+    });
