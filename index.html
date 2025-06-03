@@ -794,11 +794,6 @@
     window.Tesseract = Tesseract;
     window.XLSX = XLSX;
 
-    console.log('📚 Tentando carregar bibliotecas...');
-    console.log('PDF.js:', typeof pdfjsLib);
-    console.log('Tesseract:', typeof Tesseract);
-    console.log('XLSX:', typeof XLSX);
-
     // ===== VARIÁVEIS GLOBAIS =====
     let debugMode = false;
     let librariesLoaded = false;
@@ -2049,41 +2044,83 @@
       }
     }
 
-    // ===== PROCESSAMENTO DE ARQUIVOS =====
+    // ===== PROCESSAMENTO DE ARQUIVOS MELHORADO =====
     async function handleFiles(files) {
+      console.log('📁 Iniciando processamento de arquivos:', files.length);
+      
       if (!librariesLoaded) {
-        showNotification('Aguarde o carregamento do sistema ULTRA-DIRETO!', 'error');
+        showNotification('⚠️ Aguarde o carregamento do sistema ULTRA-DIRETO!', 'error');
         return;
       }
       
-      showProgress();
+      // Verificar tipos de arquivo
+      const supportedFiles = Array.from(files).filter(file => {
+        const isSupported = file.type === 'application/pdf' || file.type.startsWith('image/');
+        if (!isSupported) {
+          console.warn('⚠️ Arquivo não suportado:', file.name, file.type);
+        }
+        return isSupported;
+      });
       
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        updateProgress(i, files.length, `Aplicando extração ultra-direta em ${file.name}...`);
+      if (supportedFiles.length === 0) {
+        showNotification('❌ Nenhum arquivo PDF ou imagem válido encontrado', 'error');
+        return;
+      }
+      
+      if (supportedFiles.length !== files.length) {
+        showNotification(`⚠️ ${files.length - supportedFiles.length} arquivo(s) ignorado(s) - apenas PDF e imagens são suportados`, 'error');
+      }
+      
+      showProgress();
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (let i = 0; i < supportedFiles.length; i++) {
+        const file = supportedFiles[i];
+        console.log(`📄 Processando ${i + 1}/${supportedFiles.length}: ${file.name} (${file.type})`);
+        
+        updateProgress(i, supportedFiles.length, `Aplicando extração ultra-direta em ${file.name}...`);
         
         try {
           let extractedText = '';
+          
           if (file.type === 'application/pdf') {
+            console.log('📑 Processando PDF:', file.name);
             extractedText = await processPDF(file);
           } else if (file.type.startsWith('image/')) {
+            console.log('🖼️ Processando imagem:', file.name);
             extractedText = await processImage(file);
           }
           
-          console.log('📄 Texto extraído:', extractedText.substring(0, 500) + '...');
+          console.log('📝 Texto extraído:', extractedText.length, 'caracteres');
+          console.log('📄 Preview:', extractedText.substring(0, 200) + '...');
+          
+          if (!extractedText || extractedText.trim().length < 10) {
+            throw new Error('Texto extraído insuficiente ou vazio');
+          }
           
           const data = await ultraDirectExtractor.extractAllData(extractedText, file.name);
           
           extractionResults.unshift(data);
-          originalResults = [...extractionResults]; // Atualizar backup para filtros
+          originalResults = [...extractionResults];
           renderResult(data);
+          
+          if (data.status === 'success') {
+            successCount++;
+          } else if (data.status === 'error') {
+            errorCount++;
+          }
           
           if (debugMode) {
             updateDebugInfo(extractedText);
           }
           
+          console.log('✅ Arquivo processado com sucesso:', file.name);
+          
         } catch (error) {
-          console.error(`Erro ao processar ${file.name}:`, error);
+          console.error(`❌ Erro ao processar ${file.name}:`, error);
+          errorCount++;
+          
           const errorData = {
             filename: file.name,
             cnpj_emitente: 'ERRO',
@@ -2094,74 +2131,144 @@
             descricao: error.message || 'Erro desconhecido',
             status: 'error'
           };
+          
           extractionResults.unshift(errorData);
           originalResults = [...extractionResults];
           renderResult(errorData, true);
-          showNotification(`Erro ao processar ${file.name}: ${error.message}`, 'error');
+          
+          showNotification(`❌ Erro ao processar ${file.name}: ${error.message}`, 'error');
         }
       }
       
-      updateProgress(files.length, files.length, 'Extração ultra-direta concluída!');
+      updateProgress(supportedFiles.length, supportedFiles.length, 'Extração ultra-direta concluída!');
       setTimeout(hideProgress, 2000);
+      
       updateStatistics();
       enableExportIfAny();
       showResults();
-      showNotification(`${files.length} arquivo(s) processado(s) com sucesso!`);
+      
+      // Feedback final
+      const totalProcessed = supportedFiles.length;
+      let finalMessage = `📊 Processamento concluído: ${totalProcessed} arquivo(s)`;
+      if (successCount > 0) finalMessage += ` | ✅ ${successCount} sucesso`;
+      if (errorCount > 0) finalMessage += ` | ❌ ${errorCount} erro(s)`;
+      
+      showNotification(finalMessage);
+      console.log('🎯 Processamento finalizado:', { total: totalProcessed, success: successCount, errors: errorCount });
     }
 
-    // ===== PROCESSAMENTO DE PDF =====
+    // ===== PROCESSAMENTO DE PDF MELHORADO =====
     async function processPDF(file) {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-      let fullText = '';
-
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        let pageText = textContent.items.map(item => item.str).join(' ');
+      console.log('📑 Iniciando processamento PDF:', file.name, file.size, 'bytes');
+      
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        console.log('📁 ArrayBuffer criado:', arrayBuffer.byteLength, 'bytes');
         
-        if (!pageText.trim()) {
-          console.log('Fallback OCR ativado na página', i);
-          pageText = await ocrImagePage(pdf, i);
+        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+        console.log('📖 PDF carregado:', pdf.numPages, 'páginas');
+        
+        let fullText = '';
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          console.log(`📄 Processando página ${i}/${pdf.numPages}`);
+          
+          try {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            let pageText = textContent.items.map(item => item.str).join(' ');
+            
+            console.log(`📝 Página ${i}: ${pageText.length} caracteres extraídos`);
+            
+            if (!pageText.trim()) {
+              console.log(`🔍 Página ${i} sem texto, tentando OCR...`);
+              pageText = await ocrImagePage(pdf, i);
+              console.log(`🔍 OCR página ${i}: ${pageText.length} caracteres`);
+            }
+            
+            fullText += pageText + '\n\n';
+            
+          } catch (pageError) {
+            console.warn(`⚠️ Erro na página ${i}:`, pageError);
+            // Tentar OCR mesmo com erro na extração de texto
+            try {
+              const pageText = await ocrImagePage(pdf, i);
+              fullText += pageText + '\n\n';
+              console.log(`🔍 OCR de emergência página ${i}: ${pageText.length} caracteres`);
+            } catch (ocrError) {
+              console.error(`❌ Falha completa na página ${i}:`, ocrError);
+            }
+          }
         }
-        
-        fullText += pageText + '\n\n';
-      }
 
-      return fullText;
+        console.log('✅ PDF processado com sucesso:', fullText.length, 'caracteres totais');
+        return fullText;
+        
+      } catch (error) {
+        console.error('❌ Erro no processamento PDF:', error);
+        throw new Error(`Erro ao processar PDF: ${error.message}`);
+      }
     }
 
     async function ocrImagePage(pdf, pageNum) {
-      const page = await pdf.getPage(pageNum);
-      const viewport = page.getViewport({ scale: 2 });
-      const canvas = document.createElement('canvas');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      const ctx = canvas.getContext('2d');
-      await page.render({ canvasContext: ctx, viewport }).promise;
+      console.log(`🔍 Iniciando OCR na página ${pageNum}`);
+      
+      try {
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 2 });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d');
+        
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        console.log(`🖼️ Canvas renderizado: ${canvas.width}x${canvas.height}`);
 
-      const worker = await Tesseract.createWorker();
-      await worker.load();
-      await worker.loadLanguage('por+eng');
-      await worker.initialize('por+eng');
+        const worker = await Tesseract.createWorker();
+        await worker.load();
+        await worker.loadLanguage('por+eng');
+        await worker.initialize('por+eng');
+        
+        console.log(`🤖 Tesseract inicializado, processando página ${pageNum}...`);
 
-      const { data: { text } } = await worker.recognize(canvas);
-      await worker.terminate();
-      return text;
+        const { data: { text } } = await worker.recognize(canvas);
+        await worker.terminate();
+        
+        console.log(`✅ OCR concluído página ${pageNum}: ${text.length} caracteres`);
+        return text;
+        
+      } catch (error) {
+        console.error(`❌ Erro no OCR página ${pageNum}:`, error);
+        throw new Error(`Erro no OCR: ${error.message}`);
+      }
     }
 
-    // ===== PROCESSAMENTO DE IMAGEM =====
+    // ===== PROCESSAMENTO DE IMAGEM MELHORADO =====
     async function processImage(file) {
-      const { createWorker } = Tesseract;
-      const worker = await createWorker();
+      console.log('🖼️ Iniciando processamento de imagem:', file.name, file.type, file.size, 'bytes');
       
-      await worker.loadLanguage('por');
-      await worker.initialize('por');
-      
-      const { data: { text } } = await worker.recognize(file);
-      await worker.terminate();
-      
-      return text;
+      try {
+        const { createWorker } = Tesseract;
+        console.log('🤖 Criando worker Tesseract para imagem...');
+        
+        const worker = await createWorker();
+        
+        console.log('📚 Carregando idioma português...');
+        await worker.loadLanguage('por');
+        await worker.initialize('por');
+        
+        console.log('🔍 Iniciando reconhecimento OCR...');
+        const { data: { text } } = await worker.recognize(file);
+        
+        await worker.terminate();
+        console.log('✅ Imagem processada com sucesso:', text.length, 'caracteres extraídos');
+        
+        return text;
+        
+      } catch (error) {
+        console.error('❌ Erro no processamento de imagem:', error);
+        throw new Error(`Erro ao processar imagem: ${error.message}`);
+      }
     }
 
     // ===== INTERFACE =====
@@ -2369,14 +2476,67 @@
       
       checkLibraries();
       
+      // Verificação adicional de arquivos
+      console.log('🔍 Verificando estrutura de arquivos...');
+      
+      // Testar se consegue acessar os arquivos das bibliotecas
+      fetch('./libs/pdf.min.mjs')
+        .then(response => {
+          if (response.ok) {
+            console.log('✅ pdf.min.mjs encontrado');
+          } else {
+            console.error('❌ pdf.min.mjs não encontrado - código:', response.status);
+          }
+        })
+        .catch(error => {
+          console.error('❌ Erro ao acessar pdf.min.mjs:', error);
+          showNotification('❌ Biblioteca PDF.js não encontrada na pasta ./libs/', 'error');
+        });
+      
+      fetch('./libs/tesseract.esm.min.js')
+        .then(response => {
+          if (response.ok) {
+            console.log('✅ tesseract.esm.min.js encontrado');
+          } else {
+            console.error('❌ tesseract.esm.min.js não encontrado - código:', response.status);
+          }
+        })
+        .catch(error => {
+          console.error('❌ Erro ao acessar tesseract.esm.min.js:', error);
+          showNotification('❌ Biblioteca Tesseract.js não encontrada na pasta ./libs/', 'error');
+        });
+      
+      fetch('./libs/xlsx.mjs')
+        .then(response => {
+          if (response.ok) {
+            console.log('✅ xlsx.mjs encontrado');
+          } else {
+            console.error('❌ xlsx.mjs não encontrado - código:', response.status);
+          }
+        })
+        .catch(error => {
+          console.error('❌ Erro ao acessar xlsx.mjs:', error);
+          showNotification('❌ Biblioteca XLSX não encontrada na pasta ./libs/', 'error');
+        });
+      
       fileInput.addEventListener('change', function(e) {
-        const files = Array.from(e.target.files).filter(file => 
-          file.type === 'application/pdf' || file.type.startsWith('image/')
-        );
+        console.log('📁 Arquivos selecionados:', e.target.files.length);
+        
+        const files = Array.from(e.target.files).filter(file => {
+          const isValid = file.type === 'application/pdf' || file.type.startsWith('image/');
+          console.log(`📄 ${file.name}: ${file.type} - ${isValid ? 'VÁLIDO' : 'INVÁLIDO'}`);
+          return isValid;
+        });
         
         if (files.length > 0) {
+          console.log('🚀 Iniciando processamento de', files.length, 'arquivo(s) válido(s)');
           handleFiles(files);
+        } else {
+          showNotification('❌ Nenhum arquivo PDF ou imagem válido selecionado', 'error');
         }
+        
+        // Limpar input para permitir reenvio do mesmo arquivo
+        e.target.value = '';
       });
       
       uploadSection.addEventListener('dragover', function(e) {
@@ -2393,12 +2553,19 @@
         e.preventDefault();
         uploadSection.classList.remove('dragover');
         
-        const files = Array.from(e.dataTransfer.files).filter(file => 
-          file.type === 'application/pdf' || file.type.startsWith('image/')
-        );
+        console.log('📁 Arquivos soltos:', e.dataTransfer.files.length);
+        
+        const files = Array.from(e.dataTransfer.files).filter(file => {
+          const isValid = file.type === 'application/pdf' || file.type.startsWith('image/');
+          console.log(`📄 ${file.name}: ${file.type} - ${isValid ? 'VÁLIDO' : 'INVÁLIDO'}`);
+          return isValid;
+        });
         
         if (files.length > 0) {
+          console.log('🚀 Iniciando processamento de', files.length, 'arquivo(s) válido(s)');
           handleFiles(files);
+        } else {
+          showNotification('❌ Nenhum arquivo PDF ou imagem válido encontrado', 'error');
         }
       });
       
@@ -2443,4 +2610,17 @@
       console.log('   ✅ Sistema de backup/restore');
       console.log('   ✅ Validação de dados');
       console.log('   ✅ Interface aprimorada');
+      console.log('   ✅ Diagnóstico de bibliotecas');
+      console.log('   ✅ Logging detalhado');
+      
+      console.log('📁 ESTRUTURA DE ARQUIVOS NECESSÁRIA:');
+      console.log('   📄 ./libs/pdf.min.mjs - PDF.js core');
+      console.log('   📄 ./libs/pdf.worker.min.mjs - PDF.js worker');
+      console.log('   📄 ./libs/tesseract.esm.min.js - Tesseract OCR');
+      console.log('   📄 ./libs/xlsx.mjs - SheetJS Excel');
+      
+      console.log('🔧 DIAGNÓSTICO:');
+      console.log('   Se houver erros de importação, verifique se todos os arquivos estão na pasta ./libs/');
+      console.log('   Use o console do navegador (F12) para ver logs detalhados');
+      console.log('   O sistema mostrará notificações visuais para orientar na correção');
     });
