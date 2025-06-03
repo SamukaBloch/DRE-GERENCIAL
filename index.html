@@ -230,9 +230,13 @@
       color: #333;
     }
 
-    .export-btn {
-      background: var(--success-color);
-      color: white;
+    .export-buttons {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .export-btn, .clear-btn, .save-btn {
       border: none;
       padding: 0.75rem 1.5rem;
       border-radius: 6px;
@@ -244,13 +248,40 @@
       transition: all 0.3s ease;
     }
 
+    .export-btn {
+      background: var(--success-color);
+      color: white;
+    }
+
     .export-btn:hover:not(:disabled) {
       background: #4caf50;
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
     }
 
-    .export-btn:disabled {
+    .clear-btn {
+      background: var(--warning-color);
+      color: white;
+    }
+
+    .clear-btn:hover:not(:disabled) {
+      background: #f57c00;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(245, 124, 0, 0.3);
+    }
+
+    .save-btn {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .save-btn:hover:not(:disabled) {
+      background: #283593;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(40, 53, 147, 0.3);
+    }
+
+    .export-btn:disabled, .clear-btn:disabled, .save-btn:disabled {
       background: #ccc;
       cursor: not-allowed;
       transform: none;
@@ -262,6 +293,7 @@
       margin-bottom: 20px;
       border-radius: 8px;
       border: 1px solid var(--border-color);
+      position: relative;
     }
 
     table {
@@ -313,20 +345,115 @@
       color: var(--error-color);
     }
 
-    .delete-btn {
-      background: var(--error-color);
-      color: white;
+    .success-row {
+      background-color: #e8f5e8;
+    }
+
+    .warning-row {
+      background-color: #fff3e0;
+    }
+
+    .delete-btn, .validate-btn {
       border: none;
       padding: 0.5rem;
       border-radius: 4px;
       cursor: pointer;
       font-size: 0.8rem;
+      margin-right: 0.5rem;
       transition: all 0.3s ease;
+    }
+
+    .delete-btn {
+      background: var(--error-color);
+      color: white;
     }
 
     .delete-btn:hover {
       background: #c62828;
       transform: scale(1.1);
+    }
+
+    .validate-btn {
+      background: var(--success-color);
+      color: white;
+    }
+
+    .validate-btn:hover {
+      background: #4caf50;
+      transform: scale(1.1);
+    }
+
+    /* Statistics section */
+    .stats-section {
+      display: none;
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--shadow);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .stat-card {
+      background: #f8f9fa;
+      padding: 1rem;
+      border-radius: 8px;
+      text-align: center;
+      border-left: 4px solid var(--primary-color);
+    }
+
+    .stat-number {
+      font-size: 2rem;
+      font-weight: bold;
+      color: var(--primary-color);
+    }
+
+    .stat-label {
+      color: var(--light-text);
+      font-size: 0.9rem;
+    }
+
+    /* Filter section */
+    .filter-section {
+      background: var(--card-bg);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: var(--shadow);
+      display: none;
+    }
+
+    .filter-controls {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filter-input {
+      padding: 0.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+
+    .filter-btn {
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .filter-btn:hover {
+      background: #283593;
     }
 
     /* Debug section */
@@ -375,6 +502,35 @@
     .step-success { border-left: 3px solid #4caf50; }
     .step-fail { border-left: 3px solid #f44336; }
     .step-warning { border-left: 3px solid #ff9800; }
+
+    /* Error handling */
+    .error-notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--error-color);
+      color: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      z-index: 1000;
+      display: none;
+      max-width: 400px;
+    }
+
+    .success-notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--success-color);
+      color: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      z-index: 1000;
+      display: none;
+      max-width: 400px;
+    }
 
     /* Footer */
     footer {
@@ -439,12 +595,25 @@
         align-items: stretch;
       }
       
+      .export-buttons {
+        justify-content: center;
+      }
+      
       table {
         font-size: 0.8rem;
       }
       
       th, td {
         padding: 0.5rem;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .filter-controls {
+        flex-direction: column;
+        align-items: stretch;
       }
     }
 
@@ -477,10 +646,47 @@
   </header>
 
   <main>
+    <!-- Status Section -->
     <section class="status-section" id="statusSection">
       <div id="statusMessage">Carregando sistema ultra-direto...</div>
     </section>
 
+    <!-- Statistics Section -->
+    <section class="stats-section" id="statsSection">
+      <h3>📊 Estatísticas de Processamento</h3>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number" id="totalProcessed">0</div>
+          <div class="stat-label">Documentos Processados</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="successRate">0%</div>
+          <div class="stat-label">Taxa de Sucesso</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="totalValue">R$ 0,00</div>
+          <div class="stat-label">Valor Total</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="uniqueCompanies">0</div>
+          <div class="stat-label">Empresas Diferentes</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Filter Section -->
+    <section class="filter-section" id="filterSection">
+      <h3>🔍 Filtros</h3>
+      <div class="filter-controls">
+        <input type="text" class="filter-input" id="filterCompany" placeholder="Filtrar por empresa...">
+        <input type="date" class="filter-input" id="filterDateFrom" placeholder="Data de...">
+        <input type="date" class="filter-input" id="filterDateTo" placeholder="Data até...">
+        <button class="filter-btn" onclick="applyFilters()">Aplicar Filtros</button>
+        <button class="filter-btn" onclick="clearFilters()">Limpar Filtros</button>
+      </div>
+    </section>
+
+    <!-- Upload Section -->
     <section class="upload-section" id="uploadSection">
       <div class="upload-area" onclick="document.getElementById('fileInput').click()">
         <div class="upload-icon">
@@ -499,13 +705,24 @@
       </div>
     </section>
 
+    <!-- Results Section -->
     <section class="results-section" id="resultsSection">
       <div class="results-header">
         <h2 class="results-title">Resultados Ultra-Diretos</h2>
-        <button class="export-btn" id="exportBtn" disabled>
-          <i class="fas fa-file-excel"></i>
-          Exportar Excel
-        </button>
+        <div class="export-buttons">
+          <button class="export-btn" id="exportBtn" disabled>
+            <i class="fas fa-file-excel"></i>
+            Exportar Excel
+          </button>
+          <button class="save-btn" id="saveBtn" disabled>
+            <i class="fas fa-save"></i>
+            Salvar Dados
+          </button>
+          <button class="clear-btn" id="clearBtn" disabled>
+            <i class="fas fa-trash"></i>
+            Limpar Tudo
+          </button>
+        </div>
       </div>
       
       <div class="table-container">
@@ -518,6 +735,7 @@
               <th>Nº Documento</th>
               <th>Valor Total</th>
               <th>Descrição</th>
+              <th>Status</th>
               <th>Ações</th>
             </tr>
           </thead>
@@ -526,6 +744,7 @@
       </div>
     </section>
 
+    <!-- Debug Section -->
     <section class="debug-section" id="debugSection">
       <h3>Debug Ultra-Direto - Análise Simples</h3>
       <div class="debug-text" id="debugText"></div>
@@ -533,9 +752,22 @@
     </section>
   </main>
 
+  <!-- Notifications -->
+  <div class="error-notification" id="errorNotification">
+    <i class="fas fa-exclamation-triangle"></i>
+    <span id="errorMessage"></span>
+  </div>
+
+  <div class="success-notification" id="successNotification">
+    <i class="fas fa-check-circle"></i>
+    <span id="successMessage"></span>
+  </div>
+
   <footer>
     <p>&copy; 2025 COMERCIO DE BANANAS SANTOMÉ LTDA | 
-    <a href="#" onclick="toggleDebug(); return false;">Debug Ultra-Direto</a></p>
+    <a href="#" onclick="toggleDebug(); return false;">Debug Ultra-Direto</a> |
+    <a href="#" onclick="toggleStats(); return false;">Estatísticas</a> |
+    <a href="#" onclick="toggleFilters(); return false;">Filtros</a></p>
   </footer>
 
   <!-- Script de Precisão Laser -->
@@ -567,6 +799,14 @@
     let librariesLoaded = false;
     let extractionResults = [];
     let debugSteps = [];
+    let originalResults = []; // Para filtros
+    let statistics = {
+      totalProcessed: 0,
+      successCount: 0,
+      errorCount: 0,
+      totalValue: 0,
+      uniqueCompanies: new Set()
+    };
     
     // CNPJ da empresa (tomador)
     const COMPANY_CNPJ = '07.925.317/0001-88';
@@ -1375,7 +1615,8 @@
           data_emissao: '',
           numero_documento: '',
           valor_total: '',
-          descricao: ''
+          descricao: '',
+          status: 'pending' // NOVO: campo de status
         };
 
         try {
@@ -1395,6 +1636,9 @@
           data.valor_total = this.extractValorTotal(text);
           data.descricao = this.extractDescription(text);
           
+          // Determinar status baseado na qualidade da extração
+          data.status = this.determineExtractionStatus(data);
+          
           this.logStep('success', '=== EXTRAÇÃO v3.8 CONCLUÍDA ===', data);
           
           return data;
@@ -1405,9 +1649,25 @@
             ...data,
             nome_emitente: 'ERRO ULTRA-DIRETO',
             numero_documento: 'ERRO',
-            descricao: error.message
+            descricao: error.message,
+            status: 'error'
           };
         }
+      }
+
+      // NOVO: Determina status da extração
+      determineExtractionStatus(data) {
+        let score = 0;
+        if (data.cnpj_emitente) score++;
+        if (data.nome_emitente && data.nome_emitente !== 'ERRO ULTRA-DIRETO') score++;
+        if (data.data_emissao) score++;
+        if (data.numero_documento && data.numero_documento !== 'ERRO') score++;
+        if (data.valor_total) score++;
+        if (data.descricao && data.descricao !== 'serviços não especificados') score++;
+
+        if (score >= 5) return 'success';
+        if (score >= 3) return 'warning';
+        return 'error';
       }
 
       // ===== MÉTODOS TRADICIONAIS (funcionam bem) =====
@@ -1502,6 +1762,188 @@
     // ===== INSTÂNCIA DO EXTRATOR ULTRA-DIRETO =====
     const ultraDirectExtractor = new UltraDirectExtractor();
 
+    // ===== NOVAS FUNCIONALIDADES - MELHORIAS =====
+
+    // Sistema de notificações
+    function showNotification(message, type = 'success') {
+      const notification = document.getElementById(type === 'error' ? 'errorNotification' : 'successNotification');
+      const messageElement = document.getElementById(type === 'error' ? 'errorMessage' : 'successMessage');
+      
+      messageElement.textContent = message;
+      notification.style.display = 'block';
+      
+      setTimeout(() => {
+        notification.style.display = 'none';
+      }, 5000);
+    }
+
+    // Sistema de estatísticas
+    function updateStatistics() {
+      statistics.totalProcessed = extractionResults.length;
+      statistics.successCount = extractionResults.filter(r => r.status === 'success').length;
+      statistics.errorCount = extractionResults.filter(r => r.status === 'error').length;
+      
+      // Calcular valor total
+      statistics.totalValue = extractionResults.reduce((total, item) => {
+        if (item.valor_total && item.status !== 'error') {
+          const value = parseFloat(item.valor_total.replace(/\./g, '').replace(',', '.'));
+          return total + (isNaN(value) ? 0 : value);
+        }
+        return total;
+      }, 0);
+
+      // Empresas únicas
+      statistics.uniqueCompanies.clear();
+      extractionResults.forEach(item => {
+        if (item.nome_emitente && item.status !== 'error') {
+          statistics.uniqueCompanies.add(item.nome_emitente);
+        }
+      });
+
+      // Atualizar interface
+      document.getElementById('totalProcessed').textContent = statistics.totalProcessed;
+      document.getElementById('successRate').textContent = 
+        statistics.totalProcessed > 0 ? 
+        Math.round((statistics.successCount / statistics.totalProcessed) * 100) + '%' : '0%';
+      document.getElementById('totalValue').textContent = 
+        'R$ ' + statistics.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+      document.getElementById('uniqueCompanies').textContent = statistics.uniqueCompanies.size;
+    }
+
+    // Sistema de filtros
+    function applyFilters() {
+      const companyFilter = document.getElementById('filterCompany').value.toLowerCase();
+      const dateFromFilter = document.getElementById('filterDateFrom').value;
+      const dateToFilter = document.getElementById('filterDateTo').value;
+
+      let filteredResults = [...originalResults];
+
+      if (companyFilter) {
+        filteredResults = filteredResults.filter(item => 
+          item.nome_emitente.toLowerCase().includes(companyFilter)
+        );
+      }
+
+      if (dateFromFilter) {
+        filteredResults = filteredResults.filter(item => {
+          if (!item.data_emissao) return false;
+          const itemDate = item.data_emissao.split('/').reverse().join('-');
+          return itemDate >= dateFromFilter;
+        });
+      }
+
+      if (dateToFilter) {
+        filteredResults = filteredResults.filter(item => {
+          if (!item.data_emissao) return false;
+          const itemDate = item.data_emissao.split('/').reverse().join('-');
+          return itemDate <= dateToFilter;
+        });
+      }
+
+      // Atualizar tabela
+      const tbody = document.querySelector('#resultsTable tbody');
+      tbody.innerHTML = '';
+      filteredResults.forEach(data => renderResult(data, data.status === 'error'));
+
+      showNotification(`Filtro aplicado: ${filteredResults.length} resultados encontrados`);
+    }
+
+    function clearFilters() {
+      document.getElementById('filterCompany').value = '';
+      document.getElementById('filterDateFrom').value = '';
+      document.getElementById('filterDateTo').value = '';
+      
+      // Restaurar todos os resultados
+      const tbody = document.querySelector('#resultsTable tbody');
+      tbody.innerHTML = '';
+      originalResults.forEach(data => renderResult(data, data.status === 'error'));
+
+      showNotification('Filtros removidos');
+    }
+
+    // Sistema de backup/save dos dados
+    function saveDataToLocalStorage() {
+      try {
+        const dataToSave = {
+          timestamp: new Date().toISOString(),
+          results: extractionResults,
+          statistics: {
+            ...statistics,
+            uniqueCompanies: Array.from(statistics.uniqueCompanies)
+          }
+        };
+        
+        localStorage.setItem('nfse_data_backup', JSON.stringify(dataToSave));
+        showNotification('Dados salvos com sucesso!');
+      } catch (error) {
+        showNotification('Erro ao salvar dados: ' + error.message, 'error');
+      }
+    }
+
+    function loadDataFromLocalStorage() {
+      try {
+        const savedData = localStorage.getItem('nfse_data_backup');
+        if (savedData) {
+          const parsedData = JSON.parse(savedData);
+          
+          // Confirmar restauração
+          if (confirm('Dados salvos encontrados. Deseja restaurar?')) {
+            extractionResults = parsedData.results || [];
+            originalResults = [...extractionResults];
+            
+            // Restaurar estatísticas
+            if (parsedData.statistics) {
+              statistics = {
+                ...parsedData.statistics,
+                uniqueCompanies: new Set(parsedData.statistics.uniqueCompanies || [])
+              };
+            }
+            
+            // Atualizar interface
+            const tbody = document.querySelector('#resultsTable tbody');
+            tbody.innerHTML = '';
+            extractionResults.forEach(data => renderResult(data, data.status === 'error'));
+            
+            updateStatistics();
+            enableExportIfAny();
+            showResults();
+            showNotification('Dados restaurados com sucesso!');
+            
+            return true;
+          }
+        }
+      } catch (error) {
+        showNotification('Erro ao carregar dados: ' + error.message, 'error');
+      }
+      return false;
+    }
+
+    // Função para validar dados de uma linha
+    function validateRowData(rowElement) {
+      const cells = Array.from(rowElement.querySelectorAll('td[contenteditable]'));
+      let isValid = true;
+      
+      // Validação básica de CNPJ
+      const cnpj = cells[0].textContent.trim();
+      if (cnpj && !/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/.test(cnpj)) {
+        cells[0].style.borderColor = 'red';
+        isValid = false;
+      } else {
+        cells[0].style.borderColor = '';
+      }
+      
+      // Validação de nome (não pode estar vazio)
+      const nome = cells[1].textContent.trim();
+      if (!nome || nome.length < 5) {
+        cells[1].style.borderColor = 'red';
+        isValid = false;
+      } else {
+        cells[1].style.borderColor = '';
+      }
+      
+      return isValid;
+    }
+
     // ===== VERIFICAÇÃO DE BIBLIOTECAS =====
     function checkLibraries() {
       const statusSection = document.getElementById('statusSection');
@@ -1540,6 +1982,10 @@
         }, 3000);
         
         console.log('🎯 Sistema de Extração v3.8 inicializado');
+        
+        // Tentar carregar dados salvos
+        loadDataFromLocalStorage();
+        
       } else {
         statusMessage.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Erro: ${message}`;
         statusMessage.className = 'status-error';
@@ -1552,7 +1998,7 @@
     // ===== PROCESSAMENTO DE ARQUIVOS =====
     async function handleFiles(files) {
       if (!librariesLoaded) {
-        alert('Aguarde o carregamento do sistema ULTRA-DIRETO!');
+        showNotification('Aguarde o carregamento do sistema ULTRA-DIRETO!', 'error');
         return;
       }
       
@@ -1564,292 +2010,4 @@
         
         try {
           let extractedText = '';
-          if (file.type === 'application/pdf') {
-            extractedText = await processPDF(file);
-          } else if (file.type.startsWith('image/')) {
-            extractedText = await processImage(file);
-          }
-          
-          console.log('📄 Texto extraído:', extractedText.substring(0, 500) + '...');
-          
-          const data = await ultraDirectExtractor.extractAllData(extractedText, file.name);
-          
-          extractionResults.unshift(data);
-          renderResult(data);
-          
-          if (debugMode) {
-            updateDebugInfo(extractedText);
-          }
-          
-        } catch (error) {
-          console.error(`Erro ao processar ${file.name}:`, error);
-          const errorData = {
-            filename: file.name,
-            cnpj_emitente: 'ERRO',
-            nome_emitente: 'Erro no processamento ULTRA-DIRETO',
-            data_emissao: '',
-            numero_documento: '',
-            valor_total: '',
-            descricao: error.message || 'Erro desconhecido'
-          };
-          extractionResults.unshift(errorData);
-          renderResult(errorData, true);
-        }
-      }
-      
-      updateProgress(files.length, files.length, 'Extração ultra-direta concluída!');
-      setTimeout(hideProgress, 2000);
-      enableExportIfAny();
-      showResults();
-    }
-
-    // ===== PROCESSAMENTO DE PDF =====
-    async function processPDF(file) {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-      let fullText = '';
-
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        let pageText = textContent.items.map(item => item.str).join(' ');
-        
-        if (!pageText.trim()) {
-          console.log('Fallback OCR ativado na página', i);
-          pageText = await ocrImagePage(pdf, i);
-        }
-        
-        fullText += pageText + '\n\n';
-      }
-
-      return fullText;
-    }
-
-    async function ocrImagePage(pdf, pageNum) {
-      const page = await pdf.getPage(pageNum);
-      const viewport = page.getViewport({ scale: 2 });
-      const canvas = document.createElement('canvas');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      const ctx = canvas.getContext('2d');
-      await page.render({ canvasContext: ctx, viewport }).promise;
-
-      const worker = await Tesseract.createWorker();
-      await worker.load();
-      await worker.loadLanguage('por+eng');
-      await worker.initialize('por+eng');
-
-      const { data: { text } } = await worker.recognize(canvas);
-      await worker.terminate();
-      return text;
-    }
-
-    // ===== PROCESSAMENTO DE IMAGEM =====
-    async function processImage(file) {
-      const { createWorker } = Tesseract;
-      const worker = await createWorker();
-      
-      await worker.loadLanguage('por');
-      await worker.initialize('por');
-      
-      const { data: { text } } = await worker.recognize(file);
-      await worker.terminate();
-      
-      return text;
-    }
-
-    // ===== INTERFACE =====
-    function renderResult(data, isError = false) {
-      const tbody = document.querySelector('#resultsTable tbody');
-      const row = document.createElement('tr');
-      
-      if (isError) {
-        row.className = 'error-row';
-      }
-      
-      row.innerHTML = `
-        <td contenteditable="true">${data.cnpj_emitente || ''}</td>
-        <td contenteditable="true">${data.nome_emitente || ''}</td>
-        <td contenteditable="true">${data.data_emissao || ''}</td>
-        <td contenteditable="true">${data.numero_documento || ''}</td>
-        <td contenteditable="true">${data.valor_total || ''}</td>
-        <td contenteditable="true">${data.descricao || ''}</td>
-        <td>
-          <button class="delete-btn" onclick="deleteResult(this)" title="Excluir linha">
-            <i class="fas fa-trash"></i>
-          </button>
-        </td>
-      `;
-      
-      tbody.appendChild(row);
-    }
-
-    window.deleteResult = function(button) {
-      const row = button.closest('tr');
-      const index = Array.from(row.parentNode.children).indexOf(row);
-      
-      row.remove();
-      extractionResults.splice(index, 1);
-      enableExportIfAny();
-    }
-
-    function showProgress() {
-      document.getElementById('progressSection').style.display = 'block';
-    }
-    
-    function hideProgress() {
-      document.getElementById('progressSection').style.display = 'none';
-    }
-    
-    function updateProgress(current, total, message) {
-      const percentage = Math.round((current / total) * 100);
-      document.getElementById('progressFill').style.width = percentage + '%';
-      document.getElementById('progressText').textContent = `${message} (${current}/${total})`;
-    }
-    
-    function showResults() {
-      document.getElementById('resultsSection').style.display = 'block';
-    }
-    
-    function enableExportIfAny() {
-      const hasData = document.querySelector('#resultsTable tbody tr');
-      document.getElementById('exportBtn').disabled = !hasData;
-    }
-
-    // ===== EXPORTAÇÃO =====
-    function exportToExcel() {
-      const table = document.getElementById('resultsTable');
-      const rows = Array.from(table.querySelectorAll('tbody tr'));
-      
-      const data = rows.map(row => {
-        const cells = Array.from(row.querySelectorAll('td[contenteditable]'));
-        return {
-          'CNPJ Emitente': cells[0].textContent.trim(),
-          'Nome Emitente': cells[1].textContent.trim(),
-          'Data Emissão': cells[2].textContent.trim(),
-          'Nº Documento': cells[3].textContent.trim(),
-          'Valor Total': cells[4].textContent.trim(),
-          'Descrição': cells[5].textContent.trim()
-        };
-      });
-      
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Despesas_Laser');
-      
-      const now = new Date();
-      const filename = `despesas_laser_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.xlsx`;
-      
-      XLSX.writeFile(wb, filename);
-    }
-
-    // ===== DEBUG =====
-    window.toggleDebug = function() {
-      debugMode = !debugMode;
-      const debugSection = document.getElementById('debugSection');
-      debugSection.style.display = debugMode ? 'block' : 'none';
-    }
-    
-    function updateDebugInfo(text) {
-      // Atualiza texto extraído
-      document.getElementById('debugText').textContent = text.substring(0, 2000) + (text.length > 2000 ? '\n... (texto truncado)' : '');
-      
-      // Atualiza detalhes da extração
-      const detailsDiv = document.getElementById('extractionDetails');
-      let html = '<h4>🎯 Processo de Extração v3.8 (Correções Log + NOVAS):</h4>';
-      
-      if (ultraDirectExtractor.debugSteps.length > 0) {
-        html += '<div>';
-        ultraDirectExtractor.debugSteps.forEach(step => {
-          const stepClass = step.type === 'success' ? 'step-success' : 
-                           step.type === 'fail' || step.type === 'error' ? 'step-fail' : 
-                           step.type === 'warning' ? 'step-warning' : '';
-          
-          html += `<div class="extraction-step ${stepClass}">
-            <strong>[${step.type.toUpperCase()}]</strong> ${step.message}
-            ${step.result ? `<br><em>Resultado: ${step.result}</em>` : ''}
-          </div>`;
-        });
-        html += '</div>';
-      }
-      
-      detailsDiv.innerHTML = html;
-    }
-
-    // ===== INICIALIZAÇÃO =====
-    document.addEventListener('DOMContentLoaded', function() {
-      const uploadSection = document.getElementById('uploadSection');
-      const fileInput = document.getElementById('fileInput');
-      const exportBtn = document.getElementById('exportBtn');
-      
-      checkLibraries();
-      
-      fileInput.addEventListener('change', function(e) {
-        const files = Array.from(e.target.files).filter(file => 
-          file.type === 'application/pdf' || file.type.startsWith('image/')
-        );
-        
-        if (files.length > 0) {
-          handleFiles(files);
-        }
-      });
-      
-      uploadSection.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        uploadSection.classList.add('dragover');
-      });
-      
-      uploadSection.addEventListener('dragleave', function(e) {
-        e.preventDefault();
-        uploadSection.classList.remove('dragover');
-      });
-      
-      uploadSection.addEventListener('drop', function(e) {
-        e.preventDefault();
-        uploadSection.classList.remove('dragover');
-        
-        const files = Array.from(e.dataTransfer.files).filter(file => 
-          file.type === 'application/pdf' || file.type.startsWith('image/')
-        );
-        
-        if (files.length > 0) {
-          handleFiles(files);
-        }
-      });
-      
-      exportBtn.addEventListener('click', exportToExcel);
-      
-      console.log('🎯 Sistema v3.8 - Correções do Log + NOVAS Estratégias Implementadas!');
-      console.log('📚 Bibliotecas Atualizadas:');
-      console.log('   ✅ PDF.js atualizado: v3.11.174');
-      console.log('   ✅ SheetJS atualizado: v0.18.5');
-      console.log('🆕 NOVAS Estratégias v3.8 (Correções Log):');
-      console.log('   ✅ VANTOIR DERETTI ME (NOVO)');
-      console.log('   ✅ SERVOPA CAMINHOES LTDA (NOVO)');
-      console.log('   ✅ TRANSPOTECH PECAS E SERVICOS LTDA (NOVO)');
-      console.log('   ✅ SINDICATO DO COMERCIO VAREJISTA DE JARAGUA DO SUL (NOVO)');
-      console.log('   ✅ FSC COMUNICACOES LTDA (NOVO)');
-      console.log('   ✅ Filtros anti-endereços melhorados (NOVO)');
-      console.log('   ✅ Validação aprimorada para empresas específicas (NOVO)');
-      console.log('🔧 Estratégias Mantidas v3.6:');
-      console.log('   ✅ M.A. DA SILVA VIEIRA - AUTO ELÉTRICA ✓');
-      console.log('   ✅ BHS MARINGA TECNOLOGIA LTDA ✓');
-      console.log('   ✅ PORTEC COMERCIO PRODUTOS ELETRONICOS ✓');
-      console.log('   ✅ TRANORTE SISTEMAS MECANIZADOS LTDA ✓');
-      console.log('   ✅ POSTO Z4 LTDA ✓');
-      console.log('   ✅ CONTABILIDADE ORLANDO AMORIM S/S LTDA ✓');
-      console.log('🔧 Estratégias Mantidas v3.5:');
-      console.log('   ✅ W.O. RIGO FILHO - INFORMATICA - ME ✓');
-      console.log('   ✅ Nomes com iniciais ✓');
-      console.log('   ✅ Busca por Razão Social ✓');
-      console.log('🔧 Estratégias Mantidas v3.4:');
-      console.log('   ✅ FUNILARIA NITZ LTDA ✓');
-      console.log('   ✅ SASCAR TECNOLOGIA ✓');
-      console.log('🔧 Estratégias Mantidas v3.3:');
-      console.log('   ✅ Seção PRESTADOR (RD CARTUCHOS) ✓');
-      console.log('   ✅ LUCIA IVONETE específica ✓');
-      console.log('   ✅ Compatibilidade total 100% ✓');
-    });
-  </script>
-</body>
-</html>
+          if
