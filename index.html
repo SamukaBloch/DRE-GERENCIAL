@@ -354,14 +354,14 @@
 </head>
 <body>
   <header>
-    <h1><i class="fas fa-bullseye"></i> Automatizador NFS-e v3.7</h1>
-    <p>Novas correções: SERVOPA + TRANSPOTECH + SINDICATO + FSC baseadas no log</p>
-    <div class="version-badge">v3.7 - Novas Correções: SERVOPA + TRANSPOTECH + SINDICATO + FSC</div>
+    <h1><i class="fas fa-bullseye"></i> Automatizador NFS-e v3.7.1</h1>
+    <p>Novas correções: VANTOIR DERETTI + SERVOPA + TRANSPOTECH + SINDICATO + FSC baseadas no log</p>
+    <div class="version-badge">v3.7.1 - Novas Correções: VANTOIR + SERVOPA + TRANSPOTECH + SINDICATO + FSC</div>
   </header>
 
   <div class="container">
     <div class="status-section" id="statusSection">
-      <div id="statusMessage">Carregando sistema v3.7...</div>
+      <div id="statusMessage">Carregando sistema v3.7.1...</div>
     </div>
 
     <div class="upload-section">
@@ -371,7 +371,7 @@
           <i class="fas fa-file-pdf"></i>
         </div>
         <div class="upload-text">Clique aqui ou arraste os arquivos</div>
-        <div class="upload-hint">v3.7 - SERVOPA + TRANSPOTECH + SINDICATO + FSC + M.A. SILVA + BHS + PORTEC + W.O. RIGO + outros</div>
+        <div class="upload-hint">v3.7.1 - VANTOIR DERETTI + SERVOPA + TRANSPOTECH + SINDICATO + FSC + M.A. SILVA + BHS + PORTEC + W.O. RIGO + outros</div>
       </div>
       <input type="file" id="fileInput" multiple accept=".pdf,.xlsx,.xls">
       <button class="btn" onclick="document.getElementById('fileInput').click()">
@@ -387,7 +387,7 @@
       <div class="progress-bar">
         <div class="progress-fill" id="progressFill"></div>
       </div>
-      <div class="progress-text" id="progressText">Aplicando extração v3.7...</div>
+              <div class="progress-text" id="progressText">Aplicando extração v3.7.1...</div>
     </div>
 
     <div class="results-section" id="resultsSection">
@@ -402,7 +402,7 @@
         </button>
       </div>
 
-      <h2 class="results-title">Resultados v3.7</h2>
+      <h2 class="results-title">Resultados v3.7.1</h2>
       <div style="overflow-x: auto;">
         <table class="results-table" id="resultsTable">
           <thead>
@@ -422,20 +422,20 @@
     </div>
 
     <div class="debug-section" id="debugSection">
-      <h3>Debug v3.7 - Análise Detalhada</h3>
+      <h3>Debug v3.7.1 - Análise Detalhada</h3>
       <div class="debug-content" id="debugContent"></div>
     </div>
   </div>
 
   <footer>
-    <p>&copy; 2025 Automatizador NFS-e v3.7 | 
-    <a href="#" onclick="toggleDebug(); return false;">Debug v3.7</a></p>
+    <p>&copy; 2025 Automatizador NFS-e v3.7.1 | 
+    <a href="#" onclick="toggleDebug(); return false;">Debug v3.7.1</a></p>
   </footer>
 
   <script>
     // ===== SISTEMA DE EXTRAÇÃO v3.7 - NOVAS CORREÇÕES DO LOG =====
     // HISTÓRICO DE MELHORIAS (SEM QUEBRAR FUNCIONALIDADES):
-    // v3.7: + SERVOPA CAMINHOES LTDA + TRANSPOTECH PECAS E SERVICOS + SINDICATO DO COMERCIO VAREJISTA + FSC COMUNICACOES + correções específicas baseadas no log
+    // v3.7.1: + VANTOIR DERETTI ME + SERVOPA CAMINHOES LTDA + TRANSPOTECH PECAS E SERVICOS + SINDICATO DO COMERCIO VAREJISTA + FSC COMUNICACOES + correções específicas baseadas no log
     // v3.6: + M.A. DA SILVA VIEIRA - AUTO ELÉTRICA + BHS MARINGA + PORTEC + TRANORTE + POSTO Z4 + CONTABILIDADE ORLANDO + correções específicas
     // v3.5: + W.O. RIGO FILHO + Razão Social específica + nomes com iniciais + seção PRESTADOR melhorada
     // v3.4: + FUNILARIA NITZ LTDA + SASCAR TECNOLOGIA + busca por primeiras linhas + busca por CNPJ+nome
@@ -445,6 +445,7 @@
     // v3.0: + LUCIA IVONETE específica + estratégias em ordem de prioridade
     // 
     // CASOS SUPORTADOS:
+    // ✅ VANTOIR DERETTI ME
     // ✅ SERVOPA CAMINHOES LTDA
     // ✅ TRANSPOTECH PECAS E SERVICOS LTDA  
     // ✅ SINDICATO DO COMERCIO VAREJISTA DE JARAGUA DO SUL
@@ -497,7 +498,7 @@
 
       // ===== ESTRATÉGIAS ESPECÍFICAS v3.7 - Novas Correções do Log =====
       extractEmitenteNameLaser(text, cnpj) {
-        this.logStep('info', 'Iniciando extração ULTRA-DIRETA de nome do emitente v3.7');
+        this.logStep('info', 'Iniciando extração ULTRA-DIRETA de nome do emitente v3.7.1');
         
         if (!cnpj) {
           this.logStep('fail', 'CNPJ não fornecido para busca de nome');
@@ -540,6 +541,16 @@
           let name = this.cleanCompanyName(fscMatch[0]);
           if (this.validateCompanyNameImproved(name)) {
             this.logStep('success', 'FSC COMUNICACOES encontrada', name);
+            return name;
+          }
+        }
+
+        // NOVA ESTRATÉGIA v3.7.5: VANTOIR DERETTI ME
+        const vantoirMatch = text.match(/VANTOIR\s+DERETTI[^0-9\n\r]*ME[^0-9\n\r]*/gi);
+        if (vantoirMatch) {
+          let name = this.cleanCompanyName(vantoirMatch[0]);
+          if (this.validateCompanyNameImproved(name)) {
+            this.logStep('success', 'VANTOIR DERETTI ME encontrada', name);
             return name;
           }
         }
@@ -694,7 +705,7 @@
           const prestadorLines = prestadorSection.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
           for (const line of prestadorLines) {
             if (line.length > 15 && line.length < 120 && 
-                /LTDA|EPP|S\.?A|ME|EIRELI|CARTUCHOS|TECNOLOGIA|INFORMATICA|RIGO|FILHO|BHS|MARINGA|PORTEC|COMERCIO|SERVOPA|CAMINHOES|TRANSPOTECH|PECAS|SERVICOS|SINDICATO|VAREJISTA|FSC|COMUNICACOES/gi.test(line) &&
+                /LTDA|EPP|S\.?A|ME|EIRELI|CARTUCHOS|TECNOLOGIA|INFORMATICA|RIGO|FILHO|BHS|MARINGA|PORTEC|COMERCIO|SERVOPA|CAMINHOES|TRANSPOTECH|PECAS|SERVICOS|SINDICATO|VAREJISTA|FSC|COMUNICACOES|VANTOIR|DERETTI/gi.test(line) &&
                 !/PRESTADOR|TOMADOR|ENDEREÇO|TELEFONE|EMAIL|CPF|CNPJ|Inscrição|Município|Complemento|UF:|Bairro CIC|Estado:|CURITIBA|BLUMENAU|ITOUPAVA NORTE/i.test(line)) {
               
               let name = this.cleanCompanyName(line);
@@ -767,7 +778,7 @@
           const line = lines[i];
           
           if (line.length > 10 && line.length < 120 && 
-              /LTDA|EPP|S\.?A|ME|EIRELI|SERVOPA|CAMINHOES|TRANSPOTECH|PECAS|SERVICOS|SINDICATO|COMERCIO|VAREJISTA|FSC|COMUNICACOES/gi.test(line) &&
+              /LTDA|EPP|S\.?A|ME|EIRELI|SERVOPA|CAMINHOES|TRANSPOTECH|PECAS|SERVICOS|SINDICATO|COMERCIO|VAREJISTA|FSC|COMUNICACOES|VANTOIR|DERETTI/gi.test(line) &&
               !/PREFEITURA|MUNICIPAL|SECRETARIA|FAZENDA|TOMADOR|PRESTADOR|DOCUMENTO|EMITIDA|Complemento|UF:|CENTRO|MUNICÍPIO|Bairro CIC|Estado:|CURITIBA|BLUMENAU|ITOUPAVA NORTE|VIA EXPRESSA|PAUL FRITZ/i.test(line)) {
             
             let name = this.cleanCompanyName(line);
@@ -786,7 +797,8 @@
           text.match(/(SERVOPA[^0-9\n\r]*CAMINHOES[^0-9\n\r]*LTDA[^0-9\n\r]*)/gi),  // v3.7
           text.match(/(TRANSPOTECH[^0-9\n\r]*PECAS[^0-9\n\r]*SERVICOS[^0-9\n\r]*LTDA[^0-9\n\r]*)/gi),  // v3.7
           text.match(/(SINDICATO[^0-9\n\r]*COMERCIO[^0-9\n\r]*VAREJISTA[^0-9\n\r]*)/gi),  // v3.7
-          text.match(/(FSC[^0-9\n\r]*COMUNICACOES[^0-9\n\r]*LTDA[^0-9\n\r]*)/gi)  // v3.7
+          text.match(/(FSC[^0-9\n\r]*COMUNICACOES[^0-9\n\r]*LTDA[^0-9\n\r]*)/gi),  // v3.7
+          text.match(/(VANTOIR[^0-9\n\r]*DERETTI[^0-9\n\r]*ME[^0-9\n\r]*)/gi)  // v3.7.5
         ];
 
         for (const matchGroup of businessMatches) {
@@ -817,6 +829,9 @@
         }
         
         // NOVOS PADRÕES ACEITOS v3.7:
+        // Aceitar VANTOIR DERETTI ME
+        if (/VANTOIR.*DERETTI/i.test(name)) return true;
+        
         // Aceitar SERVOPA CAMINHOES LTDA
         if (/SERVOPA.*CAMINHOES/i.test(name)) return true;
         
@@ -865,7 +880,7 @@
         if (/RD\s+CARTUCHOS/i.test(name)) return true;
 
         // Aceitar se tem palavras características de empresa
-        if (/DIESEL|MECANICA|CARTUCHOS|INFORMATICA|INDUSTRIA|SERVICOS|TECNOLOGIA|SEGURANCA|AUTOMOTIVA|FUNILARIA|RIGO|FILHO|BHS|MARINGA|PORTEC|COMERCIO|TRANORTE|SISTEMAS|POSTO|CONTABILIDADE|ORLANDO|AMORIM|AUTO|ELETRICA|SERVOPA|CAMINHOES|TRANSPOTECH|PECAS|SINDICATO|VAREJISTA|FSC|COMUNICACOES/i.test(name)) return true;
+        if (/DIESEL|MECANICA|CARTUCHOS|INFORMATICA|INDUSTRIA|SERVICOS|TECNOLOGIA|SEGURANCA|AUTOMOTIVA|FUNILARIA|RIGO|FILHO|BHS|MARINGA|PORTEC|COMERCIO|TRANORTE|SISTEMAS|POSTO|CONTABILIDADE|ORLANDO|AMORIM|AUTO|ELETRICA|SERVOPA|CAMINHOES|TRANSPOTECH|PECAS|SINDICATO|VAREJISTA|FSC|COMUNICACOES|VANTOIR|DERETTI/i.test(name)) return true;
 
         // Aceitar se tem sufixos de empresa
         if (/LTDA|EPP|S\.?A|ME|EIRELI/i.test(name)) return true;
@@ -1021,7 +1036,7 @@
       // ===== MÉTODO PRINCIPAL =====
       async extractAllData(text, filename) {
         this.debugSteps = [];
-        this.logStep('info', `=== INICIANDO EXTRAÇÃO v3.7 PARA ${filename} ===`);
+        this.logStep('info', `=== INICIANDO EXTRAÇÃO v3.7.1 PARA ${filename} ===`);
         
         const data = {
           filename: filename,
@@ -1045,14 +1060,14 @@
           data.data_emissao = this.extractDate(text);
           data.valor_total = this.extractValue(text);
           
-          this.logStep('success', '=== EXTRAÇÃO v3.7 CONCLUÍDA ===', data);
+          this.logStep('success', '=== EXTRAÇÃO v3.7.1 CONCLUÍDA ===', data);
           return data;
           
         } catch (error) {
-          this.logStep('error', 'ERRO NA EXTRAÇÃO v3.7', error.message);
+          this.logStep('error', 'ERRO NA EXTRAÇÃO v3.7.1', error.message);
           return {
             ...data,
-            nome_emitente: 'ERRO v3.7',
+            nome_emitente: 'ERRO v3.7.1',
             numero_documento: 'ERRO',
             descricao: error.message
           };
@@ -1068,7 +1083,7 @@
       try {
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         
-        statusMessage.innerHTML = '<i class="fas fa-check-circle"></i> Sistema v3.7 ativo! Novas correções: SERVOPA + TRANSPOTECH + SINDICATO + FSC implementadas.';
+        statusMessage.innerHTML = '<i class="fas fa-check-circle"></i> Sistema v3.7.1 ativo! Novas correções: VANTOIR DERETTI + SERVOPA + TRANSPOTECH + SINDICATO + FSC implementadas.';
         statusMessage.className = 'status-ok';
         librariesLoaded = true;
         
@@ -1076,12 +1091,13 @@
           statusSection.style.display = 'none';
         }, 3000);
         
-        console.log('🎯 Sistema de Extração v3.7 inicializado');
-        console.log('🎯 Sistema v3.7 - Novas Correções do Log Implementadas!');
+        console.log('🎯 Sistema de Extração v3.7.1 inicializado');
+        console.log('🎯 Sistema v3.7.1 - Novas Correções do Log Implementadas!');
         console.log('📚 Bibliotecas Atualizadas:');
         console.log('   ✅ PDF.js atualizado: v3.11.174');
         console.log('   ✅ SheetJS atualizado: v0.18.5');
         console.log('🆕 NOVAS Estratégias v3.7 (Correções Log):');
+        console.log('   ✅ VANTOIR DERETTI ME (NOVO)');
         console.log('   ✅ SERVOPA CAMINHOES LTDA (NOVO)');
         console.log('   ✅ TRANSPOTECH PECAS E SERVICOS LTDA (NOVO)');
         console.log('   ✅ SINDICATO DO COMERCIO VAREJISTA DE JARAGUA DO SUL (NOVO)');
@@ -1160,7 +1176,7 @@
     // ===== PROCESSAMENTO =====
     async function processFiles() {
       if (!librariesLoaded) {
-        alert('Aguarde o carregamento do sistema v3.7!');
+        alert('Aguarde o carregamento do sistema v3.7.1!');
         return;
       }
 
@@ -1180,7 +1196,7 @@
 
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i];
-        updateProgress(i, selectedFiles.length, `Aplicando extração v3.7 em ${file.name}...`);
+        updateProgress(i, selectedFiles.length, `Aplicando extração v3.7.1 em ${file.name}...`);
         
         try {
           let extractedData;
@@ -1202,7 +1218,7 @@
           const errorData = {
             filename: file.name,
             cnpj_emitente: 'ERRO',
-            nome_emitente: 'Erro no processamento v3.7',
+            nome_emitente: 'Erro no processamento v3.7.1',
             data_emissao: '',
             numero_documento: '',
             valor_total: '',
@@ -1212,7 +1228,7 @@
         }
       }
 
-      updateProgress(files.length, files.length, 'Extração v3.7 concluída!');
+      updateProgress(selectedFiles.length, selectedFiles.length, 'Extração v3.7.1 concluída!');
       
       setTimeout(() => {
         progressSection.style.display = 'none';
@@ -1376,7 +1392,7 @@
           return;
         }
         
-        let html = '<h4>🎯 Processo de Extração v3.7 (Novas Correções):</h4>';
+        let html = '<h4>🎯 Processo de Extração v3.7.1 (Novas Correções):</h4>';
         
         debugInfo.forEach((fileDebug, index) => {
           html += `<div style="margin: 15px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">`;
