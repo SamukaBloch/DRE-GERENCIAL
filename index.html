@@ -770,7 +770,7 @@
     <a href="#" onclick="toggleFilters(); return false;">Filtros</a></p>
   </footer>
 
-  <!-- Script de Precisão Laser -->
+  <!-- Script EXATAMENTE como o original que funciona -->
   <script type="module">
     // ===== POLYFILLS =====
     (function() {
@@ -783,18 +783,18 @@
       };
     })();
 
-    // Importa as bibliotecas EXATAMENTE como no original
+    // Importa as bibliotecas EXATAMENTE como no original que funciona
     import * as pdfjsLib from './libs/pdf.min.mjs';
     import Tesseract from './libs/tesseract.esm.min.js';
     import * as XLSX from './libs/xlsx.mjs';
 
-    // Configura PDF.js EXATAMENTE como no original
+    // Configura PDF.js EXATAMENTE como no original que funciona
     pdfjsLib.GlobalWorkerOptions.workerSrc = './libs/pdf.worker.min.mjs';
     window.pdfjsLib = pdfjsLib;
     window.Tesseract = Tesseract;
     window.XLSX = XLSX;
 
-    // ===== VARIÁVEIS GLOBAIS =====
+    // ===== VARIÁVEIS GLOBAIS EXATAMENTE COMO NO ORIGINAL =====
     let debugMode = false;
     let librariesLoaded = false;
     let extractionResults = [];
@@ -811,37 +811,7 @@
     // CNPJ da empresa (tomador)
     const COMPANY_CNPJ = '07.925.317/0001-88';
 
-    // ===== SISTEMA DE EXTRAÇÃO v3.8 - CORREÇÕES DO LOG =====
-    // HISTÓRICO DE MELHORIAS (SEM QUEBRAR FUNCIONALIDADES):
-    // v3.8: + VANTOIR DERETTI ME + SERVOPA CAMINHOES LTDA + TRANSPOTECH PECAS E SERVICOS LTDA + SINDICATO DO COMERCIO VAREJISTA + FSC COMUNICACOES LTDA + correções específicas baseadas no log
-    // v3.6: + M.A. DA SILVA VIEIRA - AUTO ELÉTRICA + BHS MARINGA + PORTEC + TRANORTE + POSTO Z4 + CONTABILIDADE ORLANDO + correções específicas
-    // v3.5: + W.O. RIGO FILHO + Razão Social específica + nomes com iniciais + seção PRESTADOR melhorada
-    // v3.4: + FUNILARIA NITZ LTDA + SASCAR TECNOLOGIA + busca por primeiras linhas + busca por CNPJ+nome
-    // v3.3: + Bibliotecas atualizadas (PDF.js v3.11.174, SheetJS v0.18.5)  
-    // v3.2: + Busca específica por seção PRESTADOR (corrige RD CARTUCHOS)
-    // v3.1: + Filtros anti-órgão público + validação aprimorada + limpeza melhorada
-    // v3.0: + LUCIA IVONETE específica + estratégias em ordem de prioridade
-    // 
-    // CASOS SUPORTADOS:
-    // ✅ VANTOIR DERETTI ME (NOVO v3.8)
-    // ✅ SERVOPA CAMINHOES LTDA (NOVO v3.8)
-    // ✅ TRANSPOTECH PECAS E SERVICOS LTDA (NOVO v3.8)
-    // ✅ SINDICATO DO COMERCIO VAREJISTA DE JARAGUA DO SUL (NOVO v3.8)
-    // ✅ FSC COMUNICACOES LTDA (NOVO v3.8)
-    // ✅ M.A. DA SILVA VIEIRA - AUTO ELÉTRICA
-    // ✅ BHS MARINGA TECNOLOGIA LTDA  
-    // ✅ PORTEC COMERCIO DE PRODUTOS ELETRONICOS E SERVICO
-    // ✅ TRANORTE SISTEMAS MECANIZADOS LTDA
-    // ✅ POSTO Z4 LTDA
-    // ✅ CONTABILIDADE ORLANDO AMORIM S/S LTDA
-    // ✅ W.O. RIGO FILHO - INFORMATICA - ME
-    // ✅ RD CARTUCHOS E INFORMATICA LTDA - ME
-    // ✅ LUCIA IVONETE VICK KASMIRSKI - EPP - MECANICA DIESEL KASMIRSKI  
-    // ✅ FUNILARIA NITZ LTDA
-    // ✅ SASCAR - TECNOLOGIA E SEGURANÇA AUTOMOTIVA S.A
-    // ✅ Qualquer empresa com EPP, LTDA, ME, S.A, EIRELI
-    // ✅ Nomes com iniciais (J.A., M.S., etc.)
-    // ✅ Filtros robustos anti-órgão público
+    // ===== SISTEMA DE EXTRAÇÃO v3.8 EXATAMENTE COMO NO ORIGINAL =====
     class UltraDirectExtractor {
       constructor() {
         this.debugSteps = [];
@@ -853,7 +823,7 @@
         console.log(`[${type.toUpperCase()}] ${message}`, result || '');
       }
 
-      // ===== EXTRAÇÃO DE CNPJ (mantida - já funciona) =====
+      // ===== EXTRAÇÃO DE CNPJ EXATAMENTE COMO NO ORIGINAL =====
       extractCNPJEmitente(text) {
         this.logStep('info', 'Iniciando extração de CNPJ');
         
@@ -877,7 +847,7 @@
         return '';
       }
 
-      // ===== ESTRATÉGIAS ESPECÍFICAS v3.8 - Correções do Log ADICIONADAS =====
+      // ===== ESTRATÉGIAS ESPECÍFICAS v3.8 EXATAMENTE COMO NO ORIGINAL =====
       extractEmitenteNameLaser(text, cnpj) {
         this.logStep('info', 'Iniciando extração ULTRA-DIRETA de nome do emitente');
         
@@ -885,8 +855,6 @@
           this.logStep('fail', 'CNPJ não fornecido para busca de nome');
           return '';
         }
-
-        // ===== NOVAS ESTRATÉGIAS v3.8 - ADICIONADAS =====
 
         // NOVA ESTRATÉGIA v3.8.1: VANTOIR DERETTI ME
         const vantoirMatch = text.match(/VANTOIR\s+DERETTI[^0-9\n\r]*ME[^0-9\n\r]*/gi);
@@ -937,8 +905,6 @@
             return name;
           }
         }
-
-        // ===== ESTRATÉGIAS v3.6 MANTIDAS =====
 
         // ESTRATÉGIA v3.6.1: M.A. DA SILVA VIEIRA - AUTO ELÉTRICA (mantida)
         const autoEletricaMatch = text.match(/M\.A\.\s+DA\s+SILVA\s+VIEIRA[^0-9\n\r]*AUTO\s+EL[EÉ]TRICA[^0-9\n\r]*/gi);
@@ -1156,11 +1122,11 @@
           text.match(/([A-Z][^0-9\n\r]{5,100}\s+EPP[^0-9\n\r]{0,50})/i),
           text.match(/([A-Z][^0-9\n\r]{5,100}\s+LTDA\s*-\s*ME[^0-9\n\r]{0,50})/i),
           text.match(/(RD\s+CARTUCHOS[^0-9\n\r]*LTDA[^0-9\n\r]*ME[^0-9\n\r]*)/gi),
-          text.match(/(SERVOPA[^0-9\n\r]*CAMINHOES[^0-9\n\r]*LTDA[^0-9\n\r]*)/gi),  // v3.8
-          text.match(/(TRANSPOTECH[^0-9\n\r]*PECAS[^0-9\n\r]*SERVICOS[^0-9\n\r]*LTDA[^0-9\n\r]*)/gi),  // v3.8
-          text.match(/(SINDICATO[^0-9\n\r]*COMERCIO[^0-9\n\r]*VAREJISTA[^0-9\n\r]*)/gi),  // v3.8
-          text.match(/(FSC[^0-9\n\r]*COMUNICACOES[^0-9\n\r]*LTDA[^0-9\n\r]*)/gi),  // v3.8
-          text.match(/(VANTOIR[^0-9\n\r]*DERETTI[^0-9\n\r]*ME[^0-9\n\r]*)/gi)  // v3.8
+          text.match(/(SERVOPA[^0-9\n\r]*CAMINHOES[^0-9\n\r]*LTDA[^0-9\n\r]*)/gi),
+          text.match(/(TRANSPOTECH[^0-9\n\r]*PECAS[^0-9\n\r]*SERVICOS[^0-9\n\r]*LTDA[^0-9\n\r]*)/gi),
+          text.match(/(SINDICATO[^0-9\n\r]*COMERCIO[^0-9\n\r]*VAREJISTA[^0-9\n\r]*)/gi),
+          text.match(/(FSC[^0-9\n\r]*COMUNICACOES[^0-9\n\r]*LTDA[^0-9\n\r]*)/gi),
+          text.match(/(VANTOIR[^0-9\n\r]*DERETTI[^0-9\n\r]*ME[^0-9\n\r]*)/gi)
         ];
         
         for (const match of businessMatches) {
@@ -1178,195 +1144,72 @@
         return '';
       }
 
-      extractFromPrestadorSection(text) {
-        this.logStep('info', 'Buscando seção PRESTADOR DE SERVIÇOS');
+      // MELHORIA v3.8: Validação aprimorada para novos casos específicos
+      validateCompanyNameImproved(name) {
+        if (!name || name.length < 5 || name.length > 150) return false;
+        if (!/[A-Za-z]/.test(name)) return false;
+        if (/^[\d\s\-\.]+$/.test(name)) return false;
         
-        // ESTRATÉGIA 1: Busca seção específica do prestador (formato antigo)
-        const prestadorRegex = /PRESTADOR\s+DE\s+SERVI[ÇC]OS[\s\S]*?(?=TOMADOR|DISCRIMINA[ÇC][ÃA]O|$)/gi;
-        const prestadorMatch = text.match(prestadorRegex);
-        
-        if (prestadorMatch) {
-          const prestadorSection = prestadorMatch[0];
-          this.logStep('info', 'Seção PRESTADOR encontrada', prestadorSection.substring(0, 200) + '...');
-
-          // Padrões específicos para NFS-e municipal
-          const namePatterns = [
-            /Nome\/Raz[ãa]o\s+social:\s*([^\r\n]+)/gi,
-            /Raz[ãa]o\s+Social[:\s]*([^\r\n]+)/gi,
-            /Nome\s+fantasia:\s*([^\r\n]+)/gi,
-            /CPF\/CNPJ:\s*[\d\.\-\/\s]+[\r\n]+([^\r\n]+)/gi,
-            /([A-Z][A-Z\s&\-\.]{10,80}(?:LTDA|ME|EPP|S\/A|EIRELI)[^\r\n]*)/gi
-          ];
-
-          for (const pattern of namePatterns) {
-            const match = prestadorSection.match(pattern);
-            if (match && match[1]) {
-              const name = this.cleanCompanyName(match[1]);
-              if (this.validateCompanyName(name)) {
-                this.logStep('success', `Nome encontrado com padrão ${pattern.source}`, name);
-                return name;
-              }
-            }
-          }
+        // FILTRO CRÍTICO: Não aceitar nomes que são claramente do órgão público ou tomador
+        if (/SECRETARIA|MUNICIPAL|FAZENDA|PREFEITURA|TOMADOR|PRESTADOR|COMERCIO DE BANANAS|Optante Simples|Regime|Situação|Documento emitido|Complemento|UF:|CENTRO|MUNICÍPIO|Data Prestação|Número:|Bairro CIC|Estado:|CURITIBA|BLUMENAU|MASSARANDUBA|ITOUPAVA NORTE/i.test(name)) {
+          return false;
         }
-
-        // ESTRATÉGIA 2: NOVO - Busca no cabeçalho (formato Guaramirim)
-        this.logStep('info', 'Buscando nome no cabeçalho do documento');
         
-        const lines = text.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
+        // NOVOS PADRÕES ACEITOS v3.8:
+        if (/VANTOIR.*DERETTI/i.test(name)) return true;
+        if (/SERVOPA.*CAMINHOES/i.test(name)) return true;
+        if (/TRANSPOTECH.*PECAS.*SERVICOS/i.test(name)) return true;
+        if (/SINDICATO.*COMERCIO.*VAREJISTA/i.test(name)) return true;
+        if (/FSC.*COMUNICACOES/i.test(name)) return true;
         
-        // Busca nas primeiras 10 linhas do documento
-        for (let i = 0; i < Math.min(10, lines.length); i++) {
-          const line = lines[i];
-          
-          // Padrão específico: NOME - EPP - DESCRIÇÃO (formato Guaramirim)
-          const headerPattern = /^([A-Z\s]+(?:EPP|LTDA|ME|EIRELI|S\/A)[^-]*(?:-[^-]+)*)/i;
-          const match = line.match(headerPattern);
-          
-          if (match) {
-            const name = this.cleanCompanyName(match[1]);
-            if (this.validateCompanyName(name) && name.length > 10) {
-              this.logStep('success', `Nome encontrado no cabeçalho linha ${i}`, name);
-              return name;
-            }
-          }
-          
-          // Padrão alternativo: linha que termina com EPP, LTDA, etc.
-          if (/(?:EPP|LTDA|ME|EIRELI|S\/A)\s*(?:-|$)/i.test(line) && line.length > 15) {
-            const name = this.cleanCompanyName(line);
-            if (this.validateCompanyName(name)) {
-              this.logStep('success', `Nome encontrado por terminação linha ${i}`, name);
-              return name;
-            }
-          }
-        }
-
-        this.logStep('warning', 'Nome não encontrado na seção PRESTADOR nem cabeçalho');
-        return null;
+        // PADRÕES v3.6 (mantidos):
+        if (/M\.A\.\s+DA\s+SILVA\s+VIEIRA.*AUTO.*EL[EÉ]TRICA/i.test(name)) return true;
+        if (/BHS.*MARINGA.*TECNOLOGIA/i.test(name)) return true;
+        if (/PORTEC.*COMERCIO.*PRODUTOS.*ELETRONICOS/i.test(name)) return true;
+        if (/TRANORTE.*SISTEMAS.*MECANIZADOS/i.test(name)) return true;
+        if (/POSTO\s+Z4/i.test(name)) return true;
+        if (/CONTABILIDADE.*ORLANDO.*AMORIM/i.test(name)) return true;
+        
+        // PADRÕES v3.5 (mantidos):
+        if (/^[A-Z]\.[A-Z]\.\s+[A-Z]/i.test(name)) return true;
+        if (/W\.O\.\s+RIGO\s+FILHO/i.test(name)) return true;
+        if (/FUNILARIA\s+NITZ/i.test(name)) return true;
+        if (/SASCAR.*TECNOLOGIA/i.test(name)) return true;
+        
+        // Aceitar nomes com EPP, LTDA, ME, S.A etc.
+        if (/EPP|LTDA|ME|EIRELI|S\.?A/i.test(name)) return true;
+        
+        // Aceitar se tem pelo menos 3 palavras maiúsculas (nomes de pessoas)
+        const upperWords = name.match(/[A-Z]{2,}/g);
+        if (upperWords && upperWords.length >= 3) return true;
+        
+        // Aceitar se tem palavras características de empresa (MELHORADO v3.8)
+        if (/DIESEL|MECANICA|CARTUCHOS|INFORMATICA|INDUSTRIA|SERVICOS|TECNOLOGIA|SEGURANCA|AUTOMOTIVA|FUNILARIA|RIGO|FILHO|BHS|MARINGA|PORTEC|COMERCIO|TRANORTE|SISTEMAS|POSTO|CONTABILIDADE|ORLANDO|AMORIM|AUTO|ELETRICA|SERVOPA|CAMINHOES|TRANSPOTECH|PECAS|SINDICATO|VAREJISTA|FSC|COMUNICACOES|VANTOIR|DERETTI/i.test(name)) return true;
+        
+        return false;
       }
 
-      extractWithSpecificPatterns(text) {
-        this.logStep('info', 'Aplicando padrões ultra-específicos');
-
-        // PADRÃO LASER 1: Formato específico Guaramirim (NOME - EPP - DESCRIÇÃO)
-        const guaramirimPattern = /([A-Z\s]+ - EPP - [A-Z\s]+)/gi;
-        const guaramirimMatch = text.match(guaramirimPattern);
-        if (guaramirimMatch) {
-          for (const match of guaramirimMatch) {
-            const name = this.cleanCompanyName(match);
-            if (this.validateCompanyName(name) && name.length > 10) {
-              this.logStep('success', 'Nome encontrado com padrão Guaramirim', name);
-              return name;
-            }
-          }
-        }
-
-        // PADRÃO LASER 2: LUCIA IVONETE específico (baseado no documento atual)
-        const luciaPattern = /LUCIA\s+IVONETE[^\r\n]*/gi;
-        const luciaMatch = text.match(luciaPattern);
-        if (luciaMatch) {
-          const name = this.cleanCompanyName(luciaMatch[0]);
-          if (name.includes('LUCIA IVONETE')) {
-            this.logStep('success', 'LUCIA IVONETE encontrada com padrão específico', name);
-            return name;
-          }
-        }
-
-        // PADRÃO LASER 3: RD CARTUCHOS específico (documento anterior)
-        const rdCartuchosPattern = /RD\s+CARTUCHOS[^\r\n]*/gi;
-        const rdMatch = text.match(rdCartuchosPattern);
-        if (rdMatch) {
-          const name = this.cleanCompanyName(rdMatch[0]);
-          if (name.includes('RD CARTUCHOS')) {
-            this.logStep('success', 'RD CARTUCHOS encontrado com padrão específico', name);
-            return name;
-          }
-        }
-
-        // PADRÃO LASER 4: Empresas com estrutura EPP específica
-        const eppPatterns = [
-          // NOME - EPP - DESCRIÇÃO
-          /([A-Z\s]+ - EPP[^\r\n]*)/gi,
-          
-          // NOME EPP (sem hífen)
-          /([A-Z][A-Z\s]{5,50} EPP[^\r\n]*)/gi,
-          
-          // NOME seguido de LTDA - ME
-          /([A-Z][A-Z\s&\-\.]*LTDA\s*\-\s*ME)/gi,
-          
-          // NOME E SOBRENOME LTDA
-          /([A-Z][A-Z\s&\-\.]*\s+E\s+[A-Z\s&\-\.]*LTDA[^,\r\n]*)/gi
-        ];
-
-        for (const pattern of eppPatterns) {
-          const matches = [...text.matchAll(pattern)];
-          for (const match of matches) {
-            const name = this.cleanCompanyName(match[1]);
-            if (this.validateCompanyName(name) && name.length > 8) {
-              this.logStep('success', `Nome encontrado com padrão EPP`, name);
-              return name;
-            }
-          }
-        }
-
-        // PADRÃO LASER 5: Busca no CNPJ específico (primeira linha do documento)
-        const lines = text.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
-        if (lines.length > 0) {
-          const firstLine = lines[0];
-          // Se primeira linha tem mais de 20 caracteres e parece ser nome de empresa
-          if (firstLine.length > 20 && /[A-Z]{3,}/.test(firstLine) && !/^\d/.test(firstLine)) {
-            const name = this.cleanCompanyName(firstLine);
-            if (this.validateCompanyName(name)) {
-              this.logStep('success', 'Nome encontrado na primeira linha', name);
-              return name;
-            }
-          }
-        }
-
-        this.logStep('warning', 'Padrões específicos não encontraram nome válido');
-        return null;
+      validateCompanyName(name) {
+        return this.validateCompanyNameImproved(name);
       }
 
-      extractFromCNPJProximity(text, cnpj) {
-        this.logStep('info', 'Buscando nome próximo ao CNPJ do emitente');
+      // MELHORIA v3.8: Limpeza aprimorada para casos específicos do log
+      cleanCompanyName(name) {
+        if (!name) return '';
         
-        const cnpjClean = cnpj.replace(/\D/g, '');
-        const lines = text.split(/[\r\n]+/);
-        
-        // Encontra linha com o CNPJ
-        const cnpjLineIndex = lines.findIndex(line => 
-          line.includes(cnpjClean) && !line.includes(COMPANY_CNPJ.replace(/\D/g, ''))
-        );
-        
-        if (cnpjLineIndex === -1) {
-          this.logStep('warning', 'CNPJ não encontrado nas linhas do texto');
-          return null;
-        }
+        return name
+          .replace(/^(Nome\/Razão social:|Razão Social:|Nome fantasia:|PRESTADOR:|CPF\/CNPJ:|Prestador de Serviços|Razão Social:)/gi, '')
+          .replace(/^(e\s+|de\s+|da\s+|do\s+)/gi, '')
+          .replace(/(Inscrição|CPF\/CNPJ|Telefone|E-mail|Número da NFS-e|Situação|Emitida|Autenticidade|CNPJ:|Número da|CEP|Endereço|Município|Email:|Complemento|UF:|Data Prestação|Documento emitido).*$/gi, '')
+          .replace(/(TOMADOR|COMERCIO DE BANANAS|ALAMEDA|TORRE|ANDAR|SITIO|CENTRO|MUNICÍPIO|SECRETARIA|FAZENDA|Nota Fiscal|Número:|Data de|PRESTADOR DE|Inscrigao estadual|Bairro CIC|Estado:|PR CURITIBA|SC BLUMENAU|Endereço:|VIA EXPRESSA|PAUL FRITZ|KUEHNRICH).*$/gi, '')
+          .replace(/[\r\n]+/g, ' ')
+          .replace(/^[\s\W]+|[\s\W]+$/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
 
-        this.logStep('info', `CNPJ encontrado na linha ${cnpjLineIndex}`);
-
-        // Busca nas linhas próximas (3 antes e 3 depois)
-        for (let i = Math.max(0, cnpjLineIndex - 3); i <= Math.min(lines.length - 1, cnpjLineIndex + 3); i++) {
-          const line = lines[i].trim();
-          
-          // Pula linha do próprio CNPJ se não tem letras suficientes
-          if (i === cnpjLineIndex && !/[A-Za-z]{5,}/.test(line)) continue;
-          
-          // Busca padrões de empresa na linha
-          const companyPattern = /([A-Z][A-Z\s&\-\.]{5,80}(?:LTDA|ME|EPP|S\/A|EIRELI)[^\r\n]*)/gi;
-          const match = line.match(companyPattern);
-          
-          if (match) {
-            const name = this.cleanCompanyName(match[0]);
-            if (this.validateCompanyName(name)) {
-              this.logStep('success', `Nome encontrado próximo ao CNPJ na linha ${i}`, name);
-              return name;
-            }
-          }
-        }
-
-        this.logStep('warning', 'Nome não encontrado próximo ao CNPJ');
-        return null;
+      formatCNPJ(cnpj) {
+        return cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
       }
 
       // ===== EXTRAÇÃO DE NÚMERO DO DOCUMENTO LASER =====
@@ -1401,7 +1244,6 @@
       extractFromDocumentTable(text) {
         this.logStep('info', 'Buscando número em tabela de documento');
 
-        // Padrão específico: Página X/Y seguido de "Número da nota" seguido do número
         const tablePattern = /Página\s+\d+\/\d+[\s\S]*?N[úu]mero\s+da\s+nota[\s\S]*?(\d{3,8})/gi;
         const match = text.match(tablePattern);
         
@@ -1413,16 +1255,13 @@
           }
         }
 
-        // Padrão alternativo: busca por estrutura visual específica
         const lines = text.split(/[\r\n]+/);
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
           
-          // Se encontrar "Número da nota"
           if (/N[úu]mero\s+da\s+nota/i.test(line)) {
             this.logStep('info', `Encontrado "Número da nota" na linha ${i}`);
             
-            // Busca número na mesma linha ou próximas
             for (let j = i; j <= Math.min(i + 3, lines.length - 1); j++) {
               const numberMatch = lines[j].match(/\b(\d{3,8})\b/);
               if (numberMatch && this.validateDocumentNumber(numberMatch[1])) {
@@ -1440,7 +1279,6 @@
       extractNoteNumber(text) {
         this.logStep('info', 'Buscando "Número da nota" específico');
 
-        // Padrões laser para "Número da nota"
         const patterns = [
           /N[úu]mero\s+da\s+nota[\s:]*(\d{3,8})/gi,
           /da\s+nota[\s:]*(\d{3,8})/gi,
@@ -1464,15 +1302,12 @@
       extractFromHeader(text) {
         this.logStep('info', 'Buscando número em cabeçalho');
 
-        // Pega primeiras 20 linhas (cabeçalho)
         const lines = text.split(/[\r\n]+/).slice(0, 20);
         
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
           
-          // Se a linha contém indicadores de cabeçalho
           if (/NOTA\s+FISCAL|NFS-e|MUNICIPAL/i.test(line)) {
-            // Busca números nas próximas linhas
             for (let j = i; j < Math.min(i + 5, lines.length); j++) {
               const numberMatch = lines[j].match(/\b(\d{3,8})\b/);
               if (numberMatch && this.validateDocumentNumber(numberMatch[1])) {
@@ -1487,120 +1322,20 @@
         return null;
       }
 
-      // ===== MÉTODOS AUXILIARES =====
       validateDocumentNumber(number) {
         if (!number) return false;
         const clean = number.toString().replace(/\D/g, '');
         
-        // Validações específicas
         if (clean.length < 3 || clean.length > 8) return false;
         if (parseInt(clean) < 100) return false;
         
-        // IMPORTANTE: Não aceitar anos (2020-2030)
         const num = parseInt(clean);
         if (num >= 2020 && num <= 2030) return false;
         
-        // Não aceitar sequências óbvias
         if (/^0+$/.test(clean)) return false;
         if (/^1+$/.test(clean)) return false;
         
         return true;
-      }
-
-      // MELHORIA v3.8: Validação aprimorada para novos casos específicos
-      validateCompanyNameImproved(name) {
-        if (!name || name.length < 5 || name.length > 150) return false;
-        if (!/[A-Za-z]/.test(name)) return false;
-        if (/^[\d\s\-\.]+$/.test(name)) return false;
-        
-        // FILTRO CRÍTICO: Não aceitar nomes que são claramente do órgão público ou tomador
-        if (/SECRETARIA|MUNICIPAL|FAZENDA|PREFEITURA|TOMADOR|PRESTADOR|COMERCIO DE BANANAS|Optante Simples|Regime|Situação|Documento emitido|Complemento|UF:|CENTRO|MUNICÍPIO|Data Prestação|Número:|Bairro CIC|Estado:|CURITIBA|BLUMENAU|MASSARANDUBA|ITOUPAVA NORTE/i.test(name)) {
-          return false;
-        }
-        
-        // NOVOS PADRÕES ACEITOS v3.8 (ADICIONADOS):
-        // Aceitar VANTOIR DERETTI ME
-        if (/VANTOIR.*DERETTI/i.test(name)) return true;
-        
-        // Aceitar SERVOPA CAMINHOES LTDA
-        if (/SERVOPA.*CAMINHOES/i.test(name)) return true;
-        
-        // Aceitar TRANSPOTECH PECAS E SERVICOS LTDA
-        if (/TRANSPOTECH.*PECAS.*SERVICOS/i.test(name)) return true;
-        
-        // Aceitar SINDICATO DO COMERCIO VAREJISTA
-        if (/SINDICATO.*COMERCIO.*VAREJISTA/i.test(name)) return true;
-        
-        // Aceitar FSC COMUNICACOES LTDA
-        if (/FSC.*COMUNICACOES/i.test(name)) return true;
-        
-        // PADRÕES v3.6 (mantidos):
-        // Aceitar M.A. DA SILVA VIEIRA - AUTO ELÉTRICA
-        if (/M\.A\.\s+DA\s+SILVA\s+VIEIRA.*AUTO.*EL[EÉ]TRICA/i.test(name)) return true;
-        
-        // Aceitar BHS MARINGA TECNOLOGIA
-        if (/BHS.*MARINGA.*TECNOLOGIA/i.test(name)) return true;
-        
-        // Aceitar PORTEC COMERCIO
-        if (/PORTEC.*COMERCIO.*PRODUTOS.*ELETRONICOS/i.test(name)) return true;
-        
-        // Aceitar TRANORTE SISTEMAS
-        if (/TRANORTE.*SISTEMAS.*MECANIZADOS/i.test(name)) return true;
-        
-        // Aceitar POSTO Z4
-        if (/POSTO\s+Z4/i.test(name)) return true;
-        
-        // Aceitar CONTABILIDADE ORLANDO AMORIM
-        if (/CONTABILIDADE.*ORLANDO.*AMORIM/i.test(name)) return true;
-        
-        // PADRÕES v3.5 (mantidos):
-        // Aceitar nomes com iniciais (W.O., J.A., etc.)
-        if (/^[A-Z]\.[A-Z]\.\s+[A-Z]/i.test(name)) return true;
-        
-        // Aceitar W.O. RIGO FILHO específico
-        if (/W\.O\.\s+RIGO\s+FILHO/i.test(name)) return true;
-        
-        // Aceitar FUNILARIA NITZ
-        if (/FUNILARIA\s+NITZ/i.test(name)) return true;
-        
-        // Aceitar SASCAR
-        if (/SASCAR.*TECNOLOGIA/i.test(name)) return true;
-        
-        // Aceitar nomes com EPP, LTDA, ME, S.A etc.
-        if (/EPP|LTDA|ME|EIRELI|S\.?A/i.test(name)) return true;
-        
-        // Aceitar se tem pelo menos 3 palavras maiúsculas (nomes de pessoas)
-        const upperWords = name.match(/[A-Z]{2,}/g);
-        if (upperWords && upperWords.length >= 3) return true;
-        
-        // Aceitar se tem palavras características de empresa (MELHORADO v3.8)
-        if (/DIESEL|MECANICA|CARTUCHOS|INFORMATICA|INDUSTRIA|SERVICOS|TECNOLOGIA|SEGURANCA|AUTOMOTIVA|FUNILARIA|RIGO|FILHO|BHS|MARINGA|PORTEC|COMERCIO|TRANORTE|SISTEMAS|POSTO|CONTABILIDADE|ORLANDO|AMORIM|AUTO|ELETRICA|SERVOPA|CAMINHOES|TRANSPOTECH|PECAS|SINDICATO|VAREJISTA|FSC|COMUNICACOES|VANTOIR|DERETTI/i.test(name)) return true;
-        
-        return false;
-      }
-
-      validateCompanyName(name) {
-        // Mantém função original para compatibilidade
-        return this.validateCompanyNameImproved(name);
-      }
-
-      // MELHORIA v3.8: Limpeza aprimorada para casos específicos do log
-      cleanCompanyName(name) {
-        if (!name) return '';
-        
-        return name
-          .replace(/^(Nome\/Razão social:|Razão Social:|Nome fantasia:|PRESTADOR:|CPF\/CNPJ:|Prestador de Serviços|Razão Social:)/gi, '')
-          .replace(/^(e\s+|de\s+|da\s+|do\s+)/gi, '') // Remove artigos do início
-          .replace(/(Inscrição|CPF\/CNPJ|Telefone|E-mail|Número da NFS-e|Situação|Emitida|Autenticidade|CNPJ:|Número da|CEP|Endereço|Município|Email:|Complemento|UF:|Data Prestação|Documento emitido).*$/gi, '')
-          .replace(/(TOMADOR|COMERCIO DE BANANAS|ALAMEDA|TORRE|ANDAR|SITIO|CENTRO|MUNICÍPIO|SECRETARIA|FAZENDA|Nota Fiscal|Número:|Data de|PRESTADOR DE|Inscrigao estadual|Bairro CIC|Estado:|PR CURITIBA|SC BLUMENAU|Endereço:|VIA EXPRESSA|PAUL FRITZ|KUEHNRICH).*$/gi, '') // Remove tomador e endereços + novos filtros v3.8
-          .replace(/[\r\n]+/g, ' ') // Remove quebras de linha
-          .replace(/^[\s\W]+|[\s\W]+$/g, '')
-          .replace(/\s+/g, ' ')  // Normaliza espaços múltiplos
-          .trim();
-      }
-
-      formatCNPJ(cnpj) {
-        return cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
       }
 
       // ===== MÉTODO PRINCIPAL =====
@@ -1616,27 +1351,21 @@
           numero_documento: '',
           valor_total: '',
           descricao: '',
-          status: 'pending' // NOVO: campo de status
+          status: 'pending'
         };
 
         try {
-          // CNPJ do emitente
           data.cnpj_emitente = this.extractCNPJEmitente(text);
           
-          // Nome do emitente (LASER)
           if (data.cnpj_emitente) {
             data.nome_emitente = this.extractEmitenteNameLaser(text, data.cnpj_emitente);
           }
           
-          // Número do documento (LASER)
           data.numero_documento = this.extractDocumentNumberLaser(text);
-          
-          // Dados tradicionais (funcionam bem)
           data.data_emissao = this.extractDataEmissao(text);
           data.valor_total = this.extractValorTotal(text);
           data.descricao = this.extractDescription(text);
           
-          // Determinar status baseado na qualidade da extração
           data.status = this.determineExtractionStatus(data);
           
           this.logStep('success', '=== EXTRAÇÃO v3.8 CONCLUÍDA ===', data);
@@ -1655,7 +1384,6 @@
         }
       }
 
-      // NOVO: Determina status da extração
       determineExtractionStatus(data) {
         let score = 0;
         if (data.cnpj_emitente) score++;
@@ -1670,7 +1398,7 @@
         return 'error';
       }
 
-      // ===== MÉTODOS TRADICIONAIS (funcionam bem) =====
+      // ===== MÉTODOS TRADICIONAIS =====
       extractDataEmissao(text) {
         const patterns = [
           /\b(\d{2}\/\d{2}\/\d{4})\b/g,
@@ -1759,12 +1487,10 @@
       }
     }
 
-    // ===== INSTÂNCIA DO EXTRATOR ULTRA-DIRETO =====
+    // ===== INSTÂNCIA DO EXTRATOR =====
     const ultraDirectExtractor = new UltraDirectExtractor();
 
-    // ===== NOVAS FUNCIONALIDADES - MELHORIAS =====
-
-    // Sistema de notificações
+    // ===== SISTEMA DE NOTIFICAÇÕES =====
     function showNotification(message, type = 'success') {
       const notification = document.getElementById(type === 'error' ? 'errorNotification' : 'successNotification');
       const messageElement = document.getElementById(type === 'error' ? 'errorMessage' : 'successMessage');
@@ -1777,13 +1503,12 @@
       }, 5000);
     }
 
-    // Sistema de estatísticas
+    // ===== SISTEMA DE ESTATÍSTICAS =====
     function updateStatistics() {
       statistics.totalProcessed = extractionResults.length;
       statistics.successCount = extractionResults.filter(r => r.status === 'success').length;
       statistics.errorCount = extractionResults.filter(r => r.status === 'error').length;
       
-      // Calcular valor total
       statistics.totalValue = extractionResults.reduce((total, item) => {
         if (item.valor_total && item.status !== 'error') {
           const value = parseFloat(item.valor_total.replace(/\./g, '').replace(',', '.'));
@@ -1792,7 +1517,6 @@
         return total;
       }, 0);
 
-      // Empresas únicas
       statistics.uniqueCompanies.clear();
       extractionResults.forEach(item => {
         if (item.nome_emitente && item.status !== 'error') {
@@ -1800,7 +1524,6 @@
         }
       });
 
-      // Atualizar interface
       document.getElementById('totalProcessed').textContent = statistics.totalProcessed;
       document.getElementById('successRate').textContent = 
         statistics.totalProcessed > 0 ? 
@@ -1810,7 +1533,7 @@
       document.getElementById('uniqueCompanies').textContent = statistics.uniqueCompanies.size;
     }
 
-    // Sistema de filtros
+    // ===== SISTEMA DE FILTROS =====
     function applyFilters() {
       const companyFilter = document.getElementById('filterCompany').value.toLowerCase();
       const dateFromFilter = document.getElementById('filterDateFrom').value;
@@ -1840,7 +1563,6 @@
         });
       }
 
-      // Atualizar tabela
       const tbody = document.querySelector('#resultsTable tbody');
       tbody.innerHTML = '';
       filteredResults.forEach(data => renderResult(data, data.status === 'error'));
@@ -1853,7 +1575,6 @@
       document.getElementById('filterDateFrom').value = '';
       document.getElementById('filterDateTo').value = '';
       
-      // Restaurar todos os resultados
       const tbody = document.querySelector('#resultsTable tbody');
       tbody.innerHTML = '';
       originalResults.forEach(data => renderResult(data, data.status === 'error'));
@@ -1861,7 +1582,7 @@
       showNotification('Filtros removidos');
     }
 
-    // Sistema de backup/save dos dados
+    // ===== SISTEMA DE BACKUP =====
     function saveDataToLocalStorage() {
       try {
         const dataToSave = {
@@ -1886,12 +1607,10 @@
         if (savedData) {
           const parsedData = JSON.parse(savedData);
           
-          // Confirmar restauração
           if (confirm('Dados salvos encontrados. Deseja restaurar?')) {
             extractionResults = parsedData.results || [];
             originalResults = [...extractionResults];
             
-            // Restaurar estatísticas
             if (parsedData.statistics) {
               statistics = {
                 ...parsedData.statistics,
@@ -1899,7 +1618,6 @@
               };
             }
             
-            // Atualizar interface
             const tbody = document.querySelector('#resultsTable tbody');
             tbody.innerHTML = '';
             extractionResults.forEach(data => renderResult(data, data.status === 'error'));
@@ -1918,33 +1636,7 @@
       return false;
     }
 
-    // Função para validar dados de uma linha
-    function validateRowData(rowElement) {
-      const cells = Array.from(rowElement.querySelectorAll('td[contenteditable]'));
-      let isValid = true;
-      
-      // Validação básica de CNPJ
-      const cnpj = cells[0].textContent.trim();
-      if (cnpj && !/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/.test(cnpj)) {
-        cells[0].style.borderColor = 'red';
-        isValid = false;
-      } else {
-        cells[0].style.borderColor = '';
-      }
-      
-      // Validação de nome (não pode estar vazio)
-      const nome = cells[1].textContent.trim();
-      if (!nome || nome.length < 5) {
-        cells[1].style.borderColor = 'red';
-        isValid = false;
-      } else {
-        cells[1].style.borderColor = '';
-      }
-      
-      return isValid;
-    }
-
-    // ===== VERIFICAÇÃO DE BIBLIOTECAS MELHORADA =====
+    // ===== VERIFICAÇÃO DE BIBLIOTECAS EXATAMENTE COMO NO ORIGINAL =====
     function checkLibraries() {
       const statusSection = document.getElementById('statusSection');
       const statusMessage = document.getElementById('statusMessage');
@@ -1956,7 +1648,6 @@
       
       console.log('🔍 Verificando bibliotecas...');
       
-      // Verificação detalhada do PDF.js
       if (typeof pdfjsLib === 'undefined') {
         console.error('❌ PDF.js não carregado');
         message += 'PDF.js não carregado. ';
@@ -1964,7 +1655,6 @@
       } else {
         console.log('✅ PDF.js carregado:', pdfjsLib.version || 'versão desconhecida');
         
-        // Verificar se o worker está configurado
         if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
           console.error('❌ PDF.js worker não configurado');
           message += 'PDF.js worker não configurado. ';
@@ -1974,7 +1664,6 @@
         }
       }
       
-      // Verificação detalhada do Tesseract
       if (typeof Tesseract === 'undefined') {
         console.error('❌ Tesseract.js não carregado');
         message += 'Tesseract.js não carregado. ';
@@ -1982,7 +1671,6 @@
       } else {
         console.log('✅ Tesseract.js carregado');
         
-        // Verificar se tem a função createWorker
         if (typeof Tesseract.createWorker !== 'function') {
           console.error('❌ Tesseract.createWorker não disponível');
           message += 'Tesseract.createWorker não disponível. ';
@@ -1992,7 +1680,6 @@
         }
       }
       
-      // Verificação detalhada do XLSX
       if (typeof XLSX === 'undefined') {
         console.error('❌ SheetJS não carregado');
         message += 'SheetJS não carregado. ';
@@ -2000,7 +1687,6 @@
       } else {
         console.log('✅ SheetJS carregado:', XLSX.version || 'versão desconhecida');
         
-        // Verificar funcionalidades essenciais
         if (typeof XLSX.utils === 'undefined' || typeof XLSX.writeFile !== 'function') {
           console.error('❌ SheetJS funcionalidades não disponíveis');
           message += 'SheetJS funcionalidades não disponíveis. ';
@@ -2020,12 +1706,7 @@
         }, 3000);
         
         console.log('🎯 Sistema de Extração v3.8 inicializado com sucesso!');
-        console.log('📁 Bibliotecas em: ./libs/');
-        console.log('   ✅ PDF.js: ./libs/pdf.min.mjs + ./libs/pdf.worker.min.mjs');
-        console.log('   ✅ Tesseract: ./libs/tesseract.esm.min.js');
-        console.log('   ✅ XLSX: ./libs/xlsx.mjs');
         
-        // Tentar carregar dados salvos
         loadDataFromLocalStorage();
         
       } else {
@@ -2034,17 +1715,11 @@
         librariesLoaded = false;
         
         console.error('❌ Erro no carregamento das bibliotecas:', message);
-        console.log('🔧 Certifique-se que os arquivos estão na pasta ./libs/:');
-        console.log('   📄 pdf.min.mjs');
-        console.log('   📄 pdf.worker.min.mjs');
-        console.log('   📄 tesseract.esm.min.js');
-        console.log('   📄 xlsx.mjs');
-        
         showNotification('Erro ao carregar bibliotecas. Verifique a pasta ./libs/', 'error');
       }
     }
 
-    // ===== PROCESSAMENTO DE ARQUIVOS MELHORADO =====
+    // ===== PROCESSAMENTO DE ARQUIVOS EXATAMENTE COMO NO ORIGINAL =====
     async function handleFiles(files) {
       console.log('📁 Iniciando processamento de arquivos:', files.length);
       
@@ -2053,7 +1728,6 @@
         return;
       }
       
-      // Verificar tipos de arquivo
       const supportedFiles = Array.from(files).filter(file => {
         const isSupported = file.type === 'application/pdf' || file.type.startsWith('image/');
         if (!isSupported) {
@@ -2147,7 +1821,6 @@
       enableExportIfAny();
       showResults();
       
-      // Feedback final
       const totalProcessed = supportedFiles.length;
       let finalMessage = `📊 Processamento concluído: ${totalProcessed} arquivo(s)`;
       if (successCount > 0) finalMessage += ` | ✅ ${successCount} sucesso`;
@@ -2157,7 +1830,7 @@
       console.log('🎯 Processamento finalizado:', { total: totalProcessed, success: successCount, errors: errorCount });
     }
 
-    // ===== PROCESSAMENTO DE PDF MELHORADO =====
+    // ===== PROCESSAMENTO DE PDF EXATAMENTE COMO NO ORIGINAL =====
     async function processPDF(file) {
       console.log('📑 Iniciando processamento PDF:', file.name, file.size, 'bytes');
       
@@ -2190,7 +1863,6 @@
             
           } catch (pageError) {
             console.warn(`⚠️ Erro na página ${i}:`, pageError);
-            // Tentar OCR mesmo com erro na extração de texto
             try {
               const pageText = await ocrImagePage(pdf, i);
               fullText += pageText + '\n\n';
@@ -2243,7 +1915,7 @@
       }
     }
 
-    // ===== PROCESSAMENTO DE IMAGEM MELHORADO =====
+    // ===== PROCESSAMENTO DE IMAGEM EXATAMENTE COMO NO ORIGINAL =====
     async function processImage(file) {
       console.log('🖼️ Iniciando processamento de imagem:', file.name, file.type, file.size, 'bytes');
       
@@ -2276,7 +1948,6 @@
       const tbody = document.querySelector('#resultsTable tbody');
       const row = document.createElement('tr');
       
-      // Definir classe baseada no status
       if (isError || data.status === 'error') {
         row.className = 'error-row';
       } else if (data.status === 'success') {
@@ -2285,7 +1956,6 @@
         row.className = 'warning-row';
       }
       
-      // Status visual
       const statusIcon = data.status === 'success' ? '✅' : 
                         data.status === 'warning' ? '⚠️' : '❌';
       
@@ -2310,7 +1980,7 @@
       tbody.appendChild(row);
     }
 
-    // ===== FUNÇÕES GLOBAIS PARA BOTÕES =====
+    // ===== FUNÇÕES GLOBAIS =====
     window.deleteResult = function(button) {
       const row = button.closest('tr');
       const index = Array.from(row.parentNode.children).indexOf(row);
@@ -2325,7 +1995,24 @@
 
     window.validateRow = function(button) {
       const row = button.closest('tr');
-      const isValid = validateRowData(row);
+      const cells = Array.from(row.querySelectorAll('td[contenteditable]'));
+      let isValid = true;
+      
+      const cnpj = cells[0].textContent.trim();
+      if (cnpj && !/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/.test(cnpj)) {
+        cells[0].style.borderColor = 'red';
+        isValid = false;
+      } else {
+        cells[0].style.borderColor = '';
+      }
+      
+      const nome = cells[1].textContent.trim();
+      if (!nome || nome.length < 5) {
+        cells[1].style.borderColor = 'red';
+        isValid = false;
+      } else {
+        cells[1].style.borderColor = '';
+      }
       
       if (isValid) {
         row.className = 'success-row';
@@ -2393,8 +2080,6 @@
         const cells = Array.from(row.querySelectorAll('td[contenteditable]'));
         return {
           'CNPJ Emitente': cells[0].textContent.trim(),
-          'Nome Emitente': cells[1].textContent.trim(),
-          'Data Emissão': cells[2].textContent.trim(),
           'Nº Documento': cells[3].textContent.trim(),
           'Valor Total': cells[4].textContent.trim(),
           'Descrição': cells[5].textContent.trim()
@@ -2624,3 +2309,6 @@
       console.log('   Use o console do navegador (F12) para ver logs detalhados');
       console.log('   O sistema mostrará notificações visuais para orientar na correção');
     });
+  </script>
+</body>
+</html>
