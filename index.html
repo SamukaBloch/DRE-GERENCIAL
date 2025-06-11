@@ -2338,14 +2338,13 @@
           showNotification('❌ Biblioteca Tesseract.js não encontrada na pasta ./libs/', 'error');
         });
       
-     fetch('./libs/xlsx.mjs')
+      fetch('./libs/xlsx.mjs')
         .then(response => {
           if (response.ok) {
             console.log('✅ xlsx.mjs encontrado');
           } else {
             console.error('❌ xlsx.mjs não encontrado - código:', response.status);
-          }
-        })  // ← ESTAVA FALTANDO ESTE })
+          })
         .catch(error => {
           console.error('❌ Erro ao acessar xlsx.mjs:', error);
           showNotification('❌ Biblioteca XLSX não encontrada na pasta ./libs/', 'error');
@@ -2367,7 +2366,6 @@
           showNotification('❌ Nenhum arquivo PDF ou imagem válido selecionado', 'error');
         }
         
-        // Limpar input para permitir reenvio do mesmo arquivo
         e.target.value = '';
       });
       
