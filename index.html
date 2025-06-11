@@ -923,12 +923,12 @@
     })();
 
     // Importa as bibliotecas CORRIGIDAS para libs local
-    import * as pdfjsLib from 'libs/pdf.min.mjs';
-    import Tesseract from 'libs/tesseract.esm.min.js';
-    import * as XLSX from 'libs/xlsx.mjs';
+    import * as pdfjsLib from './libs/pdf.min.mjs';
+    import Tesseract from './libs/tesseract.esm.min.js';
+    import * as XLSX from './libs/xlsx.mjs';
 
     // Configura PDF.js CORRIGIDO para libs local
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'libs/pdf.worker.min.mjs';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = './libs/pdf.worker.min.mjs';
     window.pdfjsLib = pdfjsLib;
     window.Tesseract = Tesseract;
     window.XLSX = XLSX;
