@@ -2344,7 +2344,7 @@
             console.log('✅ xlsx.mjs encontrado');
           } else {
             console.error('❌ xlsx.mjs não encontrado - código:', response.status);
-          })
+          }
         .catch(error => {
           console.error('❌ Erro ao acessar xlsx.mjs:', error);
           showNotification('❌ Biblioteca XLSX não encontrada na pasta ./libs/', 'error');
