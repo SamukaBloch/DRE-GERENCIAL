@@ -179,6 +179,101 @@
       display: none;
     }
 
+    /* NOVA: Camera section */
+    .camera-section {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--shadow);
+      text-align: center;
+      display: none;
+    }
+
+    .camera-controls {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .camera-btn {
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .camera-btn:hover:not(:disabled) {
+      background: #283593;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(40, 53, 147, 0.3);
+    }
+
+    .camera-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    #cameraVideo {
+      width: 100%;
+      max-width: 500px;
+      border-radius: 8px;
+      margin: 1rem 0;
+      box-shadow: var(--shadow);
+      display: none;
+    }
+
+    #captureCanvas {
+      display: none;
+    }
+
+    /* Upload buttons container */
+    .upload-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .upload-toggle-btn {
+      background: var(--success-color);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .upload-toggle-btn:hover:not(:disabled) {
+      background: #4caf50;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+    }
+
+    .upload-toggle-btn.active {
+      background: var(--warning-color);
+    }
+
+    .upload-toggle-btn.active:hover {
+      background: #f57c00;
+    }
+
     /* Progress section */
     .progress-section {
       margin-top: 1.5rem;
@@ -578,7 +673,8 @@
       }
       
       .upload-section,
-      .results-section {
+      .results-section,
+      .camera-section {
         padding: 1.5rem;
       }
       
@@ -615,6 +711,16 @@
         flex-direction: column;
         align-items: stretch;
       }
+
+      .upload-buttons,
+      .camera-controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      #cameraVideo {
+        max-width: 100%;
+      }
     }
 
     @media (max-width: 360px) {
@@ -627,7 +733,8 @@
       }
       
       .upload-section,
-      .results-section {
+      .results-section,
+      .camera-section {
         padding: 1rem;
       }
       
@@ -640,8 +747,8 @@
 
 <body>
   <header>
-    <h1><i class="fas fa-bullseye"></i> Automatizador NFS-e v3.8</h1>
-        <div class="version-badge">v3.8</div>
+    <h1><i class="fas fa-bullseye"></i> Automatizador NFS-e v3.9</h1>
+        <div class="version-badge">v3.9</div>
   </header>
 
   <main>
@@ -687,7 +794,19 @@
 
     <!-- Upload Section -->
     <section class="upload-section" id="uploadSection">
-      <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+      <!-- NOVO: Botões de alternância -->
+      <div class="upload-buttons">
+        <button class="upload-toggle-btn active" id="fileUploadBtn" onclick="switchToFileUpload()">
+          <i class="fas fa-file-upload"></i>
+          Upload de Arquivos
+        </button>
+        <button class="upload-toggle-btn" id="cameraUploadBtn" onclick="switchToCamera()">
+          <i class="fas fa-camera"></i>
+          Tirar Foto da Nota
+        </button>
+      </div>
+
+      <div class="upload-area" id="fileUploadArea" onclick="document.getElementById('fileInput').click()">
         <div class="upload-icon">
           <i class="fas fa-bullseye"></i>
         </div>
@@ -702,6 +821,27 @@
         </div>
         <div class="progress-text" id="progressText">Aplicando extração ultra-direta...</div>
       </div>
+    </section>
+
+    <!-- NOVA: Camera Section -->
+    <section class="camera-section" id="cameraSection">
+      <h3><i class="fas fa-camera"></i> Capturar Foto da NFS-e</h3>
+      <div class="camera-controls">
+        <button class="camera-btn" id="startCameraBtn" onclick="startCamera()">
+          <i class="fas fa-video"></i>
+          Ativar Câmera
+        </button>
+        <button class="camera-btn" id="captureBtn" onclick="capturePhoto()" disabled>
+          <i class="fas fa-camera"></i>
+          Capturar Foto
+        </button>
+        <button class="camera-btn" id="stopCameraBtn" onclick="stopCamera()" disabled>
+          <i class="fas fa-stop"></i>
+          Parar Câmera
+        </button>
+      </div>
+      <video id="cameraVideo" autoplay muted playsinline></video>
+      <canvas id="captureCanvas"></canvas>
     </section>
 
     <!-- Results Section -->
@@ -807,13 +947,35 @@
       uniqueCompanies: new Set()
     };
     
+    // NOVA: Variáveis para câmera
+    let cameraStream = null;
+    let cameraMode = false;
+    
     // CNPJ da empresa (tomador)
     const COMPANY_CNPJ = '07.925.317/0001-88';
 
-    // ===== SISTEMA DE EXTRAÇÃO v3.8 EXATAMENTE COMO NO ORIGINAL =====
+    // ===== SISTEMA DE EXTRAÇÃO v3.9 MELHORADO =====
     class UltraDirectExtractor {
       constructor() {
         this.debugSteps = [];
+        // NOVA: Base de conhecimento de empresas conhecidas
+        this.knownCompanies = new Set([
+          'IMUNIZADORA JARAGUA LTDA',
+          'VANTOIR DERETTI ME',
+          'SERVOPA CAMINHOES LTDA',
+          'TRANSPOTECH PECAS E SERVICOS LTDA',
+          'SINDICATO DO COMERCIO VAREJISTA',
+          'FSC COMUNICACOES LTDA',
+          'M.A. DA SILVA VIEIRA - AUTO ELÉTRICA',
+          'BHS MARINGA TECNOLOGIA LTDA',
+          'PORTEC COMERCIO',
+          'TRANORTE SISTEMAS MECANIZADOS LTDA',
+          'POSTO Z4 LTDA',
+          'CONTABILIDADE ORLANDO AMORIM',
+          'W.O. RIGO FILHO',
+          'FUNILARIA NITZ LTDA',
+          'SASCAR TECNOLOGIA'
+        ]);
       }
 
       logStep(type, message, result = null) {
@@ -846,16 +1008,27 @@
         return '';
       }
 
-      // ===== ESTRATÉGIAS ESPECÍFICAS v3.8 EXATAMENTE COMO NO ORIGINAL =====
+      // ===== ESTRATÉGIAS ESPECÍFICAS v3.9 MELHORADAS =====
       extractEmitenteNameLaser(text, cnpj) {
-        this.logStep('info', 'Iniciando extração ULTRA-DIRETA de nome do emitente');
+        this.logStep('info', 'Iniciando extração ULTRA-DIRETA v3.9 de nome do emitente');
         
         if (!cnpj) {
           this.logStep('fail', 'CNPJ não fornecido para busca de nome');
           return '';
         }
 
-        // NOVA ESTRATÉGIA v3.8.1: VANTOIR DERETTI ME
+        // NOVA ESTRATÉGIA v3.9.1: IMUNIZADORA JARAGUA LTDA (correção do log)
+        const imunizadoraMatch = text.match(/IMUNIZADORA\s+JARAGUA[^0-9\n\r]*LTDA[^0-9\n\r]*/gi);
+        if (imunizadoraMatch) {
+          let name = this.cleanCompanyName(imunizadoraMatch[0]);
+          if (this.validateCompanyNameImproved(name)) {
+            this.logStep('success', 'IMUNIZADORA JARAGUA LTDA encontrada', name);
+            this.learnCompany(name); // Aprender nova empresa
+            return name;
+          }
+        }
+
+        // ESTRATÉGIA v3.8.1: VANTOIR DERETTI ME
         const vantoirMatch = text.match(/VANTOIR\s+DERETTI[^0-9\n\r]*ME[^0-9\n\r]*/gi);
         if (vantoirMatch) {
           let name = this.cleanCompanyName(vantoirMatch[0]);
@@ -865,7 +1038,7 @@
           }
         }
 
-        // NOVA ESTRATÉGIA v3.8.2: SERVOPA CAMINHOES LTDA
+        // ESTRATÉGIA v3.8.2: SERVOPA CAMINHOES LTDA
         const servopaMatch = text.match(/SERVOPA\s+CAMINHOES[^0-9\n\r]*LTDA[^0-9\n\r]*/gi);
         if (servopaMatch) {
           let name = this.cleanCompanyName(servopaMatch[0]);
@@ -875,7 +1048,7 @@
           }
         }
 
-        // NOVA ESTRATÉGIA v3.8.3: TRANSPOTECH PECAS E SERVICOS LTDA
+        // ESTRATÉGIA v3.8.3: TRANSPOTECH PECAS E SERVICOS LTDA
         const transpotechMatch = text.match(/TRANSPOTECH\s+PECAS\s+E\s+SERVICOS[^0-9\n\r]*LTDA[^0-9\n\r]*/gi);
         if (transpotechMatch) {
           let name = this.cleanCompanyName(transpotechMatch[0]);
@@ -885,7 +1058,7 @@
           }
         }
 
-        // NOVA ESTRATÉGIA v3.8.4: SINDICATO DO COMERCIO VAREJISTA
+        // ESTRATÉGIA v3.8.4: SINDICATO DO COMERCIO VAREJISTA
         const sindicatoMatch = text.match(/SINDICATO\s+DO\s+COMERCIO\s+VAREJISTA[^0-9\n\r]*JARAGUA\s+DO\s+SUL[^0-9\n\r]*/gi);
         if (sindicatoMatch) {
           let name = this.cleanCompanyName(sindicatoMatch[0]);
@@ -895,7 +1068,7 @@
           }
         }
 
-        // NOVA ESTRATÉGIA v3.8.5: FSC COMUNICACOES LTDA
+        // ESTRATÉGIA v3.8.5: FSC COMUNICACOES LTDA
         const fscMatch = text.match(/FSC\s+COMUNICACOES[^0-9\n\r]*LTDA[^0-9\n\r]*/gi);
         if (fscMatch) {
           let name = this.cleanCompanyName(fscMatch[0]);
@@ -1016,6 +1189,17 @@
           const prestadorSection = prestadorMatch[0];
           this.logStep('info', 'Seção PRESTADOR encontrada', prestadorSection.substring(0, 200));
           
+          // v3.9.2: Busca IMUNIZADORA JARAGUA na seção prestador especificamente
+          const imunizadoraPrestadorMatch = prestadorSection.match(/IMUNIZADORA\s+JARAGUA[^0-9\n\r]*LTDA[^0-9\n\r]*/gi);
+          if (imunizadoraPrestadorMatch) {
+            let name = this.cleanCompanyName(imunizadoraPrestadorMatch[0]);
+            if (this.validateCompanyNameImproved(name)) {
+              this.logStep('success', 'IMUNIZADORA JARAGUA encontrada na seção PRESTADOR', name);
+              this.learnCompany(name);
+              return name;
+            }
+          }
+          
           // v3.6.8: Busca BHS MARINGA na seção prestador especificamente (mantida)
           const bhsPrestadorMatch = prestadorSection.match(/BHS\s+MARINGA\s+TECNOLOGIA[^0-9\n\r]*LTDA[^0-9\n\r]*/gi);
           if (bhsPrestadorMatch) {
@@ -1036,11 +1220,11 @@
             }
           }
           
-          // Busca qualquer linha com empresa na seção prestador (MELHORADA v3.8)
+          // Busca qualquer linha com empresa na seção prestador (MELHORADA v3.9)
           const prestadorLines = prestadorSection.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
           for (const line of prestadorLines) {
             if (line.length > 15 && line.length < 120 && 
-                /LTDA|EPP|S\.?A|ME|EIRELI|CARTUCHOS|TECNOLOGIA|INFORMATICA|RIGO|FILHO|BHS|MARINGA|PORTEC|COMERCIO|SERVOPA|CAMINHOES|TRANSPOTECH|PECAS|SERVICOS|SINDICATO|VAREJISTA|FSC|COMUNICACOES|VANTOIR|DERETTI/gi.test(line) &&
+                /LTDA|EPP|S\.?A|ME|EIRELI|CARTUCHOS|TECNOLOGIA|INFORMATICA|RIGO|FILHO|BHS|MARINGA|PORTEC|COMERCIO|SERVOPA|CAMINHOES|TRANSPOTECH|PECAS|SERVICOS|SINDICATO|VAREJISTA|FSC|COMUNICACOES|VANTOIR|DERETTI|IMUNIZADORA|JARAGUA/gi.test(line) &&
                 !/PRESTADOR|TOMADOR|ENDEREÇO|TELEFONE|EMAIL|CPF|CNPJ|Inscrição|Município|Complemento|UF:|CENTRO|MUNICÍPIO|Bairro CIC|Estado:|CURITIBA|BLUMENAU|ITOUPAVA NORTE|VIA EXPRESSA|PAUL FRITZ/i.test(line)) {
               
               let name = this.cleanCompanyName(line);
@@ -1072,13 +1256,13 @@
           }
         }
 
-        // ESTRATÉGIA ORIGINAL 3: Busca por primeira linha com nome da empresa (MELHORADA v3.8)
+        // ESTRATÉGIA ORIGINAL 3: Busca por primeira linha com nome da empresa (MELHORADA v3.9)
         const lines = text.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
         for (let i = 0; i < Math.min(5, lines.length); i++) {
           const line = lines[i];
           
           if (line.length > 10 && line.length < 120 && 
-              /LTDA|EPP|S\.?A|ME|EIRELI|SERVOPA|CAMINHOES|TRANSPOTECH|PECAS|SERVICOS|SINDICATO|COMERCIO|VAREJISTA|FSC|COMUNICACOES|VANTOIR|DERETTI/gi.test(line) &&
+              /LTDA|EPP|S\.?A|ME|EIRELI|SERVOPA|CAMINHOES|TRANSPOTECH|PECAS|SERVICOS|SINDICATO|COMERCIO|VAREJISTA|FSC|COMUNICACOES|VANTOIR|DERETTI|IMUNIZADORA|JARAGUA/gi.test(line) &&
               !/PREFEITURA|MUNICIPAL|SECRETARIA|FAZENDA|TOMADOR|PRESTADOR|DOCUMENTO|EMITIDA|Complemento|UF:|CENTRO|MUNICÍPIO|Bairro CIC|Estado:|CURITIBA|BLUMENAU|ITOUPAVA NORTE|VIA EXPRESSA|PAUL FRITZ/i.test(line)) {
             
             let name = this.cleanCompanyName(line);
@@ -1116,7 +1300,7 @@
           }
         }
 
-        // ESTRATÉGIAS ORIGINAIS mantidas para compatibilidade... (MELHORADAS v3.8)
+        // ESTRATÉGIAS ORIGINAIS mantidas para compatibilidade... (MELHORADAS v3.9)
         const businessMatches = [
           text.match(/([A-Z][^0-9\n\r]{5,100}\s+EPP[^0-9\n\r]{0,50})/i),
           text.match(/([A-Z][^0-9\n\r]{5,100}\s+LTDA\s*-\s*ME[^0-9\n\r]{0,50})/i),
@@ -1125,7 +1309,8 @@
           text.match(/(TRANSPOTECH[^0-9\n\r]*PECAS[^0-9\n\r]*SERVICOS[^0-9\n\r]*LTDA[^0-9\n\r]*)/gi),
           text.match(/(SINDICATO[^0-9\n\r]*COMERCIO[^0-9\n\r]*VAREJISTA[^0-9\n\r]*)/gi),
           text.match(/(FSC[^0-9\n\r]*COMUNICACOES[^0-9\n\r]*LTDA[^0-9\n\r]*)/gi),
-          text.match(/(VANTOIR[^0-9\n\r]*DERETTI[^0-9\n\r]*ME[^0-9\n\r]*)/gi)
+          text.match(/(VANTOIR[^0-9\n\r]*DERETTI[^0-9\n\r]*ME[^0-9\n\r]*)/gi),
+          text.match(/(IMUNIZADORA[^0-9\n\r]*JARAGUA[^0-9\n\r]*LTDA[^0-9\n\r]*)/gi)
         ];
         
         for (const match of businessMatches) {
@@ -1139,11 +1324,39 @@
           }
         }
 
-        this.logStep('fail', 'TODAS as estratégias (v3.8 + anteriores) falharam');
+        this.logStep('fail', 'TODAS as estratégias (v3.9 + anteriores) falharam');
         return '';
       }
 
-      // MELHORIA v3.8: Validação aprimorada para novos casos específicos
+      // NOVA v3.9: Sistema de aprendizado
+      learnCompany(companyName) {
+        this.knownCompanies.add(companyName);
+        this.logStep('info', 'Nova empresa aprendida', companyName);
+        
+        // Salvar no localStorage para persistência
+        try {
+          const savedCompanies = JSON.parse(localStorage.getItem('learned_companies') || '[]');
+          if (!savedCompanies.includes(companyName)) {
+            savedCompanies.push(companyName);
+            localStorage.setItem('learned_companies', JSON.stringify(savedCompanies));
+          }
+        } catch (error) {
+          console.warn('Erro ao salvar empresa aprendida:', error);
+        }
+      }
+
+      // NOVA v3.9: Carregar empresas aprendidas
+      loadLearnedCompanies() {
+        try {
+          const savedCompanies = JSON.parse(localStorage.getItem('learned_companies') || '[]');
+          savedCompanies.forEach(company => this.knownCompanies.add(company));
+          this.logStep('info', `Carregadas ${savedCompanies.length} empresas aprendidas`);
+        } catch (error) {
+          console.warn('Erro ao carregar empresas aprendidas:', error);
+        }
+      }
+
+      // MELHORIA v3.9: Validação aprimorada para novos casos específicos
       validateCompanyNameImproved(name) {
         if (!name || name.length < 5 || name.length > 150) return false;
         if (!/[A-Za-z]/.test(name)) return false;
@@ -1154,7 +1367,13 @@
           return false;
         }
         
-        // NOVOS PADRÕES ACEITOS v3.8:
+        // NOVA v3.9: Se a empresa já é conhecida, aceitar imediatamente
+        if (this.knownCompanies.has(name.toUpperCase())) {
+          return true;
+        }
+        
+        // NOVOS PADRÕES ACEITOS v3.9:
+        if (/IMUNIZADORA.*JARAGUA/i.test(name)) return true;
         if (/VANTOIR.*DERETTI/i.test(name)) return true;
         if (/SERVOPA.*CAMINHOES/i.test(name)) return true;
         if (/TRANSPOTECH.*PECAS.*SERVICOS/i.test(name)) return true;
@@ -1182,8 +1401,8 @@
         const upperWords = name.match(/[A-Z]{2,}/g);
         if (upperWords && upperWords.length >= 3) return true;
         
-        // Aceitar se tem palavras características de empresa (MELHORADO v3.8)
-        if (/DIESEL|MECANICA|CARTUCHOS|INFORMATICA|INDUSTRIA|SERVICOS|TECNOLOGIA|SEGURANCA|AUTOMOTIVA|FUNILARIA|RIGO|FILHO|BHS|MARINGA|PORTEC|COMERCIO|TRANORTE|SISTEMAS|POSTO|CONTABILIDADE|ORLANDO|AMORIM|AUTO|ELETRICA|SERVOPA|CAMINHOES|TRANSPOTECH|PECAS|SINDICATO|VAREJISTA|FSC|COMUNICACOES|VANTOIR|DERETTI/i.test(name)) return true;
+        // Aceitar se tem palavras características de empresa (MELHORADO v3.9)
+        if (/DIESEL|MECANICA|CARTUCHOS|INFORMATICA|INDUSTRIA|SERVICOS|TECNOLOGIA|SEGURANCA|AUTOMOTIVA|FUNILARIA|RIGO|FILHO|BHS|MARINGA|PORTEC|COMERCIO|TRANORTE|SISTEMAS|POSTO|CONTABILIDADE|ORLANDO|AMORIM|AUTO|ELETRICA|SERVOPA|CAMINHOES|TRANSPOTECH|PECAS|SINDICATO|VAREJISTA|FSC|COMUNICACOES|VANTOIR|DERETTI|IMUNIZADORA|JARAGUA/i.test(name)) return true;
         
         return false;
       }
@@ -1192,7 +1411,7 @@
         return this.validateCompanyNameImproved(name);
       }
 
-      // MELHORIA v3.8: Limpeza aprimorada para casos específicos do log
+      // MELHORIA v3.9: Limpeza aprimorada para casos específicos do log
       cleanCompanyName(name) {
         if (!name) return '';
         
@@ -1211,9 +1430,33 @@
         return cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
       }
 
-      // ===== EXTRAÇÃO DE NÚMERO DO DOCUMENTO LASER =====
+      // ===== EXTRAÇÃO DE NÚMERO DO DOCUMENTO LASER MELHORADA v3.9 =====
       extractDocumentNumberLaser(text) {
-        this.logStep('info', 'Iniciando extração LASER de número do documento');
+        this.logStep('info', 'Iniciando extração LASER v3.9 de número do documento');
+
+        // NOVA ESTRATÉGIA v3.9.1: Busca específica para "Número da nota 81559"
+        const numeroNotaDirectMatch = text.match(/N[úu]mero\s+da\s+nota[\s\n\r]*(\d{3,8})/gi);
+        if (numeroNotaDirectMatch) {
+          const numberMatch = numeroNotaDirectMatch[0].match(/(\d{3,8})/);
+          if (numberMatch && this.validateDocumentNumber(numberMatch[1])) {
+            this.logStep('success', 'Número encontrado via "Número da nota" direto', numberMatch[1]);
+            return numberMatch[1];
+          }
+        }
+
+        // NOVA ESTRATÉGIA v3.9.2: Busca em tabela estruturada específica
+        const tabelaMatch = text.match(/Número do RPS\s+N[úu]mero da nota[\s\S]*?(\d{3,8})\s+(\d{3,8})/gi);
+        if (tabelaMatch) {
+          const numbers = tabelaMatch[0].match(/(\d{3,8})/g);
+          if (numbers && numbers.length >= 2) {
+            // O segundo número geralmente é o número da nota
+            const noteNumber = numbers[1];
+            if (this.validateDocumentNumber(noteNumber)) {
+              this.logStep('success', 'Número encontrado em tabela RPS/Nota', noteNumber);
+              return noteNumber;
+            }
+          }
+        }
 
         // ESTRATÉGIA LASER 1: Busca específica em tabela estruturada
         const tableResult = this.extractFromDocumentTable(text);
@@ -1281,7 +1524,10 @@
         const patterns = [
           /N[úu]mero\s+da\s+nota[\s:]*(\d{3,8})/gi,
           /da\s+nota[\s:]*(\d{3,8})/gi,
-          /Nota[\s\w]*?:\s*(\d{3,8})/gi
+          /Nota[\s\w]*?:\s*(\d{3,8})/gi,
+          // NOVA v3.9: Padrões mais específicos
+          /N[úu]mero\s+da\s+nota[\s\n\r]+(\d{3,8})/gi,
+          /nota[\s]+(\d{5,8})/gi
         ];
 
         for (const pattern of patterns) {
@@ -1340,7 +1586,10 @@
       // ===== MÉTODO PRINCIPAL =====
       async extractAllData(text, filename) {
         this.debugSteps = [];
-        this.logStep('info', `=== INICIANDO EXTRAÇÃO v3.8 PARA ${filename} ===`);
+        this.logStep('info', `=== INICIANDO EXTRAÇÃO v3.9 PARA ${filename} ===`);
+        
+        // Carregar empresas aprendidas
+        this.loadLearnedCompanies();
         
         const data = {
           filename: filename,
@@ -1367,7 +1616,7 @@
           
           data.status = this.determineExtractionStatus(data);
           
-          this.logStep('success', '=== EXTRAÇÃO v3.8 CONCLUÍDA ===', data);
+          this.logStep('success', '=== EXTRAÇÃO v3.9 CONCLUÍDA ===', data);
           
           return data;
           
@@ -1488,6 +1737,145 @@
 
     // ===== INSTÂNCIA DO EXTRATOR =====
     const ultraDirectExtractor = new UltraDirectExtractor();
+
+    // ===== NOVO: SISTEMA DE CÂMERA =====
+    async function startCamera() {
+      try {
+        const constraints = {
+          video: {
+            facingMode: 'environment', // Câmera traseira no celular
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          }
+        };
+
+        cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+        const videoElement = document.getElementById('cameraVideo');
+        videoElement.srcObject = cameraStream;
+        
+        videoElement.style.display = 'block';
+        document.getElementById('startCameraBtn').disabled = true;
+        document.getElementById('captureBtn').disabled = false;
+        document.getElementById('stopCameraBtn').disabled = false;
+        
+        showNotification('Câmera ativada com sucesso!');
+        
+      } catch (error) {
+        console.error('Erro ao acessar câmera:', error);
+        showNotification('Erro ao acessar a câmera: ' + error.message, 'error');
+      }
+    }
+
+    async function capturePhoto() {
+      try {
+        const video = document.getElementById('cameraVideo');
+        const canvas = document.getElementById('captureCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Configurar canvas com as dimensões do vídeo
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Capturar frame do vídeo
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Converter para blob
+        canvas.toBlob(async (blob) => {
+          try {
+            showProgress();
+            updateProgress(0, 1, 'Processando foto capturada...');
+            
+            // Criar arquivo da imagem capturada
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const filename = `foto_nfse_${timestamp}.jpg`;
+            
+            // Processar via OCR
+            const extractedText = await processImage(blob);
+            
+            if (!extractedText || extractedText.trim().length < 10) {
+              throw new Error('Texto insuficiente extraído da foto');
+            }
+            
+            // Extrair dados da nota
+            const data = await ultraDirectExtractor.extractAllData(extractedText, filename);
+            
+            // Adicionar aos resultados
+            extractionResults.unshift(data);
+            originalResults = [...extractionResults];
+            renderResult(data);
+            
+            updateStatistics();
+            enableExportIfAny();
+            showResults();
+            
+            updateProgress(1, 1, 'Foto processada com sucesso!');
+            setTimeout(hideProgress, 2000);
+            
+            showNotification('Foto capturada e processada com sucesso!');
+            
+            if (debugMode) {
+              updateDebugInfo(extractedText);
+            }
+            
+          } catch (error) {
+            console.error('Erro ao processar foto:', error);
+            showNotification('Erro ao processar foto: ' + error.message, 'error');
+            hideProgress();
+          }
+        }, 'image/jpeg', 0.8);
+        
+      } catch (error) {
+        console.error('Erro ao capturar foto:', error);
+        showNotification('Erro ao capturar foto: ' + error.message, 'error');
+      }
+    }
+
+    function stopCamera() {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+      }
+      
+      const videoElement = document.getElementById('cameraVideo');
+      videoElement.style.display = 'none';
+      videoElement.srcObject = null;
+      
+      document.getElementById('startCameraBtn').disabled = false;
+      document.getElementById('captureBtn').disabled = true;
+      document.getElementById('stopCameraBtn').disabled = true;
+      
+      showNotification('Câmera desativada');
+    }
+
+    function switchToFileUpload() {
+      document.getElementById('fileUploadArea').style.display = 'block';
+      document.getElementById('cameraSection').style.display = 'none';
+      
+      document.getElementById('fileUploadBtn').classList.add('active');
+      document.getElementById('cameraUploadBtn').classList.remove('active');
+      
+      cameraMode = false;
+      if (cameraStream) {
+        stopCamera();
+      }
+    }
+
+    function switchToCamera() {
+      document.getElementById('fileUploadArea').style.display = 'none';
+      document.getElementById('cameraSection').style.display = 'block';
+      
+      document.getElementById('fileUploadBtn').classList.remove('active');
+      document.getElementById('cameraUploadBtn').classList.add('active');
+      
+      cameraMode = true;
+    }
+
+    // Exportar funções para escopo global
+    window.startCamera = startCamera;
+    window.capturePhoto = capturePhoto;
+    window.stopCamera = stopCamera;
+    window.switchToFileUpload = switchToFileUpload;
+    window.switchToCamera = switchToCamera;
 
     // ===== SISTEMA DE NOTIFICAÇÕES =====
     function showNotification(message, type = 'success') {
@@ -1687,627 +2075,4 @@
         console.log('✅ SheetJS carregado:', XLSX.version || 'versão desconhecida');
         
         if (typeof XLSX.utils === 'undefined' || typeof XLSX.writeFile !== 'function') {
-          console.error('❌ SheetJS funcionalidades não disponíveis');
-          message += 'SheetJS funcionalidades não disponíveis. ';
-          allLoaded = false;
-        } else {
-          console.log('✅ SheetJS funcionalidades disponíveis');
-        }
-      }
-      
-      if (allLoaded) {
-        statusMessage.innerHTML = '<i class="fas fa-check-circle"></i> Sistema v3.8 ativo! Todas as bibliotecas carregadas. Correções do log implementadas.';
-        statusMessage.className = 'status-ok';
-        librariesLoaded = true;
-        
-        setTimeout(() => {
-          statusSection.style.display = 'none';
-        }, 3000);
-        
-        console.log('🎯 Sistema de Extração v3.8 inicializado com sucesso!');
-        
-        loadDataFromLocalStorage();
-        
-      } else {
-        statusMessage.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Erro nas bibliotecas: ${message}`;
-        statusMessage.className = 'status-error';
-        librariesLoaded = false;
-        
-        console.error('❌ Erro no carregamento das bibliotecas:', message);
-        showNotification('Erro ao carregar bibliotecas. Verifique a pasta ./libs/', 'error');
-      }
-    }
-
-    // ===== PROCESSAMENTO DE ARQUIVOS EXATAMENTE COMO NO ORIGINAL =====
-    async function handleFiles(files) {
-      console.log('📁 Iniciando processamento de arquivos:', files.length);
-      
-      if (!librariesLoaded) {
-        showNotification('⚠️ Aguarde o carregamento do sistema ULTRA-DIRETO!', 'error');
-        return;
-      }
-      
-      const supportedFiles = Array.from(files).filter(file => {
-        const isSupported = file.type === 'application/pdf' || file.type.startsWith('image/');
-        if (!isSupported) {
-          console.warn('⚠️ Arquivo não suportado:', file.name, file.type);
-        }
-        return isSupported;
-      });
-      
-      if (supportedFiles.length === 0) {
-        showNotification('❌ Nenhum arquivo PDF ou imagem válido encontrado', 'error');
-        return;
-      }
-      
-      if (supportedFiles.length !== files.length) {
-        showNotification(`⚠️ ${files.length - supportedFiles.length} arquivo(s) ignorado(s) - apenas PDF e imagens são suportados`, 'error');
-      }
-      
-      showProgress();
-      let successCount = 0;
-      let errorCount = 0;
-      
-      for (let i = 0; i < supportedFiles.length; i++) {
-        const file = supportedFiles[i];
-        console.log(`📄 Processando ${i + 1}/${supportedFiles.length}: ${file.name} (${file.type})`);
-        
-        updateProgress(i, supportedFiles.length, `Aplicando extração ultra-direta em ${file.name}...`);
-        
-        try {
-          let extractedText = '';
-          
-          if (file.type === 'application/pdf') {
-            console.log('📑 Processando PDF:', file.name);
-            extractedText = await processPDF(file);
-          } else if (file.type.startsWith('image/')) {
-            console.log('🖼️ Processando imagem:', file.name);
-            extractedText = await processImage(file);
-          }
-          
-          console.log('📝 Texto extraído:', extractedText.length, 'caracteres');
-          console.log('📄 Preview:', extractedText.substring(0, 200) + '...');
-          
-          if (!extractedText || extractedText.trim().length < 10) {
-            throw new Error('Texto extraído insuficiente ou vazio');
-          }
-          
-          const data = await ultraDirectExtractor.extractAllData(extractedText, file.name);
-          
-          extractionResults.unshift(data);
-          originalResults = [...extractionResults];
-          renderResult(data);
-          
-          if (data.status === 'success') {
-            successCount++;
-          } else if (data.status === 'error') {
-            errorCount++;
-          }
-          
-          if (debugMode) {
-            updateDebugInfo(extractedText);
-          }
-          
-          console.log('✅ Arquivo processado com sucesso:', file.name);
-          
-        } catch (error) {
-          console.error(`❌ Erro ao processar ${file.name}:`, error);
-          errorCount++;
-          
-          const errorData = {
-            filename: file.name,
-            cnpj_emitente: 'ERRO',
-            nome_emitente: 'Erro no processamento ULTRA-DIRETO',
-            data_emissao: '',
-            numero_documento: '',
-            valor_total: '',
-            descricao: error.message || 'Erro desconhecido',
-            status: 'error'
-          };
-          
-          extractionResults.unshift(errorData);
-          originalResults = [...extractionResults];
-          renderResult(errorData, true);
-          
-          showNotification(`❌ Erro ao processar ${file.name}: ${error.message}`, 'error');
-        }
-      }
-      
-      updateProgress(supportedFiles.length, supportedFiles.length, 'Extração ultra-direta concluída!');
-      setTimeout(hideProgress, 2000);
-      
-      updateStatistics();
-      enableExportIfAny();
-      showResults();
-      
-      const totalProcessed = supportedFiles.length;
-      let finalMessage = `📊 Processamento concluído: ${totalProcessed} arquivo(s)`;
-      if (successCount > 0) finalMessage += ` | ✅ ${successCount} sucesso`;
-      if (errorCount > 0) finalMessage += ` | ❌ ${errorCount} erro(s)`;
-      
-      showNotification(finalMessage);
-      console.log('🎯 Processamento finalizado:', { total: totalProcessed, success: successCount, errors: errorCount });
-    }
-
-    // ===== PROCESSAMENTO DE PDF EXATAMENTE COMO NO ORIGINAL =====
-    async function processPDF(file) {
-      console.log('📑 Iniciando processamento PDF:', file.name, file.size, 'bytes');
-      
-      try {
-        const arrayBuffer = await file.arrayBuffer();
-        console.log('📁 ArrayBuffer criado:', arrayBuffer.byteLength, 'bytes');
-        
-        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-        console.log('📖 PDF carregado:', pdf.numPages, 'páginas');
-        
-        let fullText = '';
-
-        for (let i = 1; i <= pdf.numPages; i++) {
-          console.log(`📄 Processando página ${i}/${pdf.numPages}`);
-          
-          try {
-            const page = await pdf.getPage(i);
-            const textContent = await page.getTextContent();
-            let pageText = textContent.items.map(item => item.str).join(' ');
-            
-            console.log(`📝 Página ${i}: ${pageText.length} caracteres extraídos`);
-            
-            if (!pageText.trim()) {
-              console.log(`🔍 Página ${i} sem texto, tentando OCR...`);
-              pageText = await ocrImagePage(pdf, i);
-              console.log(`🔍 OCR página ${i}: ${pageText.length} caracteres`);
-            }
-            
-            fullText += pageText + '\n\n';
-            
-          } catch (pageError) {
-            console.warn(`⚠️ Erro na página ${i}:`, pageError);
-            try {
-              const pageText = await ocrImagePage(pdf, i);
-              fullText += pageText + '\n\n';
-              console.log(`🔍 OCR de emergência página ${i}: ${pageText.length} caracteres`);
-            } catch (ocrError) {
-              console.error(`❌ Falha completa na página ${i}:`, ocrError);
-            }
-          }
-        }
-
-        console.log('✅ PDF processado com sucesso:', fullText.length, 'caracteres totais');
-        return fullText;
-        
-      } catch (error) {
-        console.error('❌ Erro no processamento PDF:', error);
-        throw new Error(`Erro ao processar PDF: ${error.message}`);
-      }
-    }
-
-    async function ocrImagePage(pdf, pageNum) {
-      console.log(`🔍 Iniciando OCR na página ${pageNum}`);
-      
-      try {
-        const page = await pdf.getPage(pageNum);
-        const viewport = page.getViewport({ scale: 2 });
-        const canvas = document.createElement('canvas');
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        const ctx = canvas.getContext('2d');
-        
-        await page.render({ canvasContext: ctx, viewport }).promise;
-        console.log(`🖼️ Canvas renderizado: ${canvas.width}x${canvas.height}`);
-
-        const worker = await Tesseract.createWorker();
-        await worker.load();
-        await worker.loadLanguage('por+eng');
-        await worker.initialize('por+eng');
-        
-        console.log(`🤖 Tesseract inicializado, processando página ${pageNum}...`);
-
-        const { data: { text } } = await worker.recognize(canvas);
-        await worker.terminate();
-        
-        console.log(`✅ OCR concluído página ${pageNum}: ${text.length} caracteres`);
-        return text;
-        
-      } catch (error) {
-        console.error(`❌ Erro no OCR página ${pageNum}:`, error);
-        throw new Error(`Erro no OCR: ${error.message}`);
-      }
-    }
-
-    // ===== PROCESSAMENTO DE IMAGEM EXATAMENTE COMO NO ORIGINAL =====
-    async function processImage(file) {
-      console.log('🖼️ Iniciando processamento de imagem:', file.name, file.type, file.size, 'bytes');
-      
-      try {
-        const { createWorker } = Tesseract;
-        console.log('🤖 Criando worker Tesseract para imagem...');
-        
-        const worker = await createWorker();
-        
-        console.log('📚 Carregando idioma português...');
-        await worker.loadLanguage('por');
-        await worker.initialize('por');
-        
-        console.log('🔍 Iniciando reconhecimento OCR...');
-        const { data: { text } } = await worker.recognize(file);
-        
-        await worker.terminate();
-        console.log('✅ Imagem processada com sucesso:', text.length, 'caracteres extraídos');
-        
-        return text;
-        
-      } catch (error) {
-        console.error('❌ Erro no processamento de imagem:', error);
-        throw new Error(`Erro ao processar imagem: ${error.message}`);
-      }
-    }
-
-    // ===== INTERFACE =====
-    function renderResult(data, isError = false) {
-      const tbody = document.querySelector('#resultsTable tbody');
-      const row = document.createElement('tr');
-      
-      if (isError || data.status === 'error') {
-        row.className = 'error-row';
-      } else if (data.status === 'success') {
-        row.className = 'success-row';
-      } else if (data.status === 'warning') {
-        row.className = 'warning-row';
-      }
-      
-      const statusIcon = data.status === 'success' ? '✅' : 
-                        data.status === 'warning' ? '⚠️' : '❌';
-      
-      row.innerHTML = `
-        <td contenteditable="true">${data.cnpj_emitente || ''}</td>
-        <td contenteditable="true">${data.nome_emitente || ''}</td>
-        <td contenteditable="true">${data.data_emissao || ''}</td>
-        <td contenteditable="true">${data.numero_documento || ''}</td>
-        <td contenteditable="true">${data.valor_total || ''}</td>
-        <td contenteditable="true">${data.descricao || ''}</td>
-        <td>${statusIcon}</td>
-        <td>
-          <button class="validate-btn" onclick="validateRow(this)" title="Validar linha">
-            <i class="fas fa-check"></i>
-          </button>
-          <button class="delete-btn" onclick="deleteResult(this)" title="Excluir linha">
-            <i class="fas fa-trash"></i>
-          </button>
-        </td>
-      `;
-      
-      tbody.appendChild(row);
-    }
-
-    // ===== FUNÇÕES GLOBAIS =====
-    window.deleteResult = function(button) {
-      const row = button.closest('tr');
-      const index = Array.from(row.parentNode.children).indexOf(row);
-      
-      row.remove();
-      extractionResults.splice(index, 1);
-      originalResults = [...extractionResults];
-      updateStatistics();
-      enableExportIfAny();
-      showNotification('Linha removida com sucesso');
-    }
-
-    window.validateRow = function(button) {
-      const row = button.closest('tr');
-      const cells = Array.from(row.querySelectorAll('td[contenteditable]'));
-      let isValid = true;
-      
-      const cnpj = cells[0].textContent.trim();
-      if (cnpj && !/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/.test(cnpj)) {
-        cells[0].style.borderColor = 'red';
-        isValid = false;
-      } else {
-        cells[0].style.borderColor = '';
-      }
-      
-      const nome = cells[1].textContent.trim();
-      if (!nome || nome.length < 5) {
-        cells[1].style.borderColor = 'red';
-        isValid = false;
-      } else {
-        cells[1].style.borderColor = '';
-      }
-      
-      if (isValid) {
-        row.className = 'success-row';
-        showNotification('Linha validada com sucesso!');
-      } else {
-        showNotification('Dados da linha precisam ser corrigidos', 'error');
-      }
-    }
-
-    window.toggleDebug = function() {
-      debugMode = !debugMode;
-      const debugSection = document.getElementById('debugSection');
-      debugSection.style.display = debugMode ? 'block' : 'none';
-      showNotification(debugMode ? 'Debug ativado' : 'Debug desativado');
-    }
-
-    window.toggleStats = function() {
-      const statsSection = document.getElementById('statsSection');
-      const isVisible = statsSection.style.display !== 'none';
-      statsSection.style.display = isVisible ? 'none' : 'block';
-      showNotification(isVisible ? 'Estatísticas ocultadas' : 'Estatísticas exibidas');
-    }
-
-    window.toggleFilters = function() {
-      const filterSection = document.getElementById('filterSection');
-      const isVisible = filterSection.style.display !== 'none';
-      filterSection.style.display = isVisible ? 'none' : 'block';
-      showNotification(isVisible ? 'Filtros ocultados' : 'Filtros exibidos');
-    }
-
-    window.applyFilters = applyFilters;
-    window.clearFilters = clearFilters;
-
-    function showProgress() {
-      document.getElementById('progressSection').style.display = 'block';
-    }
-    
-    function hideProgress() {
-      document.getElementById('progressSection').style.display = 'none';
-    }
-    
-    function updateProgress(current, total, message) {
-      const percentage = Math.round((current / total) * 100);
-      document.getElementById('progressFill').style.width = percentage + '%';
-      document.getElementById('progressText').textContent = `${message} (${current}/${total})`;
-    }
-    
-    function showResults() {
-      document.getElementById('resultsSection').style.display = 'block';
-    }
-    
-    function enableExportIfAny() {
-      const hasData = document.querySelector('#resultsTable tbody tr');
-      document.getElementById('exportBtn').disabled = !hasData;
-      document.getElementById('saveBtn').disabled = !hasData;
-      document.getElementById('clearBtn').disabled = !hasData;
-    }
-
-    // ===== EXPORTAÇÃO =====
-    function exportToExcel() {
-      const table = document.getElementById('resultsTable');
-      const rows = Array.from(table.querySelectorAll('tbody tr'));
-      
-      const data = rows.map(row => {
-        const cells = Array.from(row.querySelectorAll('td[contenteditable]'));
-        return {
-          'CNPJ Emitente': cells[0].textContent.trim(),
-          'Nº Documento': cells[3].textContent.trim(),
-          'Valor Total': cells[4].textContent.trim(),
-          'Descrição': cells[5].textContent.trim()
-        };
-      });
-      
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Despesas_Laser');
-      
-      const now = new Date();
-      const filename = `despesas_laser_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.xlsx`;
-      
-      XLSX.writeFile(wb, filename);
-      showNotification('Excel exportado com sucesso!');
-    }
-
-    function clearAllData() {
-      if (confirm('Tem certeza que deseja limpar todos os dados?')) {
-        extractionResults = [];
-        originalResults = [];
-        
-        // Limpar tabela
-        const tbody = document.querySelector('#resultsTable tbody');
-        tbody.innerHTML = '';
-        
-        // Resetar estatísticas
-        statistics = {
-          totalProcessed: 0,
-          successCount: 0,
-          errorCount: 0,
-          totalValue: 0,
-          uniqueCompanies: new Set()
-        };
-        
-        updateStatistics();
-        enableExportIfAny();
-        
-        // Limpar localStorage
-        localStorage.removeItem('nfse_data_backup');
-        
-        showNotification('Todos os dados foram limpos');
-      }
-    }
-    
-    function updateDebugInfo(text) {
-      // Atualiza texto extraído
-      document.getElementById('debugText').textContent = text.substring(0, 2000) + (text.length > 2000 ? '\n... (texto truncado)' : '');
-      
-      // Atualiza detalhes da extração
-      const detailsDiv = document.getElementById('extractionDetails');
-      let html = '<h4>🎯 Processo de Extração v3.8 (Correções Log + NOVAS):</h4>';
-      
-      if (ultraDirectExtractor.debugSteps.length > 0) {
-        html += '<div>';
-        ultraDirectExtractor.debugSteps.forEach(step => {
-          const stepClass = step.type === 'success' ? 'step-success' : 
-                           step.type === 'fail' || step.type === 'error' ? 'step-fail' : 
-                           step.type === 'warning' ? 'step-warning' : '';
-          
-          html += `<div class="extraction-step ${stepClass}">
-            <strong>[${step.type.toUpperCase()}]</strong> ${step.message}
-            ${step.result ? `<br><em>Resultado: ${step.result}</em>` : ''}
-          </div>`;
-        });
-        html += '</div>';
-      }
-      
-      detailsDiv.innerHTML = html;
-    }
-
-    // ===== INICIALIZAÇÃO =====
-    document.addEventListener('DOMContentLoaded', function() {
-      const uploadSection = document.getElementById('uploadSection');
-      const fileInput = document.getElementById('fileInput');
-      const exportBtn = document.getElementById('exportBtn');
-      const saveBtn = document.getElementById('saveBtn');
-      const clearBtn = document.getElementById('clearBtn');
-      
-      checkLibraries();
-      
-      // Verificação adicional de arquivos
-      console.log('🔍 Verificando estrutura de arquivos...');
-      
-      // Testar se consegue acessar os arquivos das bibliotecas
-      fetch('./libs/pdf.min.mjs')
-        .then(response => {
-          if (response.ok) {
-            console.log('✅ pdf.min.mjs encontrado');
-          } else {
-            console.error('❌ pdf.min.mjs não encontrado - código:', response.status);
-          }
-        })
-        .catch(error => {
-          console.error('❌ Erro ao acessar pdf.min.mjs:', error);
-          showNotification('❌ Biblioteca PDF.js não encontrada na pasta ./libs/', 'error');
-        });
-      
-      fetch('./libs/tesseract.esm.min.js')
-        .then(response => {
-          if (response.ok) {
-            console.log('✅ tesseract.esm.min.js encontrado');
-          } else {
-            console.error('❌ tesseract.esm.min.js não encontrado - código:', response.status);
-          }
-        })
-        .catch(error => {
-          console.error('❌ Erro ao acessar tesseract.esm.min.js:', error);
-          showNotification('❌ Biblioteca Tesseract.js não encontrada na pasta ./libs/', 'error');
-        });
-      
-      fetch('./libs/xlsx.mjs')
-        .then(response => {
-          if (response.ok) {
-            console.log('✅ xlsx.mjs encontrado');
-          } else {
-            console.error('❌ xlsx.mjs não encontrado - código:', response.status);
-          }
-        })
-        .catch(error => {
-          console.error('❌ Erro ao acessar xlsx.mjs:', error);
-          showNotification('❌ Biblioteca XLSX não encontrada na pasta ./libs/', 'error');
-        });
-      
-      fileInput.addEventListener('change', function(e) {
-        console.log('📁 Arquivos selecionados:', e.target.files.length);
-        
-        const files = Array.from(e.target.files).filter(file => {
-          const isValid = file.type === 'application/pdf' || file.type.startsWith('image/');
-          console.log(`📄 ${file.name}: ${file.type} - ${isValid ? 'VÁLIDO' : 'INVÁLIDO'}`);
-          return isValid;
-        });
-        
-        if (files.length > 0) {
-          console.log('🚀 Iniciando processamento de', files.length, 'arquivo(s) válido(s)');
-          handleFiles(files);
-        } else {
-          showNotification('❌ Nenhum arquivo PDF ou imagem válido selecionado', 'error');
-        }
-        
-        // Limpar input para permitir reenvio do mesmo arquivo
-        e.target.value = '';
-      });
-      
-      uploadSection.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        uploadSection.classList.add('dragover');
-      });
-      
-      uploadSection.addEventListener('dragleave', function(e) {
-        e.preventDefault();
-        uploadSection.classList.remove('dragover');
-      });
-      
-      uploadSection.addEventListener('drop', function(e) {
-        e.preventDefault();
-        uploadSection.classList.remove('dragover');
-        
-        console.log('📁 Arquivos soltos:', e.dataTransfer.files.length);
-        
-        const files = Array.from(e.dataTransfer.files).filter(file => {
-          const isValid = file.type === 'application/pdf' || file.type.startsWith('image/');
-          console.log(`📄 ${file.name}: ${file.type} - ${isValid ? 'VÁLIDO' : 'INVÁLIDO'}`);
-          return isValid;
-        });
-        
-        if (files.length > 0) {
-          console.log('🚀 Iniciando processamento de', files.length, 'arquivo(s) válido(s)');
-          handleFiles(files);
-        } else {
-          showNotification('❌ Nenhum arquivo PDF ou imagem válido encontrado', 'error');
-        }
-      });
-      
-      exportBtn.addEventListener('click', exportToExcel);
-      saveBtn.addEventListener('click', saveDataToLocalStorage);
-      clearBtn.addEventListener('click', clearAllData);
-      
-      console.log('🎯 Sistema v3.8 - Correções do Log + NOVAS Estratégias Implementadas!');
-      console.log('📚 Bibliotecas Atualizadas:');
-      console.log('   ✅ PDF.js atualizado: v3.11.174');
-      console.log('   ✅ SheetJS atualizado: v0.18.5');
-      console.log('🆕 NOVAS Estratégias v3.8 (Correções Log):');
-      console.log('   ✅ VANTOIR DERETTI ME (NOVO)');
-      console.log('   ✅ SERVOPA CAMINHOES LTDA (NOVO)');
-      console.log('   ✅ TRANSPOTECH PECAS E SERVICOS LTDA (NOVO)');
-      console.log('   ✅ SINDICATO DO COMERCIO VAREJISTA DE JARAGUA DO SUL (NOVO)');
-      console.log('   ✅ FSC COMUNICACOES LTDA (NOVO)');
-      console.log('   ✅ Filtros anti-endereços melhorados (NOVO)');
-      console.log('   ✅ Validação aprimorada para empresas específicas (NOVO)');
-      console.log('🔧 Estratégias Mantidas v3.6:');
-      console.log('   ✅ M.A. DA SILVA VIEIRA - AUTO ELÉTRICA ✓');
-      console.log('   ✅ BHS MARINGA TECNOLOGIA LTDA ✓');
-      console.log('   ✅ PORTEC COMERCIO PRODUTOS ELETRONICOS ✓');
-      console.log('   ✅ TRANORTE SISTEMAS MECANIZADOS LTDA ✓');
-      console.log('   ✅ POSTO Z4 LTDA ✓');
-      console.log('   ✅ CONTABILIDADE ORLANDO AMORIM S/S LTDA ✓');
-      console.log('🔧 Estratégias Mantidas v3.5:');
-      console.log('   ✅ W.O. RIGO FILHO - INFORMATICA - ME ✓');
-      console.log('   ✅ Nomes com iniciais ✓');
-      console.log('   ✅ Busca por Razão Social ✓');
-      console.log('🔧 Estratégias Mantidas v3.4:');
-      console.log('   ✅ FUNILARIA NITZ LTDA ✓');
-      console.log('   ✅ SASCAR TECNOLOGIA ✓');
-      console.log('🔧 Estratégias Mantidas v3.3:');
-      console.log('   ✅ Seção PRESTADOR (RD CARTUCHOS) ✓');
-      console.log('   ✅ LUCIA IVONETE específica ✓');
-      console.log('   ✅ Compatibilidade total 100% ✓');
-      console.log('🚀 MELHORIAS ADICIONADAS:');
-      console.log('   ✅ Sistema de notificações');
-      console.log('   ✅ Estatísticas em tempo real');
-      console.log('   ✅ Filtros de dados');
-      console.log('   ✅ Sistema de backup/restore');
-      console.log('   ✅ Validação de dados');
-      console.log('   ✅ Interface aprimorada');
-      console.log('   ✅ Diagnóstico de bibliotecas');
-      console.log('   ✅ Logging detalhado');
-      
-      console.log('📁 ESTRUTURA DE ARQUIVOS NECESSÁRIA:');
-      console.log('   📄 ./libs/pdf.min.mjs - PDF.js core');
-      console.log('   📄 ./libs/pdf.worker.min.mjs - PDF.js worker');
-      console.log('   📄 ./libs/tesseract.esm.min.js - Tesseract OCR');
-      console.log('   📄 ./libs/xlsx.mjs - SheetJS Excel');
-      
-      console.log('🔧 DIAGNÓSTICO:');
-      console.log('   Se houver erros de importação, verifique se todos os arquivos estão na pasta ./libs/');
-      console.log('   Use o console do navegador (F12) para ver logs detalhados');
-      console.log('   O sistema mostrará notificações visuais para orientar na correção');
-    });
-  </script>
-</body>
-</html>
+          console.
