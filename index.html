@@ -747,9 +747,9 @@
 
 <body>
   <header>
-    <h1><i class="fas fa-bullseye"></i> Automatizador NFS-e v3.9</h1>
-    <p>Sistema Ultra-Direto com Câmera + Correções IMUNIZADORA JARAGUA</p>
-    <div class="version-badge">v3.9 Final</div>
+    <h1><i class="fas fa-bullseye"></i> Automatizador NFS-e v4.0</h1>
+    <p>Sistema Ultra-Direto com OCR Melhorado + Extração Completa</p>
+    <div class="version-badge">v4.0 Melhorado</div>
   </header>
 
   <main>
@@ -869,12 +869,14 @@
         <table id="resultsTable">
           <thead>
             <tr>
-              <th>CNPJ Emitente</th>
-              <th>Nome Emitente</th>
-              <th>Data Emissão</th>
-              <th>Nº Documento</th>
-              <th>Valor Total</th>
+              <th>CNPJ Prestador</th>
+              <th>Nome Prestador</th>
+              <th>Complemento</th>
+              <th>Nº Nota</th>
+              <th>Data/Hora</th>
+              <th>Valor Serviço</th>
               <th>Descrição</th>
+              <th>Placa</th>
               <th>Status</th>
               <th>Ações</th>
             </tr>
@@ -886,7 +888,7 @@
 
     <!-- Debug Section -->
     <section class="debug-section" id="debugSection">
-      <h3>Debug Ultra-Direto - Análise Simples</h3>
+      <h3>Debug Ultra-Direto - Análise Completa v4.0</h3>
       <div class="debug-text" id="debugText"></div>
       <div class="extraction-details" id="extractionDetails"></div>
     </section>
@@ -910,7 +912,7 @@
     <a href="#" onclick="toggleFilters(); return false;">Filtros</a></p>
   </footer>
 
-  <!-- Script Corrigido v3.9 Final -->
+  <!-- Script Melhorado v4.0 -->
   <script type="module">
     // ===== POLYFILLS =====
     (function() {
@@ -955,11 +957,11 @@
     // CNPJ da empresa (tomador)
     const COMPANY_CNPJ = '07.925.317/0001-88';
 
-    // ===== SISTEMA DE EXTRAÇÃO v3.9 MELHORADO =====
+    // ===== SISTEMA DE EXTRAÇÃO v4.0 MELHORADO =====
     class UltraDirectExtractor {
       constructor() {
         this.debugSteps = [];
-        // Base de conhecimento de empresas conhecidas
+        // Base de conhecimento de empresas conhecidas expandida
         this.knownCompanies = new Set([
           'IMUNIZADORA JARAGUA LTDA',
           'GIVA CARDANS LTDA - ME',
@@ -979,6 +981,13 @@
           'FUNILARIA NITZ LTDA',
           'SASCAR TECNOLOGIA'
         ]);
+        
+        // Padrões de placas brasileiras
+        this.placaPatterns = [
+          /\b[A-Z]{3}[\s\-]?\d{4}\b/g, // Formato antigo: AAA-1234
+          /\b[A-Z]{3}[\s\-]?\d[A-Z]\d{2}\b/g, // Formato Mercosul: AAA1A23
+          /(?:PLACA|VE[ÍI]CULO)[:\s]*([A-Z]{3}[\s\-]?\d[A-Z\d]{3})/gi
+        ];
       }
 
       logStep(type, message, result = null) {
@@ -987,192 +996,712 @@
         console.log(`[${type.toUpperCase()}] ${message}`, result || '');
       }
 
-      // ===== EXTRAÇÃO DE CNPJ =====
-      extractCNPJEmitente(text) {
-        this.logStep('info', 'Iniciando extração de CNPJ');
+      // ===== EXTRAÇÃO DE CNPJ/CPF DO PRESTADOR =====
+      extractPrestadorCPFCNPJ(text) {
+        this.logStep('info', 'Iniciando extração de CPF/CNPJ do Prestador');
         
-        const cnpjMatches = [...text.matchAll(/\b\d{2}[\.\s]?\d{3}[\.\s]?\d{3}[\s\/]?\d{4}[\s\-]?\d{2}\b/g)];
+        // Remove o CNPJ da empresa tomadora para não confundir
         const companyCnpjClean = COMPANY_CNPJ.replace(/\D/g, '');
         
-        this.logStep('info', `Encontrados ${cnpjMatches.length} CNPJs no documento`);
-        
-        for (const match of cnpjMatches) {
-          const cnpj = match[0];
-          const cnpjClean = cnpj.replace(/\D/g, '');
+        // Estratégias específicas para prestador
+        const strategies = [
+          // 1. Busca na seção PRESTADOR
+          () => {
+            const prestadorMatch = text.match(/PRESTADOR[\s\S]*?(?=TOMADOR|DISCRIMINA[ÇC][ÃA]O|$)/gi);
+            if (prestadorMatch) {
+              const prestadorSection = prestadorMatch[0];
+              
+              // Busca CNPJ na seção prestador
+              const cnpjMatches = [...prestadorSection.matchAll(/\b\d{2}[\.\s]?\d{3}[\.\s]?\d{3}[\s\/]?\d{4}[\s\-]?\d{2}\b/g)];
+              for (const match of cnpjMatches) {
+                const cnpj = match[0];
+                const cnpjClean = cnpj.replace(/\D/g, '');
+                if (cnpjClean !== companyCnpjClean && cnpjClean.length === 14) {
+                  return this.formatCNPJ(cnpjClean);
+                }
+              }
+              
+              // Busca CPF na seção prestador
+              const cpfMatches = [...prestadorSection.matchAll(/\b\d{3}[\.\s]?\d{3}[\.\s]?\d{3}[\s\-]?\d{2}\b/g)];
+              for (const match of cpfMatches) {
+                const cpf = match[0];
+                const cpfClean = cpf.replace(/\D/g, '');
+                if (cpfClean.length === 11 && this.validateCPF(cpfClean)) {
+                  return this.formatCPF(cpfClean);
+                }
+              }
+            }
+            return null;
+          },
           
-          if (cnpjClean !== companyCnpjClean && cnpjClean.length === 14) {
-            const formatted = this.formatCNPJ(cnpjClean);
-            this.logStep('success', 'CNPJ do emitente encontrado', formatted);
-            return formatted;
+          // 2. Busca por padrões específicos
+          () => {
+            const patterns = [
+              /(?:CPF\/CNPJ|CNPJ\/CPF)[:\s]*(\d{2}[\.\s]?\d{3}[\.\s]?\d{3}[\s\/]?\d{4}[\s\-]?\d{2})/gi,
+              /(?:CPF\/CNPJ|CNPJ\/CPF)[:\s]*(\d{3}[\.\s]?\d{3}[\.\s]?\d{3}[\s\-]?\d{2})/gi,
+              /Prestador[^:]*CPF\/CNPJ[:\s]*(\d{2,3}[\.\s]?\d{3}[\.\s]?\d{3}[\s\/]?\d{2,4}[\s\-]?\d{2})/gi
+            ];
+            
+            for (const pattern of patterns) {
+              const matches = [...text.matchAll(pattern)];
+              for (const match of matches) {
+                const document = match[1];
+                const documentClean = document.replace(/\D/g, '');
+                
+                if (documentClean.length === 14 && documentClean !== companyCnpjClean) {
+                  return this.formatCNPJ(documentClean);
+                } else if (documentClean.length === 11 && this.validateCPF(documentClean)) {
+                  return this.formatCPF(documentClean);
+                }
+              }
+            }
+            return null;
+          },
+          
+          // 3. Busca geral excluindo o da empresa
+          () => {
+            const allCnpjs = [...text.matchAll(/\b\d{2}[\.\s]?\d{3}[\.\s]?\d{3}[\s\/]?\d{4}[\s\-]?\d{2}\b/g)];
+            for (const match of allCnpjs) {
+              const cnpj = match[0];
+              const cnpjClean = cnpj.replace(/\D/g, '');
+              if (cnpjClean !== companyCnpjClean && cnpjClean.length === 14) {
+                return this.formatCNPJ(cnpjClean);
+              }
+            }
+            
+            const allCpfs = [...text.matchAll(/\b\d{3}[\.\s]?\d{3}[\.\s]?\d{3}[\s\-]?\d{2}\b/g)];
+            for (const match of allCpfs) {
+              const cpf = match[0];
+              const cpfClean = cpf.replace(/\D/g, '');
+              if (cpfClean.length === 11 && this.validateCPF(cpfClean)) {
+                return this.formatCPF(cpfClean);
+              }
+            }
+            return null;
+          }
+        ];
+
+        for (const strategy of strategies) {
+          const result = strategy();
+          if (result) {
+            this.logStep('success', 'CPF/CNPJ do prestador encontrado', result);
+            return result;
           }
         }
         
-        this.logStep('fail', 'CNPJ do emitente não encontrado');
+        this.logStep('fail', 'CPF/CNPJ do prestador não encontrado');
         return '';
       }
 
-      // ===== ESTRATÉGIAS ESPECÍFICAS v3.9 =====
-      extractEmitenteNameLaser(text, cnpj) {
-        this.logStep('info', 'Iniciando extração ULTRA-DIRETA v3.9 de nome do emitente');
+      // ===== EXTRAÇÃO DE COMPLEMENTO DO PRESTADOR =====
+      extractPrestadorComplemento(text) {
+        this.logStep('info', 'Iniciando extração de complemento do prestador');
+        
+        const strategies = [
+          // 1. Busca específica por "Complemento:"
+          () => {
+            const match = text.match(/Complemento[:\s]*([^\r\n]+)/gi);
+            if (match) {
+              const complemento = this.cleanAddressField(match[0]);
+              if (complemento && complemento.length > 2) {
+                return complemento;
+              }
+            }
+            return null;
+          },
+          
+          // 2. Busca na seção PRESTADOR
+          () => {
+            const prestadorMatch = text.match(/PRESTADOR[\s\S]*?(?=TOMADOR|DISCRIMINA[ÇC][ÃA]O|$)/gi);
+            if (prestadorMatch) {
+              const prestadorSection = prestadorMatch[0];
+              
+              const complementoMatch = prestadorSection.match(/Complemento[:\s]*([^\r\n]+)/gi);
+              if (complementoMatch) {
+                const complemento = this.cleanAddressField(complementoMatch[0]);
+                if (complemento && complemento.length > 2) {
+                  return complemento;
+                }
+              }
+            }
+            return null;
+          },
+          
+          // 3. Busca por padrões de endereço
+          () => {
+            const patterns = [
+              /(?:Apto|Apart|Apartamento|Sala|Loja|Andar)[:\s]*([^\r\n]+)/gi,
+              /(?:Bl|Bloco|Ed|Edificio|Torre)[:\s]*([^\r\n]+)/gi,
+              /(?:Casa|Residência)[:\s]*(\d+[^\r\n]*)/gi
+            ];
+            
+            for (const pattern of patterns) {
+              const matches = [...text.matchAll(pattern)];
+              for (const match of matches) {
+                const complemento = this.cleanAddressField(match[1]);
+                if (complemento && complemento.length > 2) {
+                  return complemento;
+                }
+              }
+            }
+            return null;
+          }
+        ];
+
+        for (const strategy of strategies) {
+          const result = strategy();
+          if (result) {
+            this.logStep('success', 'Complemento do prestador encontrado', result);
+            return result;
+          }
+        }
+        
+        this.logStep('fail', 'Complemento do prestador não encontrado');
+        return '';
+      }
+
+      // ===== EXTRAÇÃO DE NÚMERO DA NOTA MELHORADO =====
+      extractNumeroNota(text) {
+        this.logStep('info', 'Iniciando extração MELHORADA de número da nota');
+
+        const strategies = [
+          // 1. Busca específica para "Número da nota"
+          () => {
+            const patterns = [
+              /N[úu]mero\s+da\s+(?:nota|NFS?-?e)[\s:\n\r]*(\d{3,10})/gi,
+              /Nota\s+(?:Fiscal\s+)?(?:de\s+)?Servi[çc]o\s+(?:Eletr[ôo]nica\s+)?(?:n[úu]mero\s+)?(\d{3,10})/gi,
+              /NFS?-?e\s+(?:n[úu]mero\s+)?(\d{3,10})/gi
+            ];
+            
+            for (const pattern of patterns) {
+              const matches = [...text.matchAll(pattern)];
+              for (const match of matches) {
+                const number = match[1];
+                if (this.validateDocumentNumber(number)) {
+                  return number;
+                }
+              }
+            }
+            return null;
+          },
+          
+          // 2. Busca em estrutura de tabela
+          () => {
+            const tableMatch = text.match(/(?:N[úu]mero\s+do\s+)?RPS\s+N[úu]mero\s+da\s+(?:nota|NFS?-?e)[\s\S]*?(\d{3,6})\s+(\d{3,10})/gi);
+            if (tableMatch) {
+              const numbers = tableMatch[0].match(/(\d{3,10})/g);
+              if (numbers && numbers.length >= 2) {
+                const noteNumber = numbers[1];
+                if (this.validateDocumentNumber(noteNumber)) {
+                  return noteNumber;
+                }
+              }
+            }
+            return null;
+          },
+          
+          // 3. Busca por padrão sequencial
+          () => {
+            const patterns = [
+              /(\d{4,6})\s+(\d{4,10})\s+\d{2}\/\d{2}\/\d{4}/g,
+              /(?:RPS|rps)[:\s]*(\d{4,6})[^\d]*(\d{4,10})/gi
+            ];
+            
+            for (const pattern of patterns) {
+              const matches = [...text.matchAll(pattern)];
+              for (const match of matches) {
+                if (match.length >= 3) {
+                  const possibleNoteNumber = match[2];
+                  if (this.validateDocumentNumber(possibleNoteNumber)) {
+                    return possibleNoteNumber;
+                  }
+                }
+              }
+            }
+            return null;
+          },
+          
+          // 4. Busca por contexto NFS-e
+          () => {
+            const lines = text.split(/[\r\n]+/);
+            for (let i = 0; i < lines.length; i++) {
+              const line = lines[i].trim();
+              if (/(?:nota|nfs-?e|documento)/gi.test(line)) {
+                // Procura número na mesma linha ou próximas
+                for (let j = 0; j <= 2 && (i + j) < lines.length; j++) {
+                  const searchLine = lines[i + j];
+                  const numberMatch = searchLine.match(/\b(\d{4,10})\b/);
+                  if (numberMatch && this.validateDocumentNumber(numberMatch[1])) {
+                    return numberMatch[1];
+                  }
+                }
+              }
+            }
+            return null;
+          }
+        ];
+
+        for (const strategy of strategies) {
+          const result = strategy();
+          if (result) {
+            this.logStep('success', 'Número da nota encontrado', result);
+            return result;
+          }
+        }
+
+        this.logStep('fail', 'Número da nota não encontrado');
+        return '';
+      }
+
+      // ===== EXTRAÇÃO DE DATA/HORA MELHORADA =====
+      extractDataHoraEmissao(text) {
+        this.logStep('info', 'Iniciando extração MELHORADA de data/hora de emissão');
+        
+        const strategies = [
+          // 1. Data e hora completas
+          () => {
+            const patterns = [
+              /(?:Data.*?emiss[ãa]o|Emitida\s+em)[:\s]*(\d{2}\/\d{2}\/\d{4})\s+(?:às\s+)?(\d{2}:\d{2}(?::\d{2})?)/gi,
+              /(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2}(?::\d{2})?)/g,
+              /(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}(?::\d{2})?)/g
+            ];
+            
+            for (const pattern of patterns) {
+              const matches = [...text.matchAll(pattern)];
+              for (const match of matches) {
+                const date = match[1];
+                const time = match[2];
+                if (this.isValidDate(date)) {
+                  return `${this.formatDate(date)} ${time}`;
+                }
+              }
+            }
+            return null;
+          },
+          
+          // 2. Apenas data (busca mais específica)
+          () => {
+            const patterns = [
+              /(?:Data.*?emiss[ãa]o|Emitida\s+em)[:\s]*(\d{2}\/\d{2}\/\d{4})/gi,
+              /(?:Competência|Período)[:\s]*(\d{2}\/\d{2}\/\d{4})/gi
+            ];
+            
+            for (const pattern of patterns) {
+              const matches = [...text.matchAll(pattern)];
+              for (const match of matches) {
+                const date = match[1];
+                if (this.isValidDate(date)) {
+                  return this.formatDate(date);
+                }
+              }
+            }
+            return null;
+          },
+          
+          // 3. Busca geral por datas válidas
+          () => {
+            const datePatterns = [
+              /\b(\d{2}\/\d{2}\/\d{4})\b/g,
+              /\b(\d{4}-\d{2}-\d{2})\b/g,
+              /\b(\d{2}-\d{2}-\d{4})\b/g
+            ];
+            
+            for (const pattern of datePatterns) {
+              const matches = [...text.matchAll(pattern)];
+              for (const match of matches) {
+                const date = match[1];
+                if (this.isValidDate(date) && this.isRecentDate(date)) {
+                  return this.formatDate(date);
+                }
+              }
+            }
+            return null;
+          }
+        ];
+
+        for (const strategy of strategies) {
+          const result = strategy();
+          if (result) {
+            this.logStep('success', 'Data/hora de emissão encontrada', result);
+            return result;
+          }
+        }
+        
+        this.logStep('fail', 'Data/hora de emissão não encontrada');
+        return '';
+      }
+
+      // ===== EXTRAÇÃO DE VALOR DO SERVIÇO MELHORADA =====
+      extractValorServico(text) {
+        this.logStep('info', 'Iniciando extração MELHORADA de valor do serviço');
+        
+        const strategies = [
+          // 1. Busca específica por "Valor do Serviço"
+          () => {
+            const patterns = [
+              /Valor\s+(?:do\s+|dos\s+)?Servi[çc]o[s]?[:\s]*((?:R\$\s*)?[\d\.,]+)/gi,
+              /Valor\s+L[ií]quido[:\s]*((?:R\$\s*)?[\d\.,]+)/gi,
+              /Base\s+de\s+C[áa]lculo[:\s]*((?:R\$\s*)?[\d\.,]+)/gi
+            ];
+            
+            for (const pattern of patterns) {
+              const matches = [...text.matchAll(pattern)];
+              for (const match of matches) {
+                const value = this.cleanMoneyValue(match[1]);
+                if (value && this.validateMoneyValue(value)) {
+                  return value;
+                }
+              }
+            }
+            return null;
+          },
+          
+          // 2. Busca na seção de valores
+          () => {
+            const valorSection = text.match(/(?:Valor|Total|Serviço)[\s\S]{0,200}?(?:R\$\s*)?(\d{1,6}(?:\.\d{3})*,\d{2})/gi);
+            if (valorSection) {
+              for (const section of valorSection) {
+                const valueMatch = section.match(/((?:R\$\s*)?\d{1,6}(?:\.\d{3})*,\d{2})/g);
+                if (valueMatch) {
+                  const value = this.cleanMoneyValue(valueMatch[valueMatch.length - 1]);
+                  if (value && this.validateMoneyValue(value)) {
+                    return value;
+                  }
+                }
+              }
+            }
+            return null;
+          },
+          
+          // 3. Busca por padrão monetário brasileiro
+          () => {
+            const moneyMatches = [...text.matchAll(/(?:R\$\s*)?(\d{1,6}(?:\.\d{3})*,\d{2})\b/g)];
+            
+            if (moneyMatches.length === 0) return null;
+            
+            // Filtra valores muito pequenos ou muito grandes
+            const validValues = moneyMatches
+              .map(match => this.cleanMoneyValue(match[1]))
+              .filter(value => this.validateMoneyValue(value))
+              .sort((a, b) => {
+                const numA = parseFloat(a.replace(/\./g, '').replace(',', '.'));
+                const numB = parseFloat(b.replace(/\./g, '').replace(',', '.'));
+                return numB - numA; // Ordem decrescente
+              });
+            
+            if (validValues.length > 0) {
+              return validValues[0]; // Retorna o maior valor
+            }
+            
+            return null;
+          }
+        ];
+
+        for (const strategy of strategies) {
+          const result = strategy();
+          if (result) {
+            this.logStep('success', 'Valor do serviço encontrado', result);
+            return result;
+          }
+        }
+        
+        this.logStep('fail', 'Valor do serviço não encontrado');
+        return '';
+      }
+
+      // ===== EXTRAÇÃO DE DESCRIÇÃO MELHORADA =====
+      extractDescricaoServico(text) {
+        this.logStep('info', 'Iniciando extração MELHORADA de descrição do serviço');
+        
+        const strategies = [
+          // 1. Busca específica por discriminação
+          () => {
+            const patterns = [
+              /DISCRIMINA[ÇC][ÃA]O\s+DOS?\s+SERVI[ÇC]OS?[:\s]*([\s\S]{10,500}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|Observa|$)/gi,
+              /Descri[çc][ãa]o\s+do\s+Servi[çc]o[:\s]*([\s\S]{10,500}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|Observa|$)/gi,
+              /Servi[çc]os?\s+(?:Prestados?|Executados?)[:\s]*([\s\S]{10,500}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|Observa|$)/gi
+            ];
+            
+            for (const pattern of patterns) {
+              const matches = [...text.matchAll(pattern)];
+              for (const match of matches) {
+                const description = this.cleanServiceDescription(match[1]);
+                if (description && description.length > 10) {
+                  return description;
+                }
+              }
+            }
+            return null;
+          },
+          
+          // 2. Busca por seção de descrição
+          () => {
+            const lines = text.split(/[\r\n]+/);
+            let inDescriptionSection = false;
+            let description = '';
+            
+            for (let i = 0; i < lines.length; i++) {
+              const line = lines[i].trim();
+              
+              if (/(?:DISCRIMINA[ÇC][ÃA]O|Descri[çc][ãa]o|Servi[çc]os)/gi.test(line)) {
+                inDescriptionSection = true;
+                continue;
+              }
+              
+              if (inDescriptionSection) {
+                if (/^(?:Valor|Total|Observa|Dados|TOMADOR|Base)/gi.test(line)) {
+                  break;
+                }
+                
+                if (line.length > 5 && !/^[\d\s\-\.]+$/.test(line)) {
+                  description += line + ' ';
+                }
+              }
+            }
+            
+            if (description.trim().length > 10) {
+              return this.cleanServiceDescription(description.trim());
+            }
+            
+            return null;
+          },
+          
+          // 3. Busca por palavras-chave de serviços
+          () => {
+            const serviceKeywords = [
+              'serviço', 'reparo', 'manutenção', 'instalação', 'conserto',
+              'troca', 'substituição', 'limpeza', 'pintura', 'soldagem',
+              'montagem', 'desmontagem', 'revisão', 'análise', 'diagnóstico',
+              'consultoria', 'assessoria', 'transporte', 'frete', 'entrega',
+              'hospedagem', 'alimentação', 'combustível', 'lavagem',
+              'balanceamento', 'alinhamento', 'lubrificação'
+            ];
+            
+            const lines = text.split(/[\r\n]+/);
+            for (const line of lines) {
+              const cleanLine = line.trim();
+              if (cleanLine.length > 15 && cleanLine.length < 200) {
+                const hasServiceKeyword = serviceKeywords.some(keyword => 
+                  new RegExp(keyword, 'gi').test(cleanLine)
+                );
+                
+                if (hasServiceKeyword && !/^[\d\s\-\.\/]+$/.test(cleanLine)) {
+                  const description = this.cleanServiceDescription(cleanLine);
+                  if (description.length > 10) {
+                    return description;
+                  }
+                }
+              }
+            }
+            
+            return null;
+          }
+        ];
+
+        for (const strategy of strategies) {
+          const result = strategy();
+          if (result) {
+            this.logStep('success', 'Descrição do serviço encontrada', result);
+            return result;
+          }
+        }
+        
+        this.logStep('warning', 'Descrição específica não encontrada, usando padrão');
+        return 'Serviços diversos';
+      }
+
+      // ===== EXTRAÇÃO DE PLACA =====
+      extractPlacaVeiculo(text) {
+        this.logStep('info', 'Iniciando extração de placa de veículo');
+        
+        const strategies = [
+          // 1. Busca específica por "Placa:"
+          () => {
+            const patterns = [
+              /(?:Placa|Ve[íi]culo)[:\s]*([A-Z]{3}[\s\-]?\d[A-Z\d]{3})/gi,
+              /(?:Placa|Ve[íi]culo)[:\s]*([A-Z]{3}[\s\-]?\d{4})/gi
+            ];
+            
+            for (const pattern of patterns) {
+              const matches = [...text.matchAll(pattern)];
+              for (const match of matches) {
+                const placa = this.cleanPlaca(match[1]);
+                if (this.validatePlaca(placa)) {
+                  return placa;
+                }
+              }
+            }
+            return null;
+          },
+          
+          // 2. Busca por padrões de placa isolados
+          () => {
+            for (const pattern of this.placaPatterns) {
+              const matches = [...text.matchAll(pattern)];
+              for (const match of matches) {
+                const placa = this.cleanPlaca(match[0]);
+                if (this.validatePlaca(placa)) {
+                  return placa;
+                }
+              }
+            }
+            return null;
+          },
+          
+          // 3. Busca contextual próxima a palavras relacionadas
+          () => {
+            const lines = text.split(/[\r\n]+/);
+            for (let i = 0; i < lines.length; i++) {
+              const line = lines[i];
+              
+              if (/(?:ve[íi]culo|placa|carro|caminhão|moto)/gi.test(line)) {
+                // Procura placa na mesma linha ou próximas
+                for (let j = 0; j <= 2 && (i + j) < lines.length; j++) {
+                  const searchLine = lines[i + j];
+                  for (const pattern of this.placaPatterns) {
+                    const matches = [...searchLine.matchAll(pattern)];
+                    for (const match of matches) {
+                      const placa = this.cleanPlaca(match[0]);
+                      if (this.validatePlaca(placa)) {
+                        return placa;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            return null;
+          }
+        ];
+
+        for (const strategy of strategies) {
+          const result = strategy();
+          if (result) {
+            this.logStep('success', 'Placa de veículo encontrada', result);
+            return result;
+          }
+        }
+        
+        this.logStep('info', 'Placa de veículo não encontrada');
+        return '';
+      }
+
+      // ===== EXTRAÇÃO DE NOME DO PRESTADOR MELHORADA =====
+      extractPrestadorNome(text, cnpj) {
+        this.logStep('info', 'Iniciando extração MELHORADA de nome do prestador');
         
         if (!cnpj) {
           this.logStep('fail', 'CNPJ não fornecido para busca de nome');
           return '';
         }
 
-        // ESTRATÉGIA v3.9.1: GIVA CARDANS LTDA - ME (novo caso dos testes)
-        const givaMatch = text.match(/GIVA\s+CARDANS[^0-9\n\r]*LTDA[^0-9\n\r]*ME[^0-9\n\r]*/gi);
-        if (givaMatch) {
-          let name = this.cleanCompanyName(givaMatch[0]);
-          if (this.validateCompanyNameImproved(name)) {
-            this.logStep('success', 'GIVA CARDANS LTDA - ME encontrada', name);
-            this.learnCompany(name);
-            return name;
-          }
-        }
-
-        // ESTRATÉGIA v3.9.2: TRIO DELICIA DELIVERY LTDA (novo caso dos testes)
-        const trioMatch = text.match(/TRIO\s+DELICIA\s+DELIVERY[^0-9\n\r]*LTDA[^0-9\n\r]*/gi);
-        if (trioMatch) {
-          let name = this.cleanCompanyName(trioMatch[0]);
-          if (this.validateCompanyNameImproved(name)) {
-            this.logStep('success', 'TRIO DELICIA DELIVERY LTDA encontrada', name);
-            this.learnCompany(name);
-            return name;
-          }
-        }
-
-        // ESTRATÉGIA v3.9.3: IMUNIZADORA JARAGUA LTDA (correção específica)
-        const imunizadoraMatch = text.match(/IMUNIZADORA\s+JARAGUA[^0-9\n\r]*LTDA[^0-9\n\r]*/gi);
-        if (imunizadoraMatch) {
-          let name = this.cleanCompanyName(imunizadoraMatch[0]);
-          if (this.validateCompanyNameImproved(name)) {
-            this.logStep('success', 'IMUNIZADORA JARAGUA LTDA encontrada', name);
-            this.learnCompany(name);
-            return name;
-          }
-        }
-
-        // ESTRATÉGIA v3.9.4: Busca específica por "Nome/Razão social:" seguido do nome real
-        const nomeRazaoEspecificoMatch = text.match(/Nome\/Raz[ãa]o\s+social:\s*([^\r\n]+)/gi);
-        if (nomeRazaoEspecificoMatch) {
-          for (const match of nomeRazaoEspecificoMatch) {
-            let name = this.cleanCompanyName(match);
-            if (this.validateCompanyNameImproved(name) && name.length > 10) {
-              this.logStep('success', 'Nome encontrado em Nome/Razão social específica', name);
-              this.learnCompany(name);
-              return name;
-            }
-          }
-        }
-
-        // ESTRATÉGIA v3.9.5: Busca na seção PRESTADOR específica
-        const prestadorMatch = text.match(/PRESTADOR\s+DE\s+SERVI[ÇC]OS([\s\S]*?)(?=TOMADOR|DISCRIMINA[ÇC][ÃA]O|Valor Total|$)/gi);
-        if (prestadorMatch) {
-          const prestadorSection = prestadorMatch[0];
-          this.logStep('info', 'Seção PRESTADOR encontrada', prestadorSection.substring(0, 200));
-          
-          // Busca empresas conhecidas na seção prestador
-          for (const company of this.knownCompanies) {
-            const companyRegex = new RegExp(company.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
-            if (companyRegex.test(prestadorSection)) {
-              this.logStep('success', `${company} encontrada na seção PRESTADOR`, company);
-              return company;
-            }
-          }
-          
-          // Busca Razão Social na seção prestador
-          const razaoMatch = prestadorSection.match(/Raz[ãa]o\s+Social:\s*([^\r\n]+)/gi);
-          if (razaoMatch) {
-            let name = this.cleanCompanyName(razaoMatch[0]);
-            if (this.validateCompanyNameImproved(name)) {
-              this.logStep('success', 'Nome encontrado em Razão Social da seção PRESTADOR', name);
-              this.learnCompany(name);
-              return name;
-            }
-          }
-          
-          // Busca qualquer linha com empresa na seção prestador
-          const prestadorLines = prestadorSection.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
-          for (const line of prestadorLines) {
-            if (line.length > 15 && line.length < 120 && 
-                /LTDA|EPP|S\.?A|ME|EIRELI|CARTUCHOS|TECNOLOGIA|INFORMATICA|DELIVERY|GIVA|CARDANS|TRIO|DELICIA/gi.test(line) &&
-                !/PRESTADOR|TOMADOR|ENDEREÇO|TELEFONE|EMAIL|CPF|CNPJ|Inscrição|Município|Complemento|UF:|CENTRO|MUNICÍPIO/i.test(line)) {
-              
-              let name = this.cleanCompanyName(line);
-              if (this.validateCompanyNameImproved(name)) {
-                this.logStep('success', 'Nome encontrado em linha da seção PRESTADOR', name);
-                this.learnCompany(name);
-                return name;
-              }
-            }
-          }
-        }
-
-        // ESTRATÉGIAS ANTERIORES (mantidas para compatibilidade)
-        const strategiesV38 = [
-          // VANTOIR DERETTI ME
+        const strategies = [
+          // 1. Empresas específicas conhecidas
           () => {
-            const match = text.match(/VANTOIR\s+DERETTI[^0-9\n\r]*ME[^0-9\n\r]*/gi);
-            return match ? this.cleanCompanyName(match[0]) : null;
-          },
-          // SERVOPA CAMINHOES LTDA
-          () => {
-            const match = text.match(/SERVOPA\s+CAMINHOES[^0-9\n\r]*LTDA[^0-9\n\r]*/gi);
-            return match ? this.cleanCompanyName(match[0]) : null;
-          },
-          // TRANSPOTECH PECAS E SERVICOS LTDA
-          () => {
-            const match = text.match(/TRANSPOTECH\s+PECAS\s+E\s+SERVICOS[^0-9\n\r]*LTDA[^0-9\n\r]*/gi);
-            return match ? this.cleanCompanyName(match[0]) : null;
-          },
-          // FSC COMUNICACOES LTDA
-          () => {
-            const match = text.match(/FSC\s+COMUNICACOES[^0-9\n\r]*LTDA[^0-9\n\r]*/gi);
-            return match ? this.cleanCompanyName(match[0]) : null;
-          }
-        ];
-
-        for (const strategy of strategiesV38) {
-          const result = strategy();
-          if (result && this.validateCompanyNameImproved(result)) {
-            this.logStep('success', 'Nome encontrado com estratégia v3.8', result);
-            this.learnCompany(result);
-            return result;
-          }
-        }
-
-        // Estratégias genéricas (mantidas)
-        const genericStrategies = [
-          // Busca por primeira linha com nome da empresa
-          () => {
-            const lines = text.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
-            for (let i = 0; i < Math.min(5, lines.length); i++) {
-              const line = lines[i];
-              if (line.length > 10 && line.length < 120 && 
-                  /LTDA|EPP|S\.?A|ME|EIRELI|DELIVERY|GIVA|CARDANS|TRIO|DELICIA/gi.test(line) &&
-                  !/PREFEITURA|MUNICIPAL|SECRETARIA|FAZENDA|TOMADOR|PRESTADOR|DOCUMENTO|EMITIDA/i.test(line)) {
-                
-                let name = this.cleanCompanyName(line);
+            const specificCompanies = [
+              /GIVA\s+CARDANS[^0-9\n\r]*LTDA[^0-9\n\r]*ME/gi,
+              /TRIO\s+DELICIA\s+DELIVERY[^0-9\n\r]*LTDA/gi,
+              /IMUNIZADORA\s+JARAGUA[^0-9\n\r]*LTDA/gi,
+              /VANTOIR\s+DERETTI[^0-9\n\r]*ME/gi,
+              /SERVOPA\s+CAMINHOES[^0-9\n\r]*LTDA/gi,
+              /TRANSPOTECH\s+PECAS\s+E\s+SERVICOS[^0-9\n\r]*LTDA/gi,
+              /FSC\s+COMUNICACOES[^0-9\n\r]*LTDA/gi
+            ];
+            
+            for (const pattern of specificCompanies) {
+              const match = text.match(pattern);
+              if (match) {
+                const name = this.cleanCompanyName(match[0]);
                 if (this.validateCompanyNameImproved(name)) {
+                  this.learnCompany(name);
                   return name;
                 }
               }
             }
             return null;
           },
-          // Busca por CNPJ e nome próximo
+          
+          // 2. Busca na seção PRESTADOR
+          () => {
+            const prestadorMatch = text.match(/PRESTADOR\s+DE\s+SERVI[ÇC]OS([\s\S]*?)(?=TOMADOR|DISCRIMINA[ÇC][ÃA]O|$)/gi);
+            if (prestadorMatch) {
+              const prestadorSection = prestadorMatch[0];
+              
+              // Busca empresas conhecidas na seção
+              for (const company of this.knownCompanies) {
+                const companyRegex = new RegExp(company.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+                if (companyRegex.test(prestadorSection)) {
+                  return company;
+                }
+              }
+              
+              // Busca Razão Social
+              const razaoMatch = prestadorSection.match(/(?:Raz[ãa]o\s+Social|Nome)[:\s]*([^\r\n]+)/gi);
+              if (razaoMatch) {
+                const name = this.cleanCompanyName(razaoMatch[0]);
+                if (this.validateCompanyNameImproved(name)) {
+                  this.learnCompany(name);
+                  return name;
+                }
+              }
+              
+              // Busca linha com empresa
+              const prestadorLines = prestadorSection.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
+              for (const line of prestadorLines) {
+                if (line.length > 15 && line.length < 120 && 
+                    /LTDA|EPP|S\.?A|ME|EIRELI/gi.test(line) &&
+                    !/PRESTADOR|TOMADOR|ENDEREÇO|TELEFONE|EMAIL|CPF|CNPJ|Inscrição/i.test(line)) {
+                  
+                  const name = this.cleanCompanyName(line);
+                  if (this.validateCompanyNameImproved(name)) {
+                    this.learnCompany(name);
+                    return name;
+                  }
+                }
+              }
+            }
+            return null;
+          },
+          
+          // 3. Busca por padrões específicos
+          () => {
+            const patterns = [
+              /(?:Nome\/Raz[ãa]o\s+social|Raz[ãa]o\s+Social|Nome\s+Fantasia)[:\s]*([^\r\n]+)/gi,
+              /Prestador[^:]*[:\s]*([^\r\n]+(?:LTDA|EPP|S\.?A|ME|EIRELI)[^\r\n]*)/gi
+            ];
+            
+            for (const pattern of patterns) {
+              const matches = [...text.matchAll(pattern)];
+              for (const match of matches) {
+                const name = this.cleanCompanyName(match[1]);
+                if (this.validateCompanyNameImproved(name)) {
+                  this.learnCompany(name);
+                  return name;
+                }
+              }
+            }
+            return null;
+          },
+          
+          // 4. Busca por CNPJ e nome próximo
           () => {
             const cnpjPattern = new RegExp(cnpj.replace(/[^\d]/g, '').replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1\\.$2\\.$3/$4-$5'));
             const cnpjIndex = text.search(cnpjPattern);
             
             if (cnpjIndex > -1) {
-              const beforeCnpj = text.substring(Math.max(0, cnpjIndex - 500), cnpjIndex);
-              const beforeMatch = beforeCnpj.match(/([A-Z][^0-9\n\r]{5,80}(?:LTDA|EPP|S\.?A|ME)[^0-9\n\r]{0,20})[\s\S]*$/gi);
-              if (beforeMatch) {
-                let name = this.cleanCompanyName(beforeMatch[0]);
-                if (this.validateCompanyNameImproved(name)) {
-                  return name;
+              const beforeCnpj = text.substring(Math.max(0, cnpjIndex - 300), cnpjIndex);
+              const afterCnpj = text.substring(cnpjIndex, cnpjIndex + 300);
+              
+              const sections = [beforeCnpj, afterCnpj];
+              
+              for (const section of sections) {
+                const companyMatch = section.match(/([A-Z][^0-9\n\r]{5,80}(?:LTDA|EPP|S\.?A|ME|EIRELI)[^0-9\n\r]{0,20})/gi);
+                if (companyMatch) {
+                  const name = this.cleanCompanyName(companyMatch[0]);
+                  if (this.validateCompanyNameImproved(name)) {
+                    this.learnCompany(name);
+                    return name;
+                  }
                 }
               }
             }
@@ -1180,46 +1709,184 @@
           }
         ];
 
-        for (const strategy of genericStrategies) {
+        for (const strategy of strategies) {
           const result = strategy();
           if (result) {
-            this.logStep('success', 'Nome encontrado com estratégia genérica', result);
-            this.learnCompany(result);
+            this.logStep('success', 'Nome do prestador encontrado', result);
             return result;
           }
         }
 
-        this.logStep('fail', 'TODAS as estratégias falharam');
+        this.logStep('fail', 'Nome do prestador não encontrado');
         return '';
       }
 
-      // Sistema de aprendizado
-      learnCompany(companyName) {
-        this.knownCompanies.add(companyName);
-        this.logStep('info', 'Nova empresa aprendida', companyName);
+      // ===== MÉTODOS DE VALIDAÇÃO E FORMATAÇÃO =====
+      validateCPF(cpf) {
+        if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
         
-        try {
-          const savedCompanies = JSON.parse(localStorage.getItem('learned_companies') || '[]');
-          if (!savedCompanies.includes(companyName)) {
-            savedCompanies.push(companyName);
-            localStorage.setItem('learned_companies', JSON.stringify(savedCompanies));
+        let sum = 0;
+        for (let i = 0; i < 9; i++) {
+          sum += parseInt(cpf.charAt(i)) * (10 - i);
+        }
+        let remainder = 11 - (sum % 11);
+        if (remainder === 10 || remainder === 11) remainder = 0;
+        if (remainder !== parseInt(cpf.charAt(9))) return false;
+        
+        sum = 0;
+        for (let i = 0; i < 10; i++) {
+          sum += parseInt(cpf.charAt(i)) * (11 - i);
+        }
+        remainder = 11 - (sum % 11);
+        if (remainder === 10 || remainder === 11) remainder = 0;
+        if (remainder !== parseInt(cpf.charAt(10))) return false;
+        
+        return true;
+      }
+
+      formatCPF(cpf) {
+        return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+      }
+
+      formatCNPJ(cnpj) {
+        return cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+      }
+
+      cleanAddressField(text) {
+        return text
+          .replace(/^(Complemento:|complemento:)/gi, '')
+          .replace(/[\r\n]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+
+      validateDocumentNumber(number) {
+        if (!number) return false;
+        const clean = number.toString().replace(/\D/g, '');
+        
+        if (clean.length < 3 || clean.length > 10) return false;
+        if (parseInt(clean) < 100) return false;
+        
+        const num = parseInt(clean);
+        if (num >= 2020 && num <= 2030) return false;
+        
+        if (/^0+$/.test(clean) || /^1+$/.test(clean)) return false;
+        
+        return true;
+      }
+
+      isValidDate(dateStr) {
+        const formats = [
+          /^\d{2}\/\d{2}\/\d{4}$/,
+          /^\d{4}-\d{2}-\d{2}$/,
+          /^\d{2}-\d{2}-\d{4}$/
+        ];
+        
+        if (!formats.some(format => format.test(dateStr))) return false;
+        
+        let parts;
+        if (dateStr.includes('/')) {
+          parts = dateStr.split('/');
+          if (parts[0].length === 4) {
+            parts = [parts[2], parts[1], parts[0]]; // YYYY/MM/DD -> DD/MM/YYYY
           }
-        } catch (error) {
-          console.warn('Erro ao salvar empresa aprendida:', error);
+        } else {
+          const dashParts = dateStr.split('-');
+          if (dashParts[0].length === 4) {
+            parts = [dashParts[2], dashParts[1], dashParts[0]]; // YYYY-MM-DD -> DD/MM/YYYY
+          } else {
+            parts = dashParts; // DD-MM-YYYY
+          }
         }
+        
+        const day = parseInt(parts[0]);
+        const month = parseInt(parts[1]);
+        const year = parseInt(parts[2]);
+        
+        if (year < 2020 || year > 2030) return false;
+        if (month < 1 || month > 12) return false;
+        if (day < 1 || day > 31) return false;
+        
+        return true;
       }
 
-      loadLearnedCompanies() {
-        try {
-          const savedCompanies = JSON.parse(localStorage.getItem('learned_companies') || '[]');
-          savedCompanies.forEach(company => this.knownCompanies.add(company));
-          this.logStep('info', `Carregadas ${savedCompanies.length} empresas aprendidas`);
-        } catch (error) {
-          console.warn('Erro ao carregar empresas aprendidas:', error);
-        }
+      isRecentDate(dateStr) {
+        const currentYear = new Date().getFullYear();
+        const yearInDate = parseInt(dateStr.match(/\d{4}/)[0]);
+        return Math.abs(currentYear - yearInDate) <= 2;
       }
 
-      // Validação aprimorada
+      formatDate(dateStr) {
+        if (dateStr.includes('-')) {
+          const parts = dateStr.split('-');
+          if (parts[0].length === 4) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+          } else {
+            return dateStr.replace(/-/g, '/');
+          }
+        }
+        return dateStr;
+      }
+
+      cleanMoneyValue(value) {
+        if (!value) return '';
+        return value
+          .replace(/R\$\s*/g, '')
+          .replace(/[^\d\.,]/g, '')
+          .trim();
+      }
+
+      validateMoneyValue(value) {
+        if (!value) return false;
+        
+        const numericValue = parseFloat(value.replace(/\./g, '').replace(',', '.'));
+        
+        return numericValue >= 1 && numericValue <= 1000000;
+      }
+
+      cleanServiceDescription(text) {
+        return text
+          .replace(/^(DISCRIMINA[ÇC][ÃA]O|Descri[çc][ãa]o|Servi[çc]os?)[^:]*:?/gi, '')
+          .replace(/[\r\n]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .replace(/^[\s\W]+|[\s\W]+$/g, '')
+          .trim()
+          .substring(0, 150);
+      }
+
+      cleanPlaca(placa) {
+        return placa
+          .replace(/[\s\-]/g, '')
+          .toUpperCase()
+          .trim();
+      }
+
+      validatePlaca(placa) {
+        if (!placa || placa.length < 7 || placa.length > 8) return false;
+        
+        // Formato antigo: AAA1234
+        if (/^[A-Z]{3}\d{4}$/.test(placa)) return true;
+        
+        // Formato Mercosul: AAA1A23
+        if (/^[A-Z]{3}\d[A-Z]\d{2}$/.test(placa)) return true;
+        
+        return false;
+      }
+
+      cleanCompanyName(name) {
+        if (!name) return '';
+        
+        return name
+          .replace(/^(Nome\/Razão social:|Razão Social:|Nome fantasia:|PRESTADOR:|CPF\/CNPJ:|Prestador de Serviços|Razão Social:)/gi, '')
+          .replace(/^(e\s+|de\s+|da\s+|do\s+)/gi, '')
+          .replace(/(Inscrição|CPF\/CNPJ|Telefone|E-mail|Número da NFS-e|Situação|Emitida|Autenticidade|CNPJ:|Número da|CEP|Endereço|Município|Email:|Complemento|UF:|Data Prestação|Documento emitido).*$/gi, '')
+          .replace(/(TOMADOR|COMERCIO DE BANANAS|ALAMEDA|TORRE|ANDAR|SITIO|CENTRO|MUNICÍPIO|SECRETARIA|FAZENDA|Nota Fiscal|Número:|Data de|PRESTADOR DE|Inscrigao estadual).*$/gi, '')
+          .replace(/[\r\n]+/g, ' ')
+          .replace(/^[\s\W]+|[\s\W]+$/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+
       validateCompanyNameImproved(name) {
         if (!name || name.length < 5 || name.length > 150) return false;
         if (!/[A-Za-z]/.test(name)) return false;
@@ -1255,141 +1922,70 @@
         return this.validateCompanyNameImproved(name);
       }
 
-      // Limpeza aprimorada
-      cleanCompanyName(name) {
-        if (!name) return '';
+      // Sistema de aprendizado
+      learnCompany(companyName) {
+        this.knownCompanies.add(companyName);
+        this.logStep('info', 'Nova empresa aprendida', companyName);
         
-        let cleaned = name
-          .replace(/^(Nome\/Razão social:|Razão Social:|Nome fantasia:|PRESTADOR:|CPF\/CNPJ:|Prestador de Serviços|Razão Social:)/gi, '')
-          .replace(/^(e\s+|de\s+|da\s+|do\s+)/gi, '')
-          .replace(/(Inscrição|CPF\/CNPJ|Telefone|E-mail|Número da NFS-e|Situação|Emitida|Autenticidade|CNPJ:|Número da|CEP|Endereço|Município|Email:|Complemento|UF:|Data Prestação|Documento emitido).*$/gi, '')
-          .replace(/(TOMADOR|COMERCIO DE BANANAS|ALAMEDA|TORRE|ANDAR|SITIO|CENTRO|MUNICÍPIO|SECRETARIA|FAZENDA|Nota Fiscal|Número:|Data de|PRESTADOR DE|Inscrigao estadual).*$/gi, '')
-          .replace(/[\r\n]+/g, ' ')
-          .replace(/^[\s\W]+|[\s\W]+$/g, '')
-          .replace(/\s+/g, ' ')
-          .trim();
-        
-        if (/^(Nome|fantasia|Razão|Social|Prestador|Serviços)$/gi.test(cleaned)) {
-          return '';
-        }
-        
-        return cleaned;
-      }
-
-      formatCNPJ(cnpj) {
-        return cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
-      }
-
-      // ===== EXTRAÇÃO DE NÚMERO DO DOCUMENTO =====
-      extractDocumentNumberLaser(text) {
-        this.logStep('info', 'Iniciando extração LASER v3.9 de número do documento');
-
-        // Estratégias específicas para números
-        const strategies = [
-          // Busca específica para "Número da nota"
-          () => {
-            const match = text.match(/N[úu]mero\s+da\s+nota[\s\n\r]*(\d{3,8})/gi);
-            if (match) {
-              const numberMatch = match[0].match(/(\d{3,8})/);
-              if (numberMatch && this.validateDocumentNumber(numberMatch[1])) {
-                return numberMatch[1];
-              }
-            }
-            return null;
-          },
-          // Busca em tabela estruturada
-          () => {
-            const match = text.match(/Número do RPS\s+N[úu]mero da nota[\s\S]*?(\d{3,8})\s+(\d{3,8})/gi);
-            if (match) {
-              const numbers = match[0].match(/(\d{3,8})/g);
-              if (numbers && numbers.length >= 2) {
-                const noteNumber = numbers[1];
-                if (this.validateDocumentNumber(noteNumber)) {
-                  return noteNumber;
-                }
-              }
-            }
-            return null;
-          },
-          // Busca sequencial RPS/Nota
-          () => {
-            const matches = text.match(/(\d{4,6})\s+(\d{4,8})/g);
-            if (matches) {
-              for (const match of matches) {
-                const numbers = match.split(/\s+/);
-                if (numbers.length === 2) {
-                  const possibleNoteNumber = numbers[1];
-                  if (this.validateDocumentNumber(possibleNoteNumber)) {
-                    return possibleNoteNumber;
-                  }
-                }
-              }
-            }
-            return null;
+        try {
+          const savedCompanies = JSON.parse(localStorage.getItem('learned_companies') || '[]');
+          if (!savedCompanies.includes(companyName)) {
+            savedCompanies.push(companyName);
+            localStorage.setItem('learned_companies', JSON.stringify(savedCompanies));
           }
-        ];
-
-        for (const strategy of strategies) {
-          const result = strategy();
-          if (result) {
-            this.logStep('success', 'Número do documento encontrado', result);
-            return result;
-          }
+        } catch (error) {
+          console.warn('Erro ao salvar empresa aprendida:', error);
         }
-
-        this.logStep('fail', 'Número do documento não encontrado');
-        return '';
       }
 
-      validateDocumentNumber(number) {
-        if (!number) return false;
-        const clean = number.toString().replace(/\D/g, '');
-        
-        if (clean.length < 3 || clean.length > 8) return false;
-        if (parseInt(clean) < 100) return false;
-        
-        const num = parseInt(clean);
-        if (num >= 2020 && num <= 2030) return false;
-        
-        if (/^0+$/.test(clean)) return false;
-        if (/^1+$/.test(clean)) return false;
-        
-        return true;
+      loadLearnedCompanies() {
+        try {
+          const savedCompanies = JSON.parse(localStorage.getItem('learned_companies') || '[]');
+          savedCompanies.forEach(company => this.knownCompanies.add(company));
+          this.logStep('info', `Carregadas ${savedCompanies.length} empresas aprendidas`);
+        } catch (error) {
+          console.warn('Erro ao carregar empresas aprendidas:', error);
+        }
       }
 
-      // ===== MÉTODO PRINCIPAL =====
+      // ===== MÉTODO PRINCIPAL MELHORADO =====
       async extractAllData(text, filename) {
         this.debugSteps = [];
-        this.logStep('info', `=== INICIANDO EXTRAÇÃO v3.9 PARA ${filename} ===`);
+        this.logStep('info', `=== INICIANDO EXTRAÇÃO v4.0 MELHORADA PARA ${filename} ===`);
         
         this.loadLearnedCompanies();
         
         const data = {
           filename: filename,
-          cnpj_emitente: '',
-          nome_emitente: '',
-          data_emissao: '',
-          numero_documento: '',
-          valor_total: '',
-          descricao: '',
+          ocr_prestador_cpf_cnpj: '',
+          ocr_prestador_nome: '',
+          ocr_prestador_complemento: '',
+          ocr_numero_nota: '',
+          ocr_data_hora_emissao: '',
+          ocr_valor_servico: '',
+          ocr_descricao_servico: '',
+          ocr_placa_veiculo: '',
           status: 'pending'
         };
 
         try {
-          data.cnpj_emitente = this.extractCNPJEmitente(text);
+          // Extração sequencial melhorada
+          data.ocr_prestador_cpf_cnpj = this.extractPrestadorCPFCNPJ(text);
           
-          if (data.cnpj_emitente) {
-            data.nome_emitente = this.extractEmitenteNameLaser(text, data.cnpj_emitente);
+          if (data.ocr_prestador_cpf_cnpj) {
+            data.ocr_prestador_nome = this.extractPrestadorNome(text, data.ocr_prestador_cpf_cnpj);
           }
           
-          data.numero_documento = this.extractDocumentNumberLaser(text);
-          data.data_emissao = this.extractDataEmissao(text);
-          data.valor_total = this.extractValorTotal(text);
-          data.descricao = this.extractDescription(text);
+          data.ocr_prestador_complemento = this.extractPrestadorComplemento(text);
+          data.ocr_numero_nota = this.extractNumeroNota(text);
+          data.ocr_data_hora_emissao = this.extractDataHoraEmissao(text);
+          data.ocr_valor_servico = this.extractValorServico(text);
+          data.ocr_descricao_servico = this.extractDescricaoServico(text);
+          data.ocr_placa_veiculo = this.extractPlacaVeiculo(text);
           
           data.status = this.determineExtractionStatus(data);
           
-          this.logStep('success', '=== EXTRAÇÃO v3.9 CONCLUÍDA ===', data);
+          this.logStep('success', '=== EXTRAÇÃO v4.0 MELHORADA CONCLUÍDA ===', data);
           
           return data;
           
@@ -1397,9 +1993,9 @@
           this.logStep('error', 'ERRO NA EXTRAÇÃO ULTRA-DIRETA', error.message);
           return {
             ...data,
-            nome_emitente: 'ERRO ULTRA-DIRETO',
-            numero_documento: 'ERRO',
-            descricao: error.message,
+            ocr_prestador_nome: 'ERRO ULTRA-DIRETO',
+            ocr_numero_nota: 'ERRO',
+            ocr_descricao_servico: error.message,
             status: 'error'
           };
         }
@@ -1407,104 +2003,25 @@
 
       determineExtractionStatus(data) {
         let score = 0;
-        if (data.cnpj_emitente) score++;
-        if (data.nome_emitente && data.nome_emitente !== 'ERRO ULTRA-DIRETO') score++;
-        if (data.data_emissao) score++;
-        if (data.numero_documento && data.numero_documento !== 'ERRO') score++;
-        if (data.valor_total) score++;
-        if (data.descricao && data.descricao !== 'serviços não especificados') score++;
+        let required = 0;
+        
+        // Campos obrigatórios
+        if (data.ocr_prestador_cpf_cnpj) { score++; required++; }
+        if (data.ocr_prestador_nome && data.ocr_prestador_nome !== 'ERRO ULTRA-DIRETO') { score++; required++; }
+        if (data.ocr_numero_nota && data.ocr_numero_nota !== 'ERRO') { score++; required++; }
+        if (data.ocr_data_hora_emissao) { score++; required++; }
+        if (data.ocr_valor_servico) { score++; required++; }
+        
+        // Campos opcionais (não afetam muito o score)
+        if (data.ocr_descricao_servico && data.ocr_descricao_servico !== 'Serviços diversos') score += 0.5;
+        if (data.ocr_prestador_complemento) score += 0.3;
+        if (data.ocr_placa_veiculo) score += 0.2;
 
-        if (score >= 5) return 'success';
-        if (score >= 3) return 'warning';
+        const successRate = score / (required + 1); // +1 para incluir campos opcionais
+
+        if (successRate >= 0.9) return 'success';
+        if (successRate >= 0.6) return 'warning';
         return 'error';
-      }
-
-      // Métodos tradicionais (mantidos)
-      extractDataEmissao(text) {
-        const patterns = [
-          /\b(\d{2}\/\d{2}\/\d{4})\b/g,
-          /\b(\d{4}-\d{2}-\d{2})\b/g,
-          /\b(\d{2}-\d{2}-\d{4})\b/g
-        ];
-        
-        for (const pattern of patterns) {
-          const matches = [...text.matchAll(pattern)];
-          for (const match of matches) {
-            const date = match[1];
-            if (this.isValidDate(date)) {
-              return this.formatDate(date);
-            }
-          }
-        }
-        return '';
-      }
-
-      extractValorTotal(text) {
-        const valorMatch = text.match(/Valor\s*Total[:\s]*([\d\.,]+)/i) || 
-                          text.match(/Valor\s*L[ií]quido[:\s]*([\d\.,]+)/i);
-        
-        if (valorMatch) {
-          return valorMatch[1].trim().replace(/[^\d\.,]/g, '');
-        }
-        
-        const moneyMatches = [...text.matchAll(/\b\d{1,3}(?:\.\d{3})*,\d{2}\b/g)];
-        
-        if (moneyMatches.length === 0) return '';
-        
-        const values = moneyMatches.map(match => {
-          const valueStr = match[0];
-          return {
-            original: valueStr,
-            numeric: parseFloat(valueStr.replace(/\./g, '').replace(',', '.'))
-          };
-        });
-        
-        const maxValue = values.reduce((max, current) => 
-          current.numeric > max.numeric ? current : max
-        );
-        
-        return maxValue.original;
-      }
-
-      extractDescription(text) {
-        const descPatterns = [
-          /Descri[çc][ãa]o\s+do\s+Servi[çc]o[^:\n]*:?\s*([\s\S]{10,300}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi,
-          /DISCRIMINA[ÇC][ÃA]O[^:\n]*:?\s*([\s\S]{10,300}?)(?=\n\s*\n|\n[A-Z]{3,}|Valor|$)/gi
-        ];
-        
-        for (const pattern of descPatterns) {
-          const matches = [...text.matchAll(pattern)];
-          if (matches.length > 0) {
-            return matches[0][1].trim()
-              .replace(/\n+/g, ' ')
-              .replace(/\s+/g, ' ')
-              .substring(0, 120);
-          }
-        }
-        
-        return 'serviços não especificados';
-      }
-
-      isValidDate(dateStr) {
-        const formats = [
-          /^\d{2}\/\d{2}\/\d{4}$/,
-          /^\d{4}-\d{2}-\d{2}$/,
-          /^\d{2}-\d{2}-\d{4}$/
-        ];
-        
-        return formats.some(format => format.test(dateStr));
-      }
-      
-      formatDate(dateStr) {
-        if (dateStr.includes('-')) {
-          const parts = dateStr.split('-');
-          if (parts[0].length === 4) {
-            return `${parts[2]}/${parts[1]}/${parts[0]}`;
-          } else {
-            return dateStr.replace(/-/g, '/');
-          }
-        }
-        return dateStr;
       }
     }
 
@@ -1558,7 +2075,7 @@
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             const filename = `foto_nfse_${timestamp}.jpg`;
             
-            const extractedText = await processImage(blob);
+            const extractedText = await processImageImproved(blob);
             
             if (!extractedText || extractedText.trim().length < 10) {
               throw new Error('Texto insuficiente extraído da foto');
@@ -1663,8 +2180,8 @@
       statistics.errorCount = extractionResults.filter(r => r.status === 'error').length;
       
       statistics.totalValue = extractionResults.reduce((total, item) => {
-        if (item.valor_total && item.status !== 'error') {
-          const value = parseFloat(item.valor_total.replace(/\./g, '').replace(',', '.'));
+        if (item.ocr_valor_servico && item.status !== 'error') {
+          const value = parseFloat(item.ocr_valor_servico.replace(/\./g, '').replace(',', '.'));
           return total + (isNaN(value) ? 0 : value);
         }
         return total;
@@ -1672,8 +2189,8 @@
 
       statistics.uniqueCompanies.clear();
       extractionResults.forEach(item => {
-        if (item.nome_emitente && item.status !== 'error') {
-          statistics.uniqueCompanies.add(item.nome_emitente);
+        if (item.ocr_prestador_nome && item.status !== 'error') {
+          statistics.uniqueCompanies.add(item.ocr_prestador_nome);
         }
       });
 
@@ -1696,22 +2213,22 @@
 
       if (companyFilter) {
         filteredResults = filteredResults.filter(item => 
-          item.nome_emitente.toLowerCase().includes(companyFilter)
+          item.ocr_prestador_nome.toLowerCase().includes(companyFilter)
         );
       }
 
       if (dateFromFilter) {
         filteredResults = filteredResults.filter(item => {
-          if (!item.data_emissao) return false;
-          const itemDate = item.data_emissao.split('/').reverse().join('-');
+          if (!item.ocr_data_hora_emissao) return false;
+          const itemDate = item.ocr_data_hora_emissao.split('/').reverse().join('-').substr(0, 10);
           return itemDate >= dateFromFilter;
         });
       }
 
       if (dateToFilter) {
         filteredResults = filteredResults.filter(item => {
-          if (!item.data_emissao) return false;
-          const itemDate = item.data_emissao.split('/').reverse().join('-');
+          if (!item.ocr_data_hora_emissao) return false;
+          const itemDate = item.ocr_data_hora_emissao.split('/').reverse().join('-').substr(0, 10);
           return itemDate <= dateToFilter;
         });
       }
@@ -1799,7 +2316,7 @@
       let allLoaded = true;
       let message = '';
       
-      console.log('🔍 Verificando bibliotecas...');
+      console.log('🔍 Verificando bibliotecas v4.0...');
       
       if (typeof pdfjsLib === 'undefined') {
         console.error('❌ PDF.js não carregado');
@@ -1850,7 +2367,7 @@
       }
       
       if (allLoaded) {
-        statusMessage.innerHTML = '<i class="fas fa-check-circle"></i> Sistema v3.9 Final ativo! Todas as bibliotecas carregadas. Câmera + GIVA/TRIO implementados.';
+        statusMessage.innerHTML = '<i class="fas fa-check-circle"></i> Sistema v4.0 Melhorado ativo! Todas as bibliotecas carregadas. OCR aprimorado implementado.';
         statusMessage.className = 'status-ok';
         librariesLoaded = true;
         
@@ -1858,7 +2375,7 @@
           statusSection.style.display = 'none';
         }, 3000);
         
-        console.log('🎯 Sistema de Extração v3.9 Final inicializado com sucesso!');
+        console.log('🎯 Sistema de Extração v4.0 Melhorado inicializado com sucesso!');
         
         loadDataFromLocalStorage();
         
@@ -1872,9 +2389,9 @@
       }
     }
 
-    // ===== PROCESSAMENTO DE ARQUIVOS =====
+    // ===== PROCESSAMENTO DE ARQUIVOS MELHORADO =====
     async function handleFiles(files) {
-      console.log('📁 Iniciando processamento de arquivos:', files.length);
+      console.log('📁 Iniciando processamento melhorado de arquivos:', files.length);
       
       if (!librariesLoaded) {
         showNotification('⚠️ Aguarde o carregamento do sistema ULTRA-DIRETO!', 'error');
@@ -1906,21 +2423,21 @@
         const file = supportedFiles[i];
         console.log(`📄 Processando ${i + 1}/${supportedFiles.length}: ${file.name} (${file.type})`);
         
-        updateProgress(i, supportedFiles.length, `Aplicando extração ultra-direta em ${file.name}...`);
+        updateProgress(i, supportedFiles.length, `Aplicando extração ultra-direta melhorada em ${file.name}...`);
         
         try {
           let extractedText = '';
           
           if (file.type === 'application/pdf') {
-            console.log('📑 Processando PDF:', file.name);
-            extractedText = await processPDF(file);
+            console.log('📑 Processando PDF melhorado:', file.name);
+            extractedText = await processPDFImproved(file);
           } else if (file.type.startsWith('image/')) {
-            console.log('🖼️ Processando imagem:', file.name);
-            extractedText = await processImage(file);
+            console.log('🖼️ Processando imagem melhorada:', file.name);
+            extractedText = await processImageImproved(file);
           }
           
-          console.log('📝 Texto extraído:', extractedText.length, 'caracteres');
-          console.log('📄 Preview:', extractedText.substring(0, 200) + '...');
+          console.log('📝 Texto extraído melhorado:', extractedText.length, 'caracteres');
+          console.log('📄 Preview:', extractedText.substring(0, 300) + '...');
           
           if (!extractedText || extractedText.trim().length < 10) {
             throw new Error('Texto extraído insuficiente ou vazio');
@@ -1950,12 +2467,14 @@
           
           const errorData = {
             filename: file.name,
-            cnpj_emitente: 'ERRO',
-            nome_emitente: 'Erro no processamento ULTRA-DIRETO',
-            data_emissao: '',
-            numero_documento: '',
-            valor_total: '',
-            descricao: error.message || 'Erro desconhecido',
+            ocr_prestador_cpf_cnpj: 'ERRO',
+            ocr_prestador_nome: 'Erro no processamento ULTRA-DIRETO',
+            ocr_prestador_complemento: '',
+            ocr_numero_nota: '',
+            ocr_data_hora_emissao: '',
+            ocr_valor_servico: '',
+            ocr_descricao_servico: error.message || 'Erro desconhecido',
+            ocr_placa_veiculo: '',
             status: 'error'
           };
           
@@ -1967,7 +2486,7 @@
         }
       }
       
-      updateProgress(supportedFiles.length, supportedFiles.length, 'Extração ultra-direta concluída!');
+      updateProgress(supportedFiles.length, supportedFiles.length, 'Extração ultra-direta melhorada concluída!');
       setTimeout(hideProgress, 2000);
       
       updateStatistics();
@@ -1983,15 +2502,19 @@
       console.log('🎯 Processamento finalizado:', { total: totalProcessed, success: successCount, errors: errorCount });
     }
 
-    // ===== PROCESSAMENTO DE PDF =====
-    async function processPDF(file) {
-      console.log('📑 Iniciando processamento PDF:', file.name, file.size, 'bytes');
+    // ===== PROCESSAMENTO DE PDF MELHORADO =====
+    async function processPDFImproved(file) {
+      console.log('📑 Iniciando processamento PDF melhorado:', file.name, file.size, 'bytes');
       
       try {
         const arrayBuffer = await file.arrayBuffer();
         console.log('📁 ArrayBuffer criado:', arrayBuffer.byteLength, 'bytes');
         
-        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+        const pdf = await pdfjsLib.getDocument({
+          data: arrayBuffer,
+          useSystemFonts: true,
+          standardFontDataUrl: './libs/'
+        }).promise;
         console.log('📖 PDF carregado:', pdf.numPages, 'páginas');
         
         let fullText = '';
@@ -2001,15 +2524,42 @@
           
           try {
             const page = await pdf.getPage(i);
-            const textContent = await page.getTextContent();
-            let pageText = textContent.items.map(item => item.str).join(' ');
             
-            console.log(`📝 Página ${i}: ${pageText.length} caracteres extraídos`);
+            // Tenta extrair texto primeiro
+            const textContent = await page.getTextContent({
+              normalizeWhitespace: true,
+              disableCombineTextItems: false
+            });
             
-            if (!pageText.trim()) {
-              console.log(`🔍 Página ${i} sem texto, tentando OCR...`);
-              pageText = await ocrImagePage(pdf, i);
-              console.log(`🔍 OCR página ${i}: ${pageText.length} caracteres`);
+            let pageText = textContent.items
+              .map(item => {
+                // Preserva quebras de linha baseadas na posição
+                return {
+                  str: item.str,
+                  transform: item.transform,
+                  width: item.width,
+                  height: item.height
+                };
+              })
+              .sort((a, b) => {
+                // Ordena por posição Y (linha) e depois X (coluna)
+                const yDiff = Math.abs(a.transform[5] - b.transform[5]);
+                if (yDiff > 5) { // Nova linha
+                  return b.transform[5] - a.transform[5]; // Y decrescente
+                }
+                return a.transform[4] - b.transform[4]; // X crescente
+              })
+              .map(item => item.str)
+              .join(' ')
+              .replace(/\s+/g, ' ');
+            
+            console.log(`📝 Página ${i}: ${pageText.length} caracteres extraídos via texto`);
+            
+            // Se não conseguiu texto suficiente, tenta OCR
+            if (!pageText.trim() || pageText.length < 50) {
+              console.log(`🔍 Página ${i} sem texto suficiente, tentando OCR melhorado...`);
+              pageText = await ocrImagePageImproved(pdf, i);
+              console.log(`🔍 OCR melhorado página ${i}: ${pageText.length} caracteres`);
             }
             
             fullText += pageText + '\n\n';
@@ -2017,86 +2567,168 @@
           } catch (pageError) {
             console.warn(`⚠️ Erro na página ${i}:`, pageError);
             try {
-              const pageText = await ocrImagePage(pdf, i);
+              const pageText = await ocrImagePageImproved(pdf, i);
               fullText += pageText + '\n\n';
-              console.log(`🔍 OCR de emergência página ${i}: ${pageText.length} caracteres`);
+              console.log(`🔍 OCR de emergência melhorado página ${i}: ${pageText.length} caracteres`);
             } catch (ocrError) {
               console.error(`❌ Falha completa na página ${i}:`, ocrError);
             }
           }
         }
 
-        console.log('✅ PDF processado com sucesso:', fullText.length, 'caracteres totais');
+        console.log('✅ PDF processado com sucesso melhorado:', fullText.length, 'caracteres totais');
         return fullText;
         
       } catch (error) {
-        console.error('❌ Erro no processamento PDF:', error);
+        console.error('❌ Erro no processamento PDF melhorado:', error);
         throw new Error(`Erro ao processar PDF: ${error.message}`);
       }
     }
 
-    async function ocrImagePage(pdf, pageNum) {
-      console.log(`🔍 Iniciando OCR na página ${pageNum}`);
+    async function ocrImagePageImproved(pdf, pageNum) {
+      console.log(`🔍 Iniciando OCR melhorado na página ${pageNum}`);
       
       try {
         const page = await pdf.getPage(pageNum);
-        const viewport = page.getViewport({ scale: 2 });
+        const viewport = page.getViewport({ scale: 3 }); // Maior resolução para melhor OCR
         const canvas = document.createElement('canvas');
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         const ctx = canvas.getContext('2d');
         
-        await page.render({ canvasContext: ctx, viewport }).promise;
-        console.log(`🖼️ Canvas renderizado: ${canvas.width}x${canvas.height}`);
+        // Configurações para melhor qualidade
+        ctx.imageSmoothingEnabled = false;
+        
+        await page.render({ 
+          canvasContext: ctx, 
+          viewport: viewport,
+          renderInteractiveForms: true
+        }).promise;
+        
+        console.log(`🖼️ Canvas renderizado melhorado: ${canvas.width}x${canvas.height}`);
 
         const worker = await Tesseract.createWorker();
-        await worker.load();
+        
+        // Configurações otimizadas para documentos brasileiros
         await worker.loadLanguage('por+eng');
         await worker.initialize('por+eng');
         
-        console.log(`🤖 Tesseract inicializado, processando página ${pageNum}...`);
+        await worker.setParameters({
+          tessedit_pageseg_mode: Tesseract.PSM.AUTO,
+          tessedit_ocr_engine_mode: Tesseract.OEM.LSTM_ONLY,
+          tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝàáâãäåçèéêëìíîïñòóôõöùúûüý .,;:!?()[]{}/"\'\\-_@#$%&*+=<>|'
+        });
+        
+        console.log(`🤖 Tesseract melhorado inicializado, processando página ${pageNum}...`);
 
         const { data: { text } } = await worker.recognize(canvas);
         await worker.terminate();
         
-        console.log(`✅ OCR concluído página ${pageNum}: ${text.length} caracteres`);
+        console.log(`✅ OCR melhorado concluído página ${pageNum}: ${text.length} caracteres`);
         return text;
         
       } catch (error) {
-        console.error(`❌ Erro no OCR página ${pageNum}:`, error);
+        console.error(`❌ Erro no OCR melhorado página ${pageNum}:`, error);
         throw new Error(`Erro no OCR: ${error.message}`);
       }
     }
 
-    // ===== PROCESSAMENTO DE IMAGEM =====
-    async function processImage(file) {
-      console.log('🖼️ Iniciando processamento de imagem:', file.name || 'foto_capturada', file.type || 'image/jpeg', file.size || 'tamanho desconhecido', 'bytes');
+    // ===== PROCESSAMENTO DE IMAGEM MELHORADO =====
+    async function processImageImproved(file) {
+      console.log('🖼️ Iniciando processamento melhorado de imagem:', file.name || 'foto_capturada', file.type || 'image/jpeg', file.size || 'tamanho desconhecido', 'bytes');
       
       try {
+        // Pré-processamento da imagem para melhor OCR
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        const imageUrl = URL.createObjectURL(file);
+        
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = imageUrl;
+        });
+        
+        // Redimensiona se necessário mantendo proporção
+        let { width, height } = img;
+        const maxDimension = 3000; // Máximo para boa qualidade sem explodir memória
+        
+        if (width > maxDimension || height > maxDimension) {
+          const ratio = Math.min(maxDimension / width, maxDimension / height);
+          width *= ratio;
+          height *= ratio;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Desenha com configurações otimizadas
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Aplica filtros para melhorar OCR
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        
+        // Converte para escala de cinza e aumenta contraste
+        for (let i = 0; i < data.length; i += 4) {
+          const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          
+          // Aumenta contraste
+          const contrast = 1.5;
+          const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+          const enhancedGray = Math.min(255, Math.max(0, factor * (gray - 128) + 128));
+          
+          data[i] = enhancedGray;     // R
+          data[i + 1] = enhancedGray; // G
+          data[i + 2] = enhancedGray; // B
+          // data[i + 3] permanece como alpha
+        }
+        
+        ctx.putImageData(imageData, 0, 0);
+        
+        console.log(`🔧 Imagem pré-processada: ${width}x${height}`);
+        
+        URL.revokeObjectURL(imageUrl);
+        
         const { createWorker } = Tesseract;
-        console.log('🤖 Criando worker Tesseract para imagem...');
+        console.log('🤖 Criando worker Tesseract melhorado para imagem...');
         
         const worker = await createWorker();
         
-        console.log('📚 Carregando idioma português...');
-        await worker.loadLanguage('por');
-        await worker.initialize('por');
+        console.log('📚 Carregando idiomas português e inglês...');
+        await worker.loadLanguage('por+eng');
+        await worker.initialize('por+eng');
         
-        console.log('🔍 Iniciando reconhecimento OCR...');
-        const { data: { text } } = await worker.recognize(file);
+        // Configurações otimizadas
+        await worker.setParameters({
+          tessedit_pageseg_mode: Tesseract.PSM.AUTO,
+          tessedit_ocr_engine_mode: Tesseract.OEM.LSTM_ONLY,
+          tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝàáâãäåçèéêëìíîïñòóôõöùúûüý .,;:!?()[]{}/"\'\\-_@#$%&*+=<>|',
+          tessedit_enable_doc_dict: 1,
+          tessedit_enable_dict_correction: 1,
+          language_model_penalty_non_freq_dict_word: 0.1,
+          language_model_penalty_non_dict_word: 0.15
+        });
+        
+        console.log('🔍 Iniciando reconhecimento OCR melhorado...');
+        const { data: { text } } = await worker.recognize(canvas);
         
         await worker.terminate();
-        console.log('✅ Imagem processada com sucesso:', text.length, 'caracteres extraídos');
+        console.log('✅ Imagem processada com sucesso melhorado:', text.length, 'caracteres extraídos');
         
         return text;
         
       } catch (error) {
-        console.error('❌ Erro no processamento de imagem:', error);
+        console.error('❌ Erro no processamento melhorado de imagem:', error);
         throw new Error(`Erro ao processar imagem: ${error.message}`);
       }
     }
 
-    // ===== INTERFACE =====
+    // ===== INTERFACE MELHORADA =====
     function renderResult(data, isError = false) {
       const tbody = document.querySelector('#resultsTable tbody');
       const row = document.createElement('tr');
@@ -2113,12 +2745,14 @@
                         data.status === 'warning' ? '⚠️' : '❌';
       
       row.innerHTML = `
-        <td contenteditable="true">${data.cnpj_emitente || ''}</td>
-        <td contenteditable="true">${data.nome_emitente || ''}</td>
-        <td contenteditable="true">${data.data_emissao || ''}</td>
-        <td contenteditable="true">${data.numero_documento || ''}</td>
-        <td contenteditable="true">${data.valor_total || ''}</td>
-        <td contenteditable="true">${data.descricao || ''}</td>
+        <td contenteditable="true">${data.ocr_prestador_cpf_cnpj || ''}</td>
+        <td contenteditable="true">${data.ocr_prestador_nome || ''}</td>
+        <td contenteditable="true">${data.ocr_prestador_complemento || ''}</td>
+        <td contenteditable="true">${data.ocr_numero_nota || ''}</td>
+        <td contenteditable="true">${data.ocr_data_hora_emissao || ''}</td>
+        <td contenteditable="true">${data.ocr_valor_servico || ''}</td>
+        <td contenteditable="true">${data.ocr_descricao_servico || ''}</td>
+        <td contenteditable="true">${data.ocr_placa_veiculo || ''}</td>
         <td>${statusIcon}</td>
         <td>
           <button class="validate-btn" onclick="validateRow(this)" title="Validar linha">
@@ -2151,8 +2785,8 @@
       const cells = Array.from(row.querySelectorAll('td[contenteditable]'));
       let isValid = true;
       
-      const cnpj = cells[0].textContent.trim();
-      if (cnpj && !/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/.test(cnpj)) {
+      const cpfCnpj = cells[0].textContent.trim();
+      if (cpfCnpj && !/^(\d{3}\.\d{3}\.\d{3}-\d{2}|\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})$/.test(cpfCnpj)) {
         cells[0].style.borderColor = 'red';
         isValid = false;
       } else {
@@ -2165,6 +2799,14 @@
         isValid = false;
       } else {
         cells[1].style.borderColor = '';
+      }
+      
+      const numeroNota = cells[3].textContent.trim();
+      if (!numeroNota || numeroNota.length < 3) {
+        cells[3].style.borderColor = 'red';
+        isValid = false;
+      } else {
+        cells[3].style.borderColor = '';
       }
       
       if (isValid) {
@@ -2224,7 +2866,7 @@
       document.getElementById('clearBtn').disabled = !hasData;
     }
 
-    // ===== EXPORTAÇÃO =====
+    // ===== EXPORTAÇÃO MELHORADA =====
     function exportToExcel() {
       const table = document.getElementById('resultsTable');
       const rows = Array.from(table.querySelectorAll('tbody tr'));
@@ -2232,21 +2874,36 @@
       const data = rows.map(row => {
         const cells = Array.from(row.querySelectorAll('td[contenteditable]'));
         return {
-          'CNPJ Emitente': cells[0].textContent.trim(),
-          'Nome Emitente': cells[1].textContent.trim(),
-          'Data Emissão': cells[2].textContent.trim(),
-          'Nº Documento': cells[3].textContent.trim(),
-          'Valor Total': cells[4].textContent.trim(),
-          'Descrição': cells[5].textContent.trim()
+          'CNPJ/CPF Prestador': cells[0].textContent.trim(),
+          'Nome Prestador': cells[1].textContent.trim(),
+          'Complemento': cells[2].textContent.trim(),
+          'Número da Nota': cells[3].textContent.trim(),
+          'Data/Hora Emissão': cells[4].textContent.trim(),
+          'Valor do Serviço': cells[5].textContent.trim(),
+          'Descrição do Serviço': cells[6].textContent.trim(),
+          'Placa do Veículo': cells[7].textContent.trim()
         };
       });
       
       const ws = XLSX.utils.json_to_sheet(data);
+      
+      // Configurações de largura das colunas
+      ws['!cols'] = [
+        { wch: 18 }, // CNPJ/CPF
+        { wch: 30 }, // Nome
+        { wch: 20 }, // Complemento
+        { wch: 15 }, // Número
+        { wch: 18 }, // Data/Hora
+        { wch: 15 }, // Valor
+        { wch: 40 }, // Descrição
+        { wch: 12 }  // Placa
+      ];
+      
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Despesas_Laser_v39');
+      XLSX.utils.book_append_sheet(wb, ws, 'NFS-e_Melhorado_v40');
       
       const now = new Date();
-      const filename = `despesas_laser_v39_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.xlsx`;
+      const filename = `nfse_melhorado_v40_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.xlsx`;
       
       XLSX.writeFile(wb, filename);
       showNotification('Excel exportado com sucesso!');
@@ -2281,7 +2938,7 @@
       document.getElementById('debugText').textContent = text.substring(0, 2000) + (text.length > 2000 ? '\n... (texto truncado)' : '');
       
       const detailsDiv = document.getElementById('extractionDetails');
-      let html = '<h4>🎯 Processo de Extração v3.9 Final (GIVA + TRIO + CÂMERA):</h4>';
+      let html = '<h4>🎯 Processo de Extração v4.0 Melhorado:</h4>';
       
       if (ultraDirectExtractor.debugSteps.length > 0) {
         html += '<div>';
@@ -2301,7 +2958,7 @@
       detailsDiv.innerHTML = html;
     }
 
-    // ===== INICIALIZAÇÃO =====
+    // ===== INICIALIZAÇÃO MELHORADA =====
     document.addEventListener('DOMContentLoaded', function() {
       const uploadSection = document.getElementById('uploadSection');
       const fileInput = document.getElementById('fileInput');
@@ -2311,45 +2968,27 @@
       
       checkLibraries();
       
-      // Verificação de arquivos das bibliotecas
-      fetch('./libs/pdf.min.mjs')
-        .then(response => {
-          if (response.ok) {
-            console.log('✅ pdf.min.mjs encontrado');
-          } else {
-            console.error('❌ pdf.min.mjs não encontrado - código:', response.status);
-          }
-        })
-        .catch(error => {
-          console.error('❌ Erro ao acessar pdf.min.mjs:', error);
-          showNotification('❌ Biblioteca PDF.js não encontrada na pasta ./libs/', 'error');
-        });
+      // Verificação melhorada de arquivos das bibliotecas
+      const libraryChecks = [
+        { path: './libs/pdf.min.mjs', name: 'pdf.min.mjs' },
+        { path: './libs/tesseract.esm.min.js', name: 'tesseract.esm.min.js' },
+        { path: './libs/xlsx.mjs', name: 'xlsx.mjs' }
+      ];
       
-      fetch('./libs/tesseract.esm.min.js')
-        .then(response => {
-          if (response.ok) {
-            console.log('✅ tesseract.esm.min.js encontrado');
-          } else {
-            console.error('❌ tesseract.esm.min.js não encontrado - código:', response.status);
-          }
-        })
-        .catch(error => {
-          console.error('❌ Erro ao acessar tesseract.esm.min.js:', error);
-          showNotification('❌ Biblioteca Tesseract.js não encontrada na pasta ./libs/', 'error');
-        });
-      
-     fetch('./libs/xlsx.mjs')
-        .then(response => {
-          if (response.ok) {
-            console.log('✅ xlsx.mjs encontrado');
-          } else {
-            console.error('❌ xlsx.mjs não encontrado - código:', response.status);
-          }
-        })  // ← ESTAVA FALTANDO ESTE })
-        .catch(error => {
-          console.error('❌ Erro ao acessar xlsx.mjs:', error);
-          showNotification('❌ Biblioteca XLSX não encontrada na pasta ./libs/', 'error');
-        });
+      libraryChecks.forEach(lib => {
+        fetch(lib.path)
+          .then(response => {
+            if (response.ok) {
+              console.log(`✅ ${lib.name} encontrado`);
+            } else {
+              console.error(`❌ ${lib.name} não encontrado - código:`, response.status);
+            }
+          })
+          .catch(error => {
+            console.error(`❌ Erro ao acessar ${lib.name}:`, error);
+            showNotification(`❌ Biblioteca ${lib.name} não encontrada na pasta ./libs/`, 'error');
+          });
+      });
       
       fileInput.addEventListener('change', function(e) {
         console.log('📁 Arquivos selecionados:', e.target.files.length);
@@ -2361,7 +3000,7 @@
         });
         
         if (files.length > 0) {
-          console.log('🚀 Iniciando processamento de', files.length, 'arquivo(s) válido(s)');
+          console.log('🚀 Iniciando processamento melhorado de', files.length, 'arquivo(s) válido(s)');
           handleFiles(files);
         } else {
           showNotification('❌ Nenhum arquivo PDF ou imagem válido selecionado', 'error');
@@ -2393,7 +3032,7 @@
         });
         
         if (files.length > 0) {
-          console.log('🚀 Iniciando processamento de', files.length, 'arquivo(s) válido(s)');
+          console.log('🚀 Iniciando processamento melhorado de', files.length, 'arquivo(s) válido(s)');
           handleFiles(files);
         } else {
           showNotification('❌ Nenhum arquivo PDF ou imagem válido encontrado', 'error');
@@ -2404,92 +3043,51 @@
       saveBtn.addEventListener('click', saveDataToLocalStorage);
       clearBtn.addEventListener('click', clearAllData);
       
-      console.log('🎯 Sistema v3.9 Final - Totalmente Implementado!');
-      console.log('🔧 CORREÇÕES FINAIS v3.9:');
-      console.log('   ✅ Caminho das bibliotecas: ./libs/ (correto)');
-      console.log('   ✅ GIVA CARDANS LTDA - ME (NOVO - do teste)');
-      console.log('   ✅ TRIO DELICIA DELIVERY LTDA (NOVO - do teste)');
-      console.log('   ✅ IMUNIZADORA JARAGUA LTDA (corrigido)');
-      console.log('   ✅ Sistema de aprendizado automático');
-      console.log('   ✅ Limpeza de nomes melhorada');
-      console.log('📷 FUNCIONALIDADE CÂMERA v3.9:');
-      console.log('   ✅ Câmera para capturar fotos de notas');
-      console.log('   ✅ OCR direto de fotos tiradas');
-      console.log('   ✅ Interface mobile otimizada');
-      console.log('   ✅ Alternância upload/câmera');
-      console.log('📚 Bibliotecas v3.9:');
-      console.log('   ✅ PDF.js: v3.11.174');
-      console.log('   ✅ Tesseract.js: OCR português');
-      console.log('   ✅ SheetJS: v0.18.5');
-      console.log('🆕 ESTRATÉGIAS v3.9 (IMPLEMENTADAS):');
-      console.log('   ✅ GIVA CARDANS LTDA - ME ✓ (NOVO)');
-      console.log('   ✅ TRIO DELICIA DELIVERY LTDA ✓ (NOVO)');
-      console.log('   ✅ IMUNIZADORA JARAGUA LTDA ✓ (CORRIGIDO)');
-      console.log('   ✅ Busca específica Nome/Razão social (MELHORADO)');
-      console.log('   ✅ Seção PRESTADOR específica (MELHORADO)');
-      console.log('🆕 ESTRATÉGIAS v3.8 (mantidas):');
-      console.log('   ✅ VANTOIR DERETTI ME ✓');
-      console.log('   ✅ SERVOPA CAMINHOES LTDA ✓');
-      console.log('   ✅ TRANSPOTECH PECAS E SERVICOS LTDA ✓');
-      console.log('   ✅ SINDICATO DO COMERCIO VAREJISTA ✓');
-      console.log('   ✅ FSC COMUNICACOES LTDA ✓');
-      console.log('🔧 Estratégias Mantidas (todas as versões):');
-      console.log('   ✅ M.A. DA SILVA VIEIRA - AUTO ELÉTRICA ✓');
-      console.log('   ✅ BHS MARINGA TECNOLOGIA LTDA ✓');
-      console.log('   ✅ PORTEC COMERCIO ✓');
-      console.log('   ✅ TRANORTE SISTEMAS MECANIZADOS LTDA ✓');
-      console.log('   ✅ POSTO Z4 LTDA ✓');
-      console.log('   ✅ CONTABILIDADE ORLANDO AMORIM ✓');
-      console.log('   ✅ W.O. RIGO FILHO ✓');
-      console.log('   ✅ FUNILARIA NITZ LTDA ✓');
-      console.log('   ✅ SASCAR TECNOLOGIA ✓');
-      console.log('   ✅ Seção PRESTADOR (RD CARTUCHOS) ✓');
-      console.log('   ✅ LUCIA IVONETE específica ✓');
-      console.log('🚀 MELHORIAS IMPLEMENTADAS:');
-      console.log('   ✅ Sistema de notificações visuais');
-      console.log('   ✅ Estatísticas em tempo real');
-      console.log('   ✅ Filtros de dados avançados');
-      console.log('   ✅ Sistema de backup/restore automático');
-      console.log('   ✅ Validação de dados interativa');
-      console.log('   ✅ Interface responsiva mobile');
-      console.log('   ✅ Diagnóstico de bibliotecas');
-      console.log('   ✅ Logging detalhado para debug');
-      console.log('   ✅ CÂMERA integrada (NOVO)');
-      console.log('   ✅ Sistema de aprendizado (NOVO)');
-      
-      console.log('📁 ESTRUTURA DE ARQUIVOS FINAL:');
-      console.log('   📄 index.html (este arquivo)');
-      console.log('   📁 ./libs/');
-      console.log('   📄   ├── pdf.min.mjs');
-      console.log('   📄   ├── pdf.worker.min.mjs');
-      console.log('   📄   ├── tesseract.esm.min.js');
-      console.log('   📄   └── xlsx.mjs');
-      
-      console.log('🎯 CASOS DE TESTE SUPORTADOS:');
-      console.log('   ✅ GIVA CARDANS LTDA - ME (dos seus testes)');
-      console.log('   ✅ TRIO DELICIA DELIVERY LTDA (dos seus testes)');
-      console.log('   ✅ IMUNIZADORA JARAGUA LTDA (problema original)');
-      console.log('   ✅ Todas as empresas anteriores');
-      
-      console.log('🔧 DIAGNÓSTICO FINAL:');
-      console.log('   ✅ Imports ES6 corretos (./libs/)');
-      console.log('   ✅ Worker PDF.js configurado');
-      console.log('   ✅ Tesseract OCR funcional');
-      console.log('   ✅ SheetJS para exportação Excel');
-      console.log('   ✅ Sistema 100% funcional');
-      
-      console.log('📱 MODO DE USO:');
-      console.log('   1️⃣ Desktop: Arraste PDFs ou clique em Upload');
-      console.log('   2️⃣ Mobile: Use "Tirar Foto da Nota" → Ativar Câmera → Capturar');
-      console.log('   3️⃣ Sistema aprende automaticamente novas empresas');
-      console.log('   4️⃣ Exporte para Excel quando terminar');
+      console.log('🎯 Sistema v4.0 Melhorado - Totalmente Implementado!');
+      console.log('🔧 MELHORIAS v4.0:');
+      console.log('   ✅ Extração específica de todos os campos solicitados');
+      console.log('   ✅ ocr_prestador_complemento implementado');
+      console.log('   ✅ ocr_prestador_cpf_cnpj implementado');
+      console.log('   ✅ ocr_numero_nota melhorado');
+      console.log('   ✅ ocr_data_hora_emissao melhorado');
+      console.log('   ✅ ocr_valor_servico melhorado');
+      console.log('   ✅ ocr_descricao_servico melhorado');
+      console.log('   ✅ ocr_placa_veiculo implementado');
+      console.log('📱 OCR MELHORADO v4.0:');
+      console.log('   ✅ Pré-processamento de imagem para melhor qualidade');
+      console.log('   ✅ Configurações otimizadas Tesseract');
+      console.log('   ✅ Suporte completo a acentos portugueses');
+      console.log('   ✅ Melhor extração de texto em PDFs');
+      console.log('   ✅ Ordenação inteligente de texto por posição');
+      console.log('📋 CAMPOS EXTRAÍDOS v4.0:');
+      console.log('   ✅ CPF/CNPJ do Prestador (validação incluída)');
+      console.log('   ✅ Nome do Prestador (sistema de aprendizado)');
+      console.log('   ✅ Complemento do Prestador (endereço)');
+      console.log('   ✅ Número da Nota (múltiplas estratégias)');
+      console.log('   ✅ Data/Hora de Emissão (formatos variados)');
+      console.log('   ✅ Valor do Serviço (validação monetária)');
+      console.log('   ✅ Descrição do Serviço (análise contextual)');
+      console.log('   ✅ Placa do Veículo (formatos antigo e Mercosul)');
+      console.log('🆕 VALIDAÇÕES v4.0:');
+      console.log('   ✅ Validação de CPF com dígitos verificadores');
+      console.log('   ✅ Validação de CNPJ com dígitos verificadores');
+      console.log('   ✅ Validação de placas (antigo e Mercosul)');
+      console.log('   ✅ Validação de valores monetários');
+      console.log('   ✅ Validação de datas (formato e período)');
+      console.log('   ✅ Validação de nomes de empresas');
+      console.log('🚀 SISTEMA COMPLETO:');
+      console.log('   ✅ Interface adaptada para novos campos');
+      console.log('   ✅ Exportação Excel melhorada');
+      console.log('   ✅ Sistema de filtros atualizado');
+      console.log('   ✅ Debug detalhado para cada campo');
+      console.log('   ✅ Estatísticas atualizadas');
       
       console.log('');
-      console.log('🎯 SISTEMA v3.9 FINAL PRONTO PARA USO! 🎯');
-      console.log('✅ Todas as correções implementadas');
-      console.log('✅ Câmera funcional');
-      console.log('✅ Casos de teste suportados');
-      console.log('✅ Sistema de aprendizado ativo');
+      console.log('🎯 SISTEMA v4.0 MELHORADO PRONTO PARA USO! 🎯');
+      console.log('✅ Todas as funcionalidades solicitadas implementadas');
+      console.log('✅ OCR otimizado para documentos brasileiros');
+      console.log('✅ Extração completa de todos os campos');
+      console.log('✅ Validações robustas implementadas');
       console.log('');
     });
   </script>
